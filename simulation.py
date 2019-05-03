@@ -50,20 +50,24 @@ def run_simulation(G):
     G: Graph to run simulation over
     """
 
+    def graph_utilities():
+        return [ v.utility for v in G.vertices ]
+
     def calc_util():
-        return sum([ v.utility for v in G.vertices ])
+        return sum(graph_utilities())
 
     #Get initial utility
     init_util = calc_util()
 
     social_opt = max(G.vertices[0].prov_rating.values()) * G.num_people
-    print("Optimal social welfare: {0}".format(social_opt))
 
-    print("Initial utility: {0}".format(init_util / social_opt))
+    #Utilities over time
+    utilities = []
 
     prev_util = init_util
     iter_num = 0
     while True:
+        utilities.append(graph_utilities())
         
         #Simultaneously allocate time for each person
         t_allocs = {}
@@ -97,7 +101,6 @@ def run_simulation(G):
                     num_nonzero += 1
 
         if not num_nonzero:
-            print("All time expended, ending")
             break
 
         #Transfer information
@@ -116,15 +119,13 @@ def run_simulation(G):
             cur_met = min_expec_time(time_expected)
 
         cur_util = calc_util()
-        print("At {0} utility was {1}".format(iter_num, cur_util / social_opt))
 
         if prev_util == cur_util:
-            print("No improvement, ending")
             break
 
         prev_util = cur_util
         iter_num += 1
-    return G
+    return G, utilities
 
 def simple_sim():
     """
