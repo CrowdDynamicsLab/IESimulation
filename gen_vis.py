@@ -93,7 +93,8 @@ def plot_graph(G, radius):
     vtx_trace = init_vertex_traces()
 
     vtx_trace, edge_trace = populate_traces_init(G, radius, vtx_trace, edge_trace)
-
+    
+    #Figure def taken from plotly tutorial
     g_fig = go.Figure(data=[edge_trace, vtx_trace],
                       layout=go.Layout(
                         title="Information Elicitation Simulation",
@@ -103,25 +104,28 @@ def plot_graph(G, radius):
                                   showticklabels=False),
                         yaxis=dict(showgrid=False, zeroline=False,
                                   showticklabels=False),
-                        updatemenus= [{'type': 'buttons',
-                                       'buttons': [{'label': 'Play Simulation',
-                                       'method': 'animate',
-                                       'args': [None]}]}]),
+                      updatemenus=[dict(
+                          buttons=[dict(args=[None],
+                                        label='Play',
+                                        method='animate')],
+                          pad={'r':10, 't':87},
+                          showactive=False,
+                          type='buttons')]),
                       frames=[])
 
     return g_fig
-
-def update_vtx_trace_text(text, util):
-    return text[:text.find(' ') + 1] + str(util)
 
 def animate_simulation(g_fig, utils):
     """
     g_fig is a plotly Figure
     utils represents utilites over time of the simulation
     """
+
+    #Vertex values
     edge_trace = g_fig['data'][0]
     vtx_trace = g_fig['data'][1]
     vtx_copies = [ copy.deepcopy(vtx_trace) for i in range(len(utils)) ]
+
     for vcpy, util in zip(vtx_copies, utils):
 
         #Update text
@@ -134,6 +138,5 @@ def animate_simulation(g_fig, utils):
 
     #Add frames to animation
     sim_frames = [ dict(data=[edge_trace, sim_vtx]) for sim_vtx in vtx_copies ]
-    sim_frames.append(dict(data=[edge_trace, vtx_trace]))
     g_fig['frames'] = sim_frames
     return g_fig
