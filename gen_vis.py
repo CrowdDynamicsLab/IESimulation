@@ -4,6 +4,7 @@ import plotly.graph_objs as go
 from plotly.offline import iplot, init_notebook_mode
 import numpy as np
 
+#GENERAL PLOT METHODS
 def calc_kreg_pos(n, r):
     """
     Calculates coordinates for a cycle graph
@@ -161,3 +162,73 @@ def animate_simulation(g_fig, utils):
     sim_frames = [ dict(data=[edge_trace, sim_vtx]) for sim_vtx in vtx_copies ]
     g_fig['frames'] = sim_frames
     return g_fig
+
+#STATS OVER TIME
+def plot_util_avg(utils):
+    """
+    Plots mean and median of utils over time
+    """
+    iterations = list(range(len(utils)))
+    means = np.mean(utils, axis=1)
+    medians = np.median(utils, axis=1)
+    mean_trace = go.Scatter(x=iterations, y=means, mode='lines', name='Mean')
+    med_trace = go.Scatter(x=iterations, y=medians, mode='lines', name='Median')
+    avg_fig = go.Figure(data=[mean_trace, med_trace],
+                        layout=go.Layout(
+                            title='Mean and median over time',
+                            showlegend=True,
+                            xaxis=dict(title=dict(text='Iteration')),
+                            yaxis=dict(title=dict(text='Utility'))))
+    return avg_fig
+
+def plot_util_minmax(utils):
+    """
+    Plots min and max of utils over time
+    """
+    iterations = list(range(len(utils)))
+    minvals = np.max(utils, axis=1)
+    maxvals = np.min(utils, axis=1)
+    max_trace = go.Scatter(x=iterations, y=maxvals, mode='lines', name='Mean')
+    min_trace = go.Scatter(x=iterations, y=minvals, mode='lines', name='Median')
+    minmax_fig = go.Figure(data=[max_trace, min_trace],
+                        layout=go.Layout(
+                            title='Min and max over time',
+                            showlegend=True,
+                            xaxis=dict(title=dict(text='Iteration')),
+                            yaxis=dict(title=dict(text='Utility'))))
+    return minmax_fig
+
+def plot_util_std(utils):
+    """
+    Plots std of utils over time
+    """
+    iterations = list(range(len(utils)))
+    stdvals = np.std(utils, axis=1)
+    std_trace = go.Scatter(x=iterations, y=stdvals, mode='lines', name='Std')
+    std_fig = go.Figure(data=[std_trace],
+                        layout=go.Layout(
+                            title='Standard deviation over time',
+                            showlegend=True,
+                            xaxis=dict(title=dict(text='Iteration')),
+                            yaxis=dict(title=dict(text='Utility'))))
+    return std_fig
+
+def plot_util_optimality(utils):
+    """
+    Plots percent optimality (current overall utility over max possible)
+    over time
+    """
+    iterations = list(range(len(utils)))
+    max_util = len(utils[0])
+
+    util_sums = np.sum(utils, axis=1)
+    optvals = util_sums / max_util
+    opt_trace = go.Scatter(x=iterations, y=optvals, mode='lines', name='Percent')
+    opt_fig = go.Figure(data=[opt_trace],
+                        layout=go.Layout(
+                            title='Percent optimality over time',
+                            showlegend=True,
+                            xaxis=dict(title=dict(text='Iteration')),
+                            yaxis=dict(title=dict(text='Percent optimality'))))
+    return opt_fig
+

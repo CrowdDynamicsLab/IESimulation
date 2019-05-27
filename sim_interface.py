@@ -23,10 +23,10 @@ class SimpleSimulator(Simulator):
         self.num_vertices = -1
         self.regularity = -1
         
-        self.vtx_widget = widgets.IntText(value=2,
+        self.vtx_widget = widgets.IntText(value=8,
                                     description='Vertex Count (Rounded to Even)',
                                     disabled=False)
-        self.reg_widget = widgets.IntText(value=1,
+        self.reg_widget = widgets.IntText(value=4,
                                     description='Graph Regularity',
                                     disabled=False)
         self.trans_prob_widget = widgets.FloatSlider(value=0.1,
@@ -59,14 +59,35 @@ class SimpleSimulator(Simulator):
         
         self.render_visuals()
         
-    def render_visuals(self):
+    def render_visuals(self, utils=None):
+        """
+        Renders visual components
+        If utils is None then does not render stats
+        Otherwise expects list of lists of utils per iteration
+        """
+
+        #Render widgets
         display(self.vtx_widget)
         display(self.reg_widget)
         display(self.trans_prob_widget)
         display(self.time_alloc_widget)
-        
         display(self.update_button)
+
+        #Render overall plot
         iplot(self.plot_fig)
+
+        #Render stat plots
+        if not utils:
+            return
+
+        avg_fig = gen_vis.plot_util_avg(utils)
+        iplot(avg_fig)
+        minmax_fig = gen_vis.plot_util_minmax(utils)
+        iplot(minmax_fig)
+        std_fig = gen_vis.plot_util_std(utils)
+        iplot(std_fig)
+        opt_fig = gen_vis.plot_util_optimality(utils)
+        iplot(opt_fig)
         
     def update_graph(self, button):
         vtx_count = self.vtx_widget.value
@@ -95,9 +116,11 @@ class SimpleSimulator(Simulator):
         #Update graph frames from simulation
         G_s, G_utils = simulation.run_simulation(self.graph)
         self.plot_fig = gen_vis.animate_simulation(self.plot_fig, G_utils)
+
+        #Render visuals
         num_steps = len(self.plot_fig['frames'])
         clear_output()
-        self.render_visuals()
+        self.render_visuals(G_utils)
         print("Diameter: {0}".format(diameter))
         print("Step Count: {0}".format(num_steps))
 
