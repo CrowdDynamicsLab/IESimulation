@@ -12,7 +12,7 @@ simualtion.py contains code to run actual simulations over graph
 Should be noted that simulations may be destructive on graph structure
 
 # TODO
-* Use slider for animation for easier inspection
 * Add graphical interface for creating graphs
 * More interesting simulation parameters
 * More interesting graph parameters
+* Add charts for showing change in utility over time

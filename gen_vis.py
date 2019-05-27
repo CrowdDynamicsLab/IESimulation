@@ -50,7 +50,7 @@ def init_vertex_traces():
             reversescale=True))
     return vtx_trace
 
-def populate_traces_init(G, radius, vtx_trace, edge_trace):
+def init_trace_values(G, radius, vtx_trace, edge_trace):
     """
     Adds initial data to edge and vertex traces
     """
@@ -83,6 +83,27 @@ def populate_traces_init(G, radius, vtx_trace, edge_trace):
 
     return vtx_trace, edge_trace
 
+def create_empty_plot():
+    edge_trace = init_edge_traces()
+    vtx_trace = init_vertex_traces()
+    g_fig = go.Figure(data=[edge_trace, vtx_trace],
+                      layout=go.Layout(
+                        title="Information Elicitation Simulation",
+                        showlegend=False,
+                        hovermode='closest',
+                        xaxis=dict(showgrid=False, zeroline=False,
+                                  showticklabels=False),
+                        yaxis=dict(showgrid=False, zeroline=False,
+                                  showticklabels=False),
+                      updatemenus=[dict(
+                          buttons=[dict(args=[None],
+                                        label='Play',
+                                        method='animate')],
+                          pad={'r':10, 't':87},
+                          showactive=False,
+                          type='buttons')]),
+                      frames=[])
+    return g_fig
 
 def plot_graph(G, radius):
     """
@@ -92,7 +113,7 @@ def plot_graph(G, radius):
     edge_trace = init_edge_traces()
     vtx_trace = init_vertex_traces()
 
-    vtx_trace, edge_trace = populate_traces_init(G, radius, vtx_trace, edge_trace)
+    vtx_trace, edge_trace = init_trace_values(G, radius, vtx_trace, edge_trace)
     
     #Figure def taken from plotly tutorial
     g_fig = go.Figure(data=[edge_trace, vtx_trace],
