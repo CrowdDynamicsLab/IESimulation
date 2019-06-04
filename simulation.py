@@ -3,7 +3,7 @@ import numpy as np
 from collections import defaultdict
 
 #Util methods
-def alloc_time(t, n):
+def even_alloc_time(t, n):
     """
     Allocate t amount of time n ways evenly
     Returns list of allocations and amount of time left
@@ -14,12 +14,31 @@ def alloc_time(t, n):
     allocs = np.linspace(0, t, n)
     return list(allocs), 0
 
+def rand_alloc_time(t, n):
+    """
+    Allocates t amount of time n ways randomly
+    Based on dirichlet distribution
+    Returns list of allocations and amount of time left
+    NOTE: As a rounding error allocs may sum to be slightly
+    greater than t
+    """
+    if t == 0:
+        return [0] * n, 0
+    
+    allocs = np.random.dirichlet(np.ones(n)) * t
+    return list(allocs), 0
+
 def calc_trans_prob(tr, ta):
     """
     Takes base transmission rate (tr) and time allocated (ta)
     to determine the probability of information transmission
+    NOTE: This needs to be refined
+    How should time allocated impact this? Because expected time
+    is calculated and compared to time allocated time allocated
+    has no direct impact on probability but unless time allocated
+    is sufficiently large no transmission will occur
     """
-    return tr ** ta
+    return tr
 
 def calc_expected_time(tp):
     """
@@ -39,7 +58,7 @@ def min_expec_time(expec_times):
     vtex_mins = [ min(nbor.values()) for nbor in expec_times.values() ]
     return min(vtex_mins)
 
-def run_simulation(G):
+def run_simulation(G, random_time=False):
     """
     Runs a simple simulation of a graph
     No changes are applied to given values such as
@@ -55,6 +74,13 @@ def run_simulation(G):
 
     def calc_util():
         return sum(graph_utilities())
+
+    #Set up time allocation method
+    alloc_time = None
+    if random_time:
+        alloc_time = rand_alloc_time
+    else:
+        alloc_time = even_alloc_time
 
     #Get initial utility
     init_util = calc_util()

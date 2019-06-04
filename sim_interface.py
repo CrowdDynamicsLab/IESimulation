@@ -41,6 +41,12 @@ class SimpleSimulator(Simulator):
         self.time_alloc_widget = widgets.IntText(value=100,
                                     description='Initial Time Allocation',
                                     disabled=False)
+        self.random_time_widget = widgets.ToggleButton(value=False,
+                                    description='Randomize Time Allocation',
+                                    disabled=False,
+                                    button_style='info',
+                                    tooltip='Random time allocation',
+                                    icon='check')
         
         #Update button
         self.update_button = widgets.Button(
@@ -71,6 +77,7 @@ class SimpleSimulator(Simulator):
         display(self.reg_widget)
         display(self.trans_prob_widget)
         display(self.time_alloc_widget)
+        display(self.random_time_widget)
         display(self.update_button)
 
         #Render overall plot
@@ -94,6 +101,7 @@ class SimpleSimulator(Simulator):
         regularity = self.reg_widget.value
         trans_prob = self.trans_prob_widget.value
         time_alloc = self.time_alloc_widget.value
+        random_time = self.random_time_widget.value
         
         #Round to next highest even
         if vtx_count % 2 == 1:
@@ -114,7 +122,7 @@ class SimpleSimulator(Simulator):
         self.plot_fig.add_traces([edge_trace, vtx_trace])
         
         #Update graph frames from simulation
-        G_s, G_utils = simulation.run_simulation(self.graph)
+        G_s, G_utils = simulation.run_simulation(self.graph, random_time)
         self.plot_fig = gen_vis.animate_simulation(self.plot_fig, G_utils)
 
         #Render visuals

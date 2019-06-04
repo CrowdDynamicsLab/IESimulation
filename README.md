@@ -22,5 +22,8 @@ Should be noted that simulations may be destructive on graph structure
 # Simulation TODOs
 * Add ability to create multiple cliques
 * Add ability to vary transmission probabilities
-* Add more interesting time allocation schemes
+    * Currently probability == given rate
+* Add more interesting time allocation schemes. Current:
+    * Dirichlet
+    * Even
 * Different schemes of communication continuation
