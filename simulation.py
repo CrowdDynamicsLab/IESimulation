@@ -165,6 +165,42 @@ def simple_sim():
     print("Running simple simulation")
     return run_simulation(G)
 
+def simple_runs_fix_reg(start_size, end_size, fixed_val, trans_rate, time_alloc, fixed, random_time=False):
+    """
+    Run simple simulation over many graphs
+    Useful for analysis of network performance as some variable changes
+    start_size: Start of variable param range
+    end_sie: End of variable param range. Exclusive
+    fixed_val: Value of fixed param
+    trans_rate: Baseline transmission probability
+    time_alloc: Initial time allocation per vertex. If this is a function it must take
+                one variable, the size, and output a time allocation
+    fixed: Which paramter is fixed. 'size' or 'reg'
+    random_time: Whether time is allocated randomly
+    """
+
+    if fixed != 'size' and fixed != 'reg':
+        raise ValueError("fixed must be one of 'size' or 'reg'")
+
+    sim_results = []
+    for cur_var in range(start_size, end_size):
+        if fixed == 'size':
+            g_size = fixed_val
+            reg = cur_var
+        else:
+            g_size = cur_var
+            reg = fixed_val
+
+        if callable(time_alloc):
+            allocated = time_alloc(g_size)
+        else:
+            allocated = time_alloc
+
+        cur_G = graph.const_kregular(reg, g_size, trans_rate, allocated)
+        res_g, res_utils = run_simulation(cur_G, random_time)
+        sim_results.append(res_utils)
+    return sim_results
+
 def main():
     simple_sim()
 

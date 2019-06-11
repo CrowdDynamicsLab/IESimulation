@@ -132,3 +132,119 @@ class SimpleSimulator(Simulator):
         print("Diameter: {0}".format(diameter))
         print("Step Count: {0}".format(num_steps))
 
+class OverviewSimulator:
+    """
+    Easy interface for observing aggregated metrics over
+    several runs
+    agg_method: How to aggregate results of each util set from simulations
+    """
+    def __init__(self, agg_method):
+        self.agg_method = agg_method
+
+        #Graphs created by each simulation set parameters
+        self.results = []
+
+        self.range_start_widget = widgets.IntText(value=10,
+                                    description='Variable Param Range Start',
+                                    disabled=False)
+        self.range_end_widget = widgets.IntText(value=100,
+                                    description='Variable Param Range End',
+                                    disabled=False)
+        self.fixed_param_widget = widgets.IntText(value=4,
+                                    description='Fixed Param Value',
+                                    disabled=False)
+        self.select_fixed = widgets.RadioButtons(
+                options=['reg', 'size'],
+                                    description='Which parameter to fix',
+                                    disabled=False)
+        self.trans_prob_widget = widgets.FloatSlider(value=0.1,
+                                    min=0.0,
+                                    max=1.0,
+                                    step=0.01,
+                                    description='Transmission Probability',
+                                    disabled=False,
+                                    orientation='horizontal',
+                                    continuous_update=False,
+                                    readout=True)
+        self.time_alloc_widget = widgets.IntText(value=100,
+                                    description='Initial Time Allocation',
+                                    disabled=False)
+        self.random_time_widget = widgets.ToggleButton(value=False,
+                                    description='Randomize Time Allocation',
+                                    disabled=False,
+                                    button_style='info',
+                                    tooltip='Random time allocation',
+                                    icon='check')
+        #Update button
+        self.add_set_button = widgets.Button(
+                                    description='Add simulation set',
+                                    disabled=False,
+                                    button_style='',
+                                    tooltip='Add a simulation set with current params')
+        self.rem_set_button = widgets.Button(
+                                    description='Remove simulation set',
+                                    disabled=False,
+                                    button_style='',
+                                    tooltip='Removes most recent set')
+        self.run_all_button = widgets.Button(
+                                    description='Run all simulations',
+                                    disabled=False,
+                                    button_style='',
+                                    tooltip='Runs all current simulation sets')
+        self.add_set_button.on_click(self.add_sim)
+        self.rem_set_button.on_click(self.rem_sim)
+        self.run_all_button.on_click(self.run_all)
+
+        #Initial visuals
+        self.render_visuals()
+        
+    def render_visuals(self, utils=None):
+        """
+        Renders visual components
+        If utils is None then does not render stats
+        Otherwise expects list of lists of utils per iteration
+        """
+
+        #Render widgets
+        display(self.range_start_widget)
+        display(self.range_end_widget)
+        display(self.fixed_param_widget)
+        display(self.select_fixed)
+        display(self.trans_prob_widget)
+        display(self.time_alloc_widget)
+        display(self.random_time_widget)
+        display(self.add_set_button)
+        display(self.rem_set_button)
+        display(self.run_all_button)
+
+        #Render stat plots
+        if not utils:
+            return
+
+        agg_data = lambda uts: [ self.agg_method(ut) for ut in uts ]
+        aggregated = [ agg_data(uts) for uts in utils ]
+        iplot(gen_vis.simple_multiplot(aggregated,
+            'Aggregated Utils',
+            'Range iteration',
+            'Aggregated utility'))
+
+    def add_sim(self, button):
+        range_start = self.range_start_widget.value
+        range_end = self.range_end_widget.value
+        fixed_val = self.fixed_param_widget.value
+        fixed = self.select_fixed.value
+        trans_rate = self.trans_prob_widget.value
+        time_alloc = self.time_alloc_widget.value
+        random_time = self.random_time_widget.value
+
+        sim_results = simulation.simple_runs_fix_reg(range_start, range_end,
+                fixed_val, trans_rate, time_alloc, fixed, random_time)
+        self.results.append(sim_results)
+        
+    def rem_sim(self, button):
+        if len(self.results) > 0:
+            self.results.pop(-1)
+
+    def run_all(self, button):
+        clear_output()
+        self.render_visuals(self.results)

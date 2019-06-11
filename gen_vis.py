@@ -232,3 +232,30 @@ def plot_util_optimality(utils):
                             yaxis=dict(title=dict(text='Percent optimality'))))
     return opt_fig
 
+def empty_plot():
+    return go.Figure()
+
+def simple_multiplot(utilities, plot_title, x_title, y_title):
+    """
+    Plots utilities or aggregated utilities
+    If utilities is 2D, overlays each dimension on same plot
+    Otherwise just plots the 1D array
+    """
+    is_nd = type(utilities) == list and type(utilities[0]) == list
+    trace_set = None
+    if is_nd:
+        trace_set = []
+        for util_set in utilities:
+            cur_trace = go.Scatter(
+                    y=util_set,
+                    mode='lines')
+            trace_set.append(cur_trace)
+    else:
+        trace_set = utilities
+
+    plot_layout = go.Layout(
+                    xaxis=dict(title=x_title),
+                    yaxis=dict(title=y_title),
+                    title=plot_title)
+    return go.Figure(data=trace_set, layout=plot_layout)
+
