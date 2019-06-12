@@ -137,6 +137,7 @@ class OverviewSimulator:
     Easy interface for observing aggregated metrics over
     several runs
     agg_method: How to aggregate results of each util set from simulations
+                Method should take an 2D array (array of utilities for each run)
     """
     def __init__(self, agg_method):
         self.agg_method = agg_method
