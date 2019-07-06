@@ -24,6 +24,6 @@ Should be noted that simulations may be destructive on graph structure
 * Add ability to vary transmission probabilities
     * Currently probability == given rate
 * Add more interesting time allocation schemes. Current:
-    * Dirichlet
     * Even
 * Different schemes of communication continuation
+* Weight distribution of initial service providers
