@@ -99,6 +99,10 @@ def const_kregular(k, n, itrate, time_alloc):
 
     #Initialize providers
     num_prov = int(n ** 0.5)
+    
+    #Increasing number of providers increases number of non-convergence cases
+    #but does not create cases where converges in >3 cases
+    #num_prov = n
     provs = list(range(num_prov))
 
     #Assume rankings are objective and global
