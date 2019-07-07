@@ -101,7 +101,7 @@ def const_kregular(k, n, itrate, time_alloc):
     num_prov = int(n ** 0.5)
     
     #Increasing number of providers increases number of non-convergence cases
-    #but does not create cases where converges in >3 cases
+    #but does not create case where converges in >3 iterations
     #num_prov = n
     provs = list(range(num_prov))
 

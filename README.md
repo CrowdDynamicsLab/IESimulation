@@ -16,6 +16,8 @@ sim_interface.py contains code to generate IPython interface
 Should be noted that simulations may be destructive on graph structure
 
 # TODO
+* Figure out why number of iterations is capped at 3
+    * Code issue vs simulation issue?
 * More interesting simulation parameters
 * More interesting graph parameters
 

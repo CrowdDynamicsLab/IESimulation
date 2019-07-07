@@ -131,6 +131,7 @@ def run_simulation(G, random_time=False):
 
         #Transfer information
 
+        #Simultanenusly subtract all expected time
         #Current min expected time
         cur_met = min_expec_time(time_expected)
         while (cur_met > 0):
