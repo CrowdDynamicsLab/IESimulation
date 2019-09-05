@@ -11,7 +11,9 @@ def even_alloc_time(t, n):
     if t == 0:
         return [0] * n, 0
 
-    allocs = np.linspace(0, t, n)
+    time_splits = np.linspace(0, t, n + 1, dtype=int)
+    allocs = [ time_splits[i + 1] - time_splits[i]\
+            for i in range(len(time_splits) - 1) ]
     return list(allocs), 0
 
 def rand_alloc_time(t, n):
@@ -58,7 +60,49 @@ def min_expec_time(expec_times):
     vtex_mins = [ min(nbor.values()) for nbor in expec_times.values() ]
     return min(vtex_mins)
 
-def run_simulation(G, random_time=False):
+def simul_info_transfer(G, time_expected):
+    #Simultanenusly subtract all expected time
+    #Current min expected time
+    cur_met = min_expec_time(time_expected)
+    while (cur_met > 0):
+        for v in np.random.permutation(G.vertices):
+            for nbor in v.edges:
+                time_expected[v][nbor] -= cur_met
+
+                #Expected time has passed
+                if time_expected[v][nbor] <= 0:
+                    if v.utility < nbor.utility:
+                        v.provider = nbor.provider
+        cur_met = min_expec_time(time_expected)
+
+def seq_info_transfer(G, min_times):
+    # Sequentially iterate over each vertex and attempt info transmission
+
+    trate = next(iter(G.vertices[0].edges.values())).trate
+    for v in np.random.permutation(G.vertices):
+        for nbor in np.random.permutation(list(v.edges.keys())):
+            if min_times[v][nbor] == -1 or min_times[nbor][v] == -1:
+                continue
+
+            for t_iter in range(min_times[v][nbor]):
+                if np.random.rand() < trate:
+
+                    #Info swapped, change utilities if need be
+                    if v.utility < nbor.utility:
+                        v.provider = nbor.provider
+                    elif nbor.utility < v.utility:
+                        nbor.provider = v.provider
+
+                    #No need to continue talking
+                    min_times[v][nbor] = -1
+                    min_times[nbor][v] = -1
+                    continue
+
+            #Allocated time used up, don't double count
+            min_times[v][nbor] = -1
+            min_times[nbor][v] = -1
+
+def run_simulation(G, random_time=False, simul=True):
     """
     Runs a simple simulation of a graph
     No changes are applied to given values such as
@@ -67,6 +111,7 @@ def run_simulation(G, random_time=False):
     People do not know their connections providers at any time
 
     G: Graph to run simulation over
+    simul: If true then runs transmission step simultaneously, else sequentially
     """
 
     def graph_utilities():
@@ -99,14 +144,20 @@ def run_simulation(G, random_time=False):
         t_allocs = {}
         for v in G.vertices:
             t_allocs[v], t_left = alloc_time(v.time, v.degree)
-            v.time = t_left
 
         #Get amount of interaction time for each person
         num_nonzero = 0
         time_expected = defaultdict(lambda : {})
+        min_times = defaultdict(lambda : {})
         for v in G.vertices:
             for nbor, nedge in v.edges.items():
+
+                #In simultaneous case
                 if v in time_expected[nbor] or nbor in time_expected[v]:
+                    continue
+
+                #In sequential case
+                if v in min_times[nbor] or nbor in min_times[v]:
                     continue
 
                 #Amount of time agreed to spend
@@ -114,14 +165,15 @@ def run_simulation(G, random_time=False):
                 ntime = t_allocs[nbor].pop()
                 min_time = min(vtime, ntime)
 
-                #Get expected time to transmit information
-                tprob = calc_trans_prob(nedge.trate, min_time)
-                texpec = calc_expected_time(tprob)
-                time_expected[v][nbor] = texpec
-                time_expected[nbor][v] = texpec
-
-                v.time += max(vtime - texpec, 0)
-                nbor.time += max(ntime - texpec, 0)
+                if simul:
+                    #Get expected time to transmit information
+                    tprob = calc_trans_prob(nedge.trate, min_time)
+                    texpec = calc_expected_time(tprob)
+                    time_expected[v][nbor] = texpec
+                    time_expected[nbor][v] = texpec
+                else:
+                    min_times[v][nbor] = min_time
+                    min_times[nbor][v] = min_time
 
                 if min_time > 0:
                     num_nonzero += 1
@@ -130,20 +182,10 @@ def run_simulation(G, random_time=False):
             break
 
         #Transfer information
-
-        #Simultanenusly subtract all expected time
-        #Current min expected time
-        cur_met = min_expec_time(time_expected)
-        while (cur_met > 0):
-            for v in G.vertices:
-                for nbor in v.edges:
-                    time_expected[v][nbor] -= cur_met
-
-                    #Expected time has passed
-                    if time_expected[v][nbor] <= 0:
-                        if v.utility < nbor.utility:
-                            v.provider = nbor.provider
-            cur_met = min_expec_time(time_expected)
+        if simul:
+            simul_info_transfer(G, time_expected)
+        else:
+            seq_info_transfer(G, min_times)
 
         cur_util = calc_util()
 

@@ -188,8 +188,8 @@ def plot_util_minmax(utils):
     iterations = list(range(len(utils)))
     minvals = np.max(utils, axis=1)
     maxvals = np.min(utils, axis=1)
-    max_trace = go.Scatter(x=iterations, y=maxvals, mode='lines', name='Mean')
-    min_trace = go.Scatter(x=iterations, y=minvals, mode='lines', name='Median')
+    max_trace = go.Scatter(x=iterations, y=maxvals, mode='lines', name='Max')
+    min_trace = go.Scatter(x=iterations, y=minvals, mode='lines', name='Min')
     minmax_fig = go.Figure(data=[max_trace, min_trace],
                         layout=go.Layout(
                             title='Min and max over time',
