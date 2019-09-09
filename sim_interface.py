@@ -1,8 +1,10 @@
 from abc import ABC, abstractmethod
+from collections import defaultdict
 
 from plotly.offline import iplot
 import ipywidgets as widgets
 from IPython.display import display, clear_output
+import numpy as np
 
 import gen_vis
 import graph
@@ -146,27 +148,31 @@ class OverviewSimulator:
     several runs
     agg_method: How to aggregate results of each util set from simulations
                 Method should take an 2D array (array of utilities for each run)
+    avg_run_count: If taking average, how many runs to average over
     """
-    def __init__(self, agg_method):
+    def __init__(self, agg_method, avg_run_count):
         self.agg_method = agg_method
+        self.avg_run_count = avg_run_count
 
         #Graphs created by each simulation set parameters
-        self.results = []
+        self.results = defaultdict(lambda : [])
 
-        self.range_start_widget = widgets.IntText(value=10,
+        self.range_start_widget = widgets.IntText(value=0,
                                     description='Variable Param Range Start',
                                     disabled=False)
         self.range_end_widget = widgets.IntText(value=100,
                                     description='Variable Param Range End',
                                     disabled=False)
-        self.fixed_param_widget = widgets.IntText(value=4,
-                                    description='Fixed Param Value',
+        self.range_num_iter = widgets.IntText(value=100,
+                                    description='Number iters',
                                     disabled=False)
-        self.select_fixed = widgets.RadioButtons(
-                options=['reg', 'size'],
-                                    description='Which parameter to fix',
+        self.fixed_degree_widget = widgets.IntText(value=4,
+                                    description='Degree Value',
                                     disabled=False)
-        self.trans_prob_widget = widgets.FloatSlider(value=0.1,
+        self.fixed_size_widget = widgets.IntText(value=100,
+                                    description='Size Value',
+                                    disabled=False)
+        self.fixed_trate_widget = widgets.FloatSlider(value=0.1,
                                     min=0.0,
                                     max=1.0,
                                     step=0.01,
@@ -175,6 +181,10 @@ class OverviewSimulator:
                                     orientation='horizontal',
                                     continuous_update=False,
                                     readout=True)
+        self.select_var = widgets.RadioButtons(
+                options=['reg', 'size', 'trate'],
+                                    description='Which parameter to vary',
+                                    disabled=False)
         self.time_alloc_widget = widgets.IntText(value=100,
                                     description='Initial Time Allocation',
                                     disabled=False)
@@ -184,6 +194,19 @@ class OverviewSimulator:
                                     button_style='info',
                                     tooltip='Random time allocation',
                                     icon='check')
+        self.seq_trans_widget = widgets.ToggleButton(value=False,
+                                    description='Sequential Time Allocation',
+                                    disabled=False,
+                                    button_style='info',
+                                    tooltip='Sequential time allocation',
+                                    icon='check')
+        self.avg_res_widget = widgets.ToggleButton(value=False,
+                                    description='Average Results',
+                                    disabled=False,
+                                    button_style='info',
+                                    tooltip='Toggle for averaging results vs run once',
+                                    icon='check')
+
         #Update button
         self.add_set_button = widgets.Button(
                                     description='Add simulation set',
@@ -217,11 +240,15 @@ class OverviewSimulator:
         #Render widgets
         display(self.range_start_widget)
         display(self.range_end_widget)
-        display(self.fixed_param_widget)
-        display(self.select_fixed)
-        display(self.trans_prob_widget)
+        display(self.range_num_iter)
+        display(self.fixed_size_widget)
+        display(self.fixed_degree_widget)
+        display(self.fixed_trate_widget)
+        display(self.select_var)
         display(self.time_alloc_widget)
+        display(self.seq_trans_widget)
         display(self.random_time_widget)
+        display(self.avg_res_widget)
         display(self.add_set_button)
         display(self.rem_set_button)
         display(self.run_all_button)
@@ -230,8 +257,17 @@ class OverviewSimulator:
         if not utils:
             return
 
+        #Method for aggregating data
         agg_data = lambda uts: [ self.agg_method(ut) for ut in uts ]
-        aggregated = [ agg_data(uts) for uts in utils ]
+
+        range_keys = sorted(list(utils.keys()))
+        tester = utils[range_keys[1]]
+        test = agg_data(tester)
+        agg_data_dict = { rk : agg_data(utils[rk]) for rk in range_keys }
+
+        #Should be an array containing a single array
+        aggregated = [[ np.mean(agg_data_dict[rk]) for rk in range_keys ]]
+
         iplot(gen_vis.simple_multiplot(aggregated,
             'Aggregated Utils',
             'Range iteration',
@@ -240,19 +276,32 @@ class OverviewSimulator:
     def add_sim(self, button):
         range_start = self.range_start_widget.value
         range_end = self.range_end_widget.value
-        fixed_val = self.fixed_param_widget.value
-        fixed = self.select_fixed.value
-        trans_rate = self.trans_prob_widget.value
+        num_iters = self.range_num_iter.value
+        size = self.fixed_size_widget.value
+        degree = self.fixed_degree_widget.value
+        trate = self.fixed_trate_widget.value
+        var = self.select_var.value
         time_alloc = self.time_alloc_widget.value
         random_time = self.random_time_widget.value
+        simul_update = self.seq_trans_widget.value
 
-        sim_results = simulation.simple_runs_fix_reg(range_start, range_end,
-                fixed_val, trans_rate, time_alloc, fixed, random_time)
-        self.results.append(sim_results)
+        avg_runs = self.avg_res_widget.value
+
+        var_range = np.linspace(range_start, range_end, num_iters)
+
+        #If runs should be averaged run 10 times
+        num_to_run = self.avg_run_count if avg_runs else 1
+        for i in range(num_to_run):
+            sim_results = simulation.many_runs_fix_vars(size, degree, trate,
+                    var_range, time_alloc, var, random_time, simul_update)
+            for v_idx, var_val in enumerate(var_range):
+                self.results[var_val].append(sim_results[v_idx])
+        print("Finished adding simulation")
         
     def rem_sim(self, button):
         if len(self.results) > 0:
-            self.results.pop(-1)
+            for util_set in self.results.values():
+                util_set.pop(-1)
 
     def run_all(self, button):
         clear_output()
