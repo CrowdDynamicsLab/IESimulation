@@ -18,7 +18,7 @@ InfoElicitationSim.ipynb contains the most relevant simulations, others are for 
 Should be noted that simulations may be destructive on graph structure
 
 # Shorter Term TODOs
-* Test bipartite extrovert/introvert network
+* Test bipartite extrovert/introvert network (include heterogenous, unidirectional trans rates)
 * Create time variant transmission rate
 * Fix dirichlet time allocation
 
