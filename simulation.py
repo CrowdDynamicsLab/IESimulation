@@ -102,7 +102,7 @@ def seq_info_transfer(G, min_times):
             min_times[v][nbor] = -1
             min_times[nbor][v] = -1
 
-def run_simulation(G, random_time=False, simul=True):
+def run_simulation(G, random_time=False, seq=True):
     """
     Runs a simple simulation of a graph
     No changes are applied to given values such as
@@ -111,7 +111,7 @@ def run_simulation(G, random_time=False, simul=True):
     People do not know their connections providers at any time
 
     G: Graph to run simulation over
-    simul: If true then runs transmission step simultaneously, else sequentially
+    seq: If true then runs transmission step sequentially, else simultaneously
     """
 
     def graph_utilities():
@@ -165,15 +165,15 @@ def run_simulation(G, random_time=False, simul=True):
                 ntime = t_allocs[nbor].pop()
                 min_time = min(vtime, ntime)
 
-                if simul:
+                if seq:
+                    min_times[v][nbor] = min_time
+                    min_times[nbor][v] = min_time
+                else:
                     #Get expected time to transmit information
                     tprob = calc_trans_prob(nedge.trate, min_time)
                     texpec = calc_expected_time(tprob)
                     time_expected[v][nbor] = texpec
                     time_expected[nbor][v] = texpec
-                else:
-                    min_times[v][nbor] = min_time
-                    min_times[nbor][v] = min_time
 
                 if min_time > 0:
                     num_nonzero += 1
@@ -182,10 +182,10 @@ def run_simulation(G, random_time=False, simul=True):
             break
 
         #Transfer information
-        if simul:
-            simul_info_transfer(G, time_expected)
-        else:
+        if seq:
             seq_info_transfer(G, min_times)
+        else:
+            simul_info_transfer(G, time_expected)
 
         cur_util = calc_util()
 
@@ -209,7 +209,7 @@ def simple_sim():
     return run_simulation(G)
 
 def many_runs_fix_vars(size, deg, trans_rate, val_range,
-        time_alloc, var, random_time=False, simul=True):
+        time_alloc, var, random_time=False, seq=True):
     """
     Run simple simulation over many graphs
     Useful for analysis of network performance as some variable changes
@@ -238,7 +238,7 @@ def many_runs_fix_vars(size, deg, trans_rate, val_range,
             allocated = time_alloc
 
         cur_G = graph.const_kregular(cur_deg, cur_size, cur_trate, allocated)
-        res_g, res_utils = run_simulation(cur_G, random_time)
+        res_g, res_utils = run_simulation(cur_G, random_time, seq)
         sim_results.append(res_utils)
     return sim_results
 

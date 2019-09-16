@@ -200,6 +200,12 @@ class OverviewSimulator:
                                     button_style='info',
                                     tooltip='Sequential time allocation',
                                     icon='check')
+        self.log_space_widget = widgets.ToggleButton(value=False,
+                                    description='Use log space',
+                                    disabled=False,
+                                    button_style='info',
+                                    tooltip='Use log space for var instead of lin space',
+                                    icon='check')
         self.avg_res_widget = widgets.ToggleButton(value=False,
                                     description='Average Results',
                                     disabled=False,
@@ -218,14 +224,14 @@ class OverviewSimulator:
                                     disabled=False,
                                     button_style='',
                                     tooltip='Removes most recent set')
-        self.run_all_button = widgets.Button(
-                                    description='Run all simulations',
+        self.plot_all_button = widgets.Button(
+                                    description='Plot all simulations',
                                     disabled=False,
                                     button_style='',
-                                    tooltip='Runs all current simulation sets')
+                                    tooltip='Plots all current simulation sets')
         self.add_set_button.on_click(self.add_sim)
         self.rem_set_button.on_click(self.rem_sim)
-        self.run_all_button.on_click(self.run_all)
+        self.plot_all_button.on_click(self.plot_all)
 
         #Initial visuals
         self.render_visuals()
@@ -248,10 +254,11 @@ class OverviewSimulator:
         display(self.time_alloc_widget)
         display(self.seq_trans_widget)
         display(self.random_time_widget)
+        display(self.log_space_widget)
         display(self.avg_res_widget)
         display(self.add_set_button)
         display(self.rem_set_button)
-        display(self.run_all_button)
+        display(self.plot_all_button)
 
         #Render stat plots
         if not utils:
@@ -274,26 +281,44 @@ class OverviewSimulator:
             'Aggregated utility'))
 
     def add_sim(self, button):
-        range_start = self.range_start_widget.value
-        range_end = self.range_end_widget.value
         num_iters = self.range_num_iter.value
+
         size = self.fixed_size_widget.value
         degree = self.fixed_degree_widget.value
         trate = self.fixed_trate_widget.value
+
+        range_start = self.range_start_widget.value
+        range_end = self.range_end_widget.value
         var = self.select_var.value
+
         time_alloc = self.time_alloc_widget.value
         random_time = self.random_time_widget.value
-        simul_update = self.seq_trans_widget.value
+        seq_update = self.seq_trans_widget.value
+        log_space = self.log_space_widget.value
 
         avg_runs = self.avg_res_widget.value
 
-        var_range = np.linspace(range_start, range_end, num_iters)
+        var_range = None
+        if log_space:
+            log_start = 0
+            log_end = 0
+            if range_start == 0:
+                log_start = -100 #This is just to get close to 0, -inf throws errors
+            else:
+                log_start = np.log(range_start)
+            if range_end == 0:
+                log_end = -100
+            else:
+                log_end = np.log(range_end)
+            var_range = np.logspace(log_start, log_end, num_iters)
+        else:
+            var_range = np.linspace(range_start, range_end, num_iters)
 
         #If runs should be averaged run 10 times
         num_to_run = self.avg_run_count if avg_runs else 1
         for i in range(num_to_run):
             sim_results = simulation.many_runs_fix_vars(size, degree, trate,
-                    var_range, time_alloc, var, random_time, simul_update)
+                    var_range, time_alloc, var, random_time, seq_update)
             for v_idx, var_val in enumerate(var_range):
                 self.results[var_val].append(sim_results[v_idx])
         print("Finished adding simulation")
@@ -303,6 +328,6 @@ class OverviewSimulator:
             for util_set in self.results.values():
                 util_set.pop(-1)
 
-    def run_all(self, button):
+    def plot_all(self, button):
         clear_output()
         self.render_visuals(self.results)
