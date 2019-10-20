@@ -1,4 +1,4 @@
-import graph
+import graph_create
 import numpy as np
 from collections import defaultdict
 
@@ -143,6 +143,8 @@ def run_simulation(G, random_time=False, seq=True):
         #Simultaneously allocate time for each person
         t_allocs = {}
         for v in G.vertices:
+
+            #Time is reallocated at the beginning of each iteration
             t_allocs[v], t_left = alloc_time(v.time, v.degree)
 
         #Get amount of interaction time for each person
@@ -203,7 +205,7 @@ def simple_sim():
     """
 
     #Create graph
-    G = graph.const_kregular(4, 10, 0.1, 100)
+    G = graph_create.const_kregular(4, 10, 0.1, 100)
 
     print("Running simple simulation")
     return run_simulation(G)
@@ -237,7 +239,7 @@ def many_runs_fix_vars(size, deg, trans_rate, val_range,
         else:
             allocated = time_alloc
 
-        cur_G = graph.const_kregular(cur_deg, cur_size, cur_trate, allocated)
+        cur_G = graph_create.const_kregular(cur_deg, cur_size, cur_trate, allocated)
         res_g, res_utils = run_simulation(cur_G, random_time, seq)
         sim_results.append(res_utils)
     return sim_results

@@ -7,7 +7,8 @@ from IPython.display import display, clear_output
 import numpy as np
 
 import gen_vis
-import graph
+import graph_create
+import graph_util
 import simulation
 
 class Simulator(ABC):
@@ -25,7 +26,7 @@ class SimpleSimulator(Simulator):
         self.num_vertices = -1
         self.regularity = -1
         
-        self.vtx_widget = widgets.IntText(value=8,
+        self.vtx_widget = widgets.IntText(value=100,
                                     description='Vertex Count (Rounded to Even)',
                                     disabled=False)
         self.reg_widget = widgets.IntText(value=4,
@@ -63,6 +64,11 @@ class SimpleSimulator(Simulator):
                                     button_style='',
                                     tooltip='Update Graph')
         self.update_button.on_click(self.update_graph)
+
+        #Widgets to render, in order
+        self.render_set = [self.vtx_widget, self.reg_widget, self.trans_prob_widget,
+                self.time_alloc_widget, self.random_time_widget, self.seq_trans_widget,
+                self.update_button]
         
         #Initial graph
         self.graph = None
@@ -81,13 +87,8 @@ class SimpleSimulator(Simulator):
         """
 
         #Render widgets
-        display(self.vtx_widget)
-        display(self.reg_widget)
-        display(self.trans_prob_widget)
-        display(self.time_alloc_widget)
-        display(self.random_time_widget)
-        display(self.seq_trans_widget)
-        display(self.update_button)
+        for ritem in self.render_set:
+            display(ritem)
 
         #Render overall plot
         iplot(self.plot_fig)
@@ -117,10 +118,10 @@ class SimpleSimulator(Simulator):
         if vtx_count % 2 == 1:
             vtx_count += 1
             
-        diameter = graph.calc_diameter(regularity, vtx_count)
+        diameter = graph_util.calc_diameter(regularity, vtx_count)
             
         #Create new graph
-        self.graph = graph.const_kregular(regularity, vtx_count, trans_prob, time_alloc)
+        self.graph = graph_create.const_kregular(regularity, vtx_count, trans_prob, time_alloc)
         
         #Update plot
         edge_trace = gen_vis.init_edge_traces()
