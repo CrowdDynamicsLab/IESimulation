@@ -110,3 +110,14 @@ def watts_strogatz(n, k, b, close_trate, far_trate, time_alloc):
                 vtx.edges[new_nbor] = Edge(far_trate)
                 new_nbor.edges[vtx] = Edge(far_trate)
     return init_g
+
+def reduce_providers_simplest(G):
+    """
+    Reduces a graph G to the simplest case where exactly one vertex
+    has the optimal providers and all else have the worst
+    """
+    max_prov = max(list([ vtx.provider for vtx in G.vertices ]))
+    for vtx in G.vertices:
+        vtx.provider = 0
+    G.vertices[0].provider = max_prov
+
