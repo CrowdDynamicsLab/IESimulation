@@ -4,6 +4,7 @@ Includes methods for generating graphs
 """
 
 import numpy as np
+from collections import OrderedDict
 
 class Vertex:
     """
@@ -20,7 +21,7 @@ class Vertex:
     vtx_count = 0
 
     def __init__(self, time, init_prov, ratings):
-        self.edges = {}
+        self.edges = OrderedDict()
         self.time = time
         self.provider = init_prov
         self.prov_rating = ratings
@@ -34,6 +35,10 @@ class Vertex:
     @property
     def degree(self):
         return len(self.edges)
+
+    @property
+    def nbors(self):
+        return list(self.edges.keys())
 
     def __repr__(self):
         return 'Vertex {0}'.format(self.vnum)
