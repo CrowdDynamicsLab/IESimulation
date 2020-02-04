@@ -14,18 +14,24 @@ class Vertex:
     time: Amount of time this person has allocated
     provider: Service provider the current person has
     ratings: Rating the current patient gives all providers
-    vnum: Vertex number, should be unique for each vertex across
+    vnum: Label/idx for numeric representation of vertex, defaults to global_vnum
+    if one not specified
+    global_vnum: Global vertex number, should be unique for each vertex across
     all graphs generated
     """
 
     vtx_count = 0
 
-    def __init__(self, time, init_prov, ratings):
+    def __init__(self, time, init_prov, ratings, vnum=None):
         self.edges = OrderedDict()
         self.time = time
         self.provider = init_prov
         self.prov_rating = ratings
-        self.vnum = Vertex.vtx_count
+        self.global_vnum = Vertex.vtx_count
+        if not vnum:
+            self.vnum = self.global_vnum
+        else:
+            self.vnum = vnum
         Vertex.vtx_count += 1
 
     @property

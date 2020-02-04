@@ -1,7 +1,7 @@
 import numpy as np
 
 from graph import Graph, Vertex, Edge
-from graph_util import gen_const_ratings, ring_slice
+from util import gen_const_ratings, ring_slice
 
 def const_kregular(k, n, itrate, time_alloc):
     """
@@ -40,8 +40,12 @@ def const_kregular(k, n, itrate, time_alloc):
     global_rank = gen_const_ratings(provs)
 
     #Create vertex set of graph
+    vtx_idx = 0
     def gen_vertex():
-        return Vertex(time_alloc, np.random.choice(provs), global_rank)
+        nonlocal vtx_idx
+        vtx = Vertex(time_alloc, np.random.choice(provs), global_rank, vnum=vtx_idx)
+        vtx_idx += 1
+        return vtx
 
     vertices = [ gen_vertex() for i in range(n) ]
     kreg.vertices = vertices

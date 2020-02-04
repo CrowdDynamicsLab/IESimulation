@@ -58,8 +58,10 @@ def run_simulation(G):
 
     iter_num = 0
     while True:
-        utilities.append(graph_utilities())
-        
+        global_util = graph_utilities()
+        utilities.append(global_util)
+        if sum(global_util) == social_opt:
+            break
 
         #Get amount of interaction time for each person
         min_times = defaultdict(lambda : {})
@@ -116,55 +118,3 @@ def run_simulation(G):
             break
 
     return G, utilities
-
-def simple_sim():
-    """
-    Simulation on a small 4 regular graph
-    Low rate of transmission
-    """
-
-    #Create graph
-    G = graph_create.const_kregular(4, 10, 0.1, 100)
-
-    print("Running simple simulation")
-    return run_simulation(G)
-
-def many_runs_fix_vars(size, deg, trans_rate, val_range,
-        time_alloc, var, random_time=False, seq=True):
-    """
-    Run simple simulation over many graphs
-    Useful for analysis of network performance as some variable changes
-    size: Fixed size
-    deg: Fixed regularity degree
-    trans_rate: Baseline transmission probability
-    val_range: Range of varying variable
-    time_alloc: Initial time allocation per vertex. If this is a function it must take
-                one variable, the size, and output a time allocation
-    var: Parameter to vary
-    random_time: Whether time is allocated randomly
-    """
-
-    if var != 'size' and var != 'reg' and var != 'trate':
-        raise ValueError("fixed must be one of 'size' or 'reg' or 'trate'")
-
-    sim_results = []
-    for cur_var in val_range:
-        cur_size = cur_var if var == 'size' else size
-        cur_deg = cur_var if var == 'reg' else deg
-        cur_trate = cur_var if var == 'trate' else trans_rate
-
-        if callable(time_alloc):
-            allocated = time_alloc(g_size)
-        else:
-            allocated = time_alloc
-
-        cur_G = graph_create.const_kregular(cur_deg, cur_size, cur_trate, allocated)
-        res_g, res_utils = run_simulation(cur_G, random_time, seq)
-        sim_results.append(res_utils)
-    return sim_results
-
-def main():
-    simple_sim()
-
-if __name__ == '__main__':
-    main()
