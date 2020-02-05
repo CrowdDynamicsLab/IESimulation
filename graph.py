@@ -22,17 +22,12 @@ class Vertex:
 
     vtx_count = 0
 
-    def __init__(self, time, init_prov, ratings, vnum=None):
+    def __init__(self, time, init_prov, ratings, vnum):
         self.edges = OrderedDict()
         self.time = time
         self.provider = init_prov
         self.prov_rating = ratings
-        self.global_vnum = Vertex.vtx_count
-        if not vnum:
-            self.vnum = self.global_vnum
-        else:
-            self.vnum = vnum
-        Vertex.vtx_count += 1
+        self.vnum = vnum
 
     @property
     def utility(self):

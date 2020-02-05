@@ -73,16 +73,15 @@ def run_simulation(G):
 
             #Get next available nbor
             found_nbor = False
-            cur_nbor_idx = vtx_cur_nbor[v]
-            nbor, nedge = list(v.edges.items())[cur_nbor_idx]
+            nbor, nedge = list(v.edges.items())[vtx_cur_nbor[v]]
             for it in range(v.degree):
                 vtime = t_allocs[v][nbor]
                 ntime = t_allocs[nbor][v]
                 if vtime and ntime:
                     found_nbor = True
                     break
-                vtx_cur_nbor[v] = (cur_nbor_idx + 1) % len(v.edges)
-                nbor, nedge = list(v.edges.items())[cur_nbor_idx]
+                vtx_cur_nbor[v] = (vtx_cur_nbor[v] + 1) % len(v.edges)
+                nbor, nedge = list(v.edges.items())[vtx_cur_nbor[v]]
 
             #If no nbors available this vtx is effectively finished
             if not found_nbor:
@@ -107,7 +106,7 @@ def run_simulation(G):
                     v.provider = nbor.provider
 
             #Update vtx's nbor idx
-            vtx_cur_nbor[v] = (cur_nbor_idx + 1) % len(v.edges)
+            vtx_cur_nbor[v] = (vtx_cur_nbor[v] + 1) % len(v.edges)
 
         cur_util = calc_util()
 

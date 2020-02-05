@@ -1,9 +1,9 @@
 import numpy as np
 
 from graph import Graph, Vertex, Edge
-from util import gen_const_ratings, ring_slice
+from util import gen_const_ratings, ring_slice, sample_powerlaw
 
-def const_kregular(k, n, itrate, time_alloc):
+def ring_lattice(k, n, itrate, time_alloc):
     """
     Generates a simple k-regular graph with n vertices
     If n <= k, n will be rounded up to k + 1
@@ -91,7 +91,7 @@ def watts_strogatz(n, k, b, close_trate, far_trate, time_alloc):
     far_trate: Transmission rate of further (rewired) heterophily edges
     time_alloc: Initial time allocation
     """
-    init_g = const_kregular(k, n, close_trate, time_alloc)
+    init_g = ring_lattice(k, n, close_trate, time_alloc)
     min_vtx_num = min([ vtx.vnum for vtx in init_g.vertices ])
     def non_nbor(u, v):
         return (u not in v.edges and v not in u.edges and u != v)
@@ -120,8 +120,16 @@ def reduce_providers_simplest(G):
     Reduces a graph G to the simplest case where exactly one vertex
     has the optimal providers and all else have the worst
     """
-    max_prov = max(list([ vtx.provider for vtx in G.vertices ]))
+    max_prov = max([ vtx.provider for vtx in G.vertices ])
     for vtx in G.vertices:
         vtx.provider = 0
     G.vertices[0].provider = max_prov
 
+def powerlaw_dist_time(G, plaw_exp, plaw_coeff=1):
+    """
+    Redistribute time per person based on specified powerlaw
+    """
+    tot_time = sum([ vtx.time for vtx in G.vertices ])
+    plaw_times = sample_powerlaw(len(G.vertices), tot_time, plaw_exp, plaw_coeff, True)
+    for idx, vtx in enumerate(G.vertices):
+        vtx.time = plaw_times[idx]
