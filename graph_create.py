@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 import numpy as np
 
 from graph import Graph, Vertex, Edge
@@ -91,6 +93,7 @@ def watts_strogatz(n, k, b, close_trate, far_trate, time_alloc):
     far_trate: Transmission rate of further (rewired) heterophily edges
     time_alloc: Initial time allocation
     """
+
     init_g = ring_lattice(k, n, close_trate, time_alloc)
     min_vtx_num = min([ vtx.vnum for vtx in init_g.vertices ])
     def non_nbor(u, v):
@@ -114,6 +117,78 @@ def watts_strogatz(n, k, b, close_trate, far_trate, time_alloc):
                 vtx.edges[new_nbor] = Edge(far_trate)
                 new_nbor.edges[vtx] = Edge(far_trate)
     return init_g
+
+def configuration_model(n, degree_seq, p, time_alloc):
+    """
+    Creates a coniguration model graph by the following parameters
+    n: number of vertices
+    degree_seq: degree of each vertex
+    p: probability of transmission
+    time_alloc: time allocated to each vertex
+
+    NOTE: Uses repeated configuration model as described by
+    https://arxiv.org/pdf/1509.06985.pdf
+    """
+    assert len(degree_seq) == n, 'Degree sequence must be of same length as number vertices'
+    assert sum(degree_seq) % 2 == 0, 'Degree sequence must have even sum'
+
+    G = ring_lattice(0, n, p, time_alloc)
+
+    # For randomly matching, edge_stubs is flattened edge_acc
+    vtx_deg = zip(G.vertices, degree_seq)
+    edge_acc = [ [vtx] * deg for vtx, deg in vtx_deg ]
+    edge_stubs_orig = [ vtx for vtx_list in edge_acc for vtx in vtx_list ]
+
+    G_simple = False
+
+    def next_vtx_start(vtx_list, cur_v):
+        for idx, vtx in enumerate(vtx_list):
+            if vtx.vnum != cur_v.vnum:
+                return idx
+        return -1
+
+    #Repeatedly find matchings until G is a simple graph
+    edge_matches = defaultdict(set)
+    while not G_simple:
+
+        edge_stubs = edge_stubs_orig.copy()
+        edge_matches = defaultdict(set)
+
+        loop_found = False
+        while edge_stubs:
+            cur_stub = edge_stubs.pop(0)
+
+            #Finds index of next vertex that is not cur_stub
+            match_start_idx = next_vtx_start(edge_stubs, cur_stub)
+
+            #Should only occur if only cur_stub left (maybe common in powerlaw degree dist)
+            if match_start_idx == -1:
+                loop_found = True
+                break
+
+            match_idx = np.random.randint(low=match_start_idx, high=len(edge_stubs))
+            matched = edge_stubs.pop(match_idx)
+            edge_matches[cur_stub].add(matched)
+
+        #Only check for multi-edges if no loops
+        multiedge_found = False
+        if not loop_found:
+            for vtx, deg in vtx_deg:
+                if len(edge_matches[cur_stub]) != deg:
+                    multiedge_found = True
+                    break
+
+        if not (loop_found or multiedge_found):
+            G_simple = True
+
+    for vtx, edge_set in edge_matches.items():
+        for nbor in edge_set:
+
+            #Add edge
+            vtx.edges[nbor] = Edge(p)
+            nbor.edges[vtx] = Edge(p)
+
+    return G
 
 def reduce_providers_simplest(G):
     """
