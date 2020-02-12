@@ -31,7 +31,8 @@ def plot_utils(social_utils, r, regularity, diam):
     title_fmt = "Average Social Welfare (Normalized) vs p*r/k (r={0}, diam={1})"
     plot_title = title_fmt.format(r, diam)
     fig.layout.update(title=plot_title, showlegend=True,
-        xaxis=dict(title='p*r/k'), yaxis=dict(title='avg social welfare'))
+        xaxis=dict(title='p*r/k'), yaxis=dict(title='avg social welfare'),
+        plot_bgcolor='rgba(0,0,0,0)')
 
     iplot(fig)
 
