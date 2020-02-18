@@ -118,6 +118,27 @@ def watts_strogatz(n, k, b, close_trate, far_trate, time_alloc):
                 new_nbor.edges[vtx] = Edge(far_trate)
     return init_g
 
+def erdos_renyi(n, ep, p, time_alloc):
+    """
+    Creates an erdos-renyi graph
+    n: Number of edges
+    ep: Probability of an edge forming between any pair of vertices
+    p: Transmission probability
+    time_alloc: Time allocated to each vertex
+    """
+
+    G = ring_lattice(0, n, p, time_alloc)
+
+    for vtx in G.vertices:
+        for pnbor in G.vertices:
+            if vtx == pnbor or (pnbor in vtx.edges):
+                continue
+            if np.random.rand() < ep:
+                vtx.edges[pnbor] = Edge(p)
+                pnbor.edges[vtx] = Edge(p)
+
+    return G
+
 def configuration_model(n, degree_seq, p, time_alloc):
     """
     Creates a coniguration model graph by the following parameters
