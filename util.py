@@ -10,6 +10,27 @@ def gen_const_ratings(provs):
     #np.random.shuffle(ratings)
     return { provs[didx] : ratings[didx] for didx in range(len(provs)) }
 
+def is_connected(G):
+    """
+    Runs BFS to check if G is connected
+    """
+    found = set()
+    queue = [G.vertices[0]]
+    found.add(G.vertices[0])
+
+    while queue:
+        cur_vtx = queue[0]
+        queue.pop(0)
+
+        for nbor in cur_vtx.nbors:
+            if nbor not in found:
+                queue.append(nbor)
+                found.add(nbor)
+
+    if len(found) != len(G.vertices):
+        return False
+    return True
+
 def calc_diameter(G):
     """
     Runs floyd warshall and gets diam

@@ -3,7 +3,19 @@ from collections import defaultdict
 import numpy as np
 
 from graph import Graph, Vertex, Edge
-from util import gen_const_ratings, ring_slice, sample_powerlaw
+from util import gen_const_ratings, ring_slice, sample_powerlaw, is_connected
+
+def force_connected(graph_func):
+    """
+    Forces a graph creation func to return a connected graph
+    """
+
+    def con_graph_func(*args):
+        G = graph_func(*args)
+        while not is_connected(G):
+            G = graph_func(*args)
+        return G
+    return con_graph_func
 
 def ring_lattice(k, n, itrate, time_alloc):
     """
@@ -229,3 +241,4 @@ def powerlaw_dist_time(G, plaw_exp, plaw_coeff=1):
     plaw_times = sample_powerlaw(len(G.vertices), tot_time, plaw_exp, plaw_coeff, True)
     for idx, vtx in enumerate(G.vertices):
         vtx.time = plaw_times[idx]
+
