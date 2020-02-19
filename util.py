@@ -49,7 +49,7 @@ def calc_diameter(G):
             for j in range(n):
                 if dist[i][j] > dist[i][k] + dist[k][j]:
                     dist[i][j] = dist[i][k] + dist[k][j]
-    return int(np.max(dist))
+    return int(np.max(dist[dist != np.infty]))
 
 def ring_slice(ring, start_idx, end_idx):
     """

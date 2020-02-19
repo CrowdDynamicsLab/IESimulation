@@ -11,13 +11,13 @@ import util
 def run_watts_strogatz(num_vertices, k, plaw_resources=False):
     ws_data = defaultdict(dict)
     for r in np.linspace(100, 0, 10, endpoint=False):
-        for beta in np.linspace(1, 0, 10, endpoint=False):
+        for beta in np.linspace(1, 0, 10):
             ws_social_utils = []
             ws_graph_diams = []
             
             cm_social_utils = []
             cm_graph_diams = []
-            for p in np.linspace(1, 0, 10, endpoint=False):
+            for p in np.linspace(1, 0, 100, endpoint=False):
                 ws_utils = []
                 cm_utils = []
                 num_iter = 10
@@ -61,11 +61,11 @@ def run_watts_strogatz(num_vertices, k, plaw_resources=False):
 def run_erdos_renyi(num_vertices, k, plaw_resources=False):
     er_data = defaultdict(dict)
     for r in np.linspace(100, 0, 10, endpoint=False):
-        for ep in np.linspace(1, 0, 10, endpoint=False):
+        for ep in np.linspace(1, 0, 10):
             er_social_utils = []
             er_graph_diams = []
             
-            for p in np.linspace(1, 0, 10, endpoint=False):
+            for p in np.linspace(1, 0, 100, endpoint=False):
                 er_utils = []
                 num_iter = 10
                 for i in range(num_iter):
