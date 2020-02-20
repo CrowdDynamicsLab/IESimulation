@@ -17,6 +17,7 @@ def run_watts_strogatz(num_vertices, k, plaw_resources=False):
             
             cm_social_utils = []
             cm_graph_diams = []
+#            print('Starting ws r={0}, beta={1}'.format(r, beta))
             for p in np.linspace(1, 0, 100, endpoint=False):
                 ws_utils = []
                 cm_utils = []
@@ -26,7 +27,8 @@ def run_watts_strogatz(num_vertices, k, plaw_resources=False):
                     
                     degree_seq = [ vtx.degree for vtx in ring_lat.vertices ]
 
-                    ws_graph_diams.append(util.calc_diameter(ring_lat))
+                    ws_diam = util.calc_diameter(ring_lat)
+                    ws_graph_diams.append(ws_diam)
 
                     reduce_providers_simplest(ring_lat)
 
@@ -40,13 +42,15 @@ def run_watts_strogatz(num_vertices, k, plaw_resources=False):
                     
                     #Run configuration model using WS degree seq
                     config_model = configuration_model(num_vertices, degree_seq, p, r)
-                    cm_graph_diams.append(util.calc_diameter(config_model))
+                    cm_diam = util.calc_diameter(config_model)
+                    cm_graph_diams.append(cm_diam)
                     reduce_providers_simplest(config_model)
                     if plaw_resources:
                         powerlaw_dist_time(config_model, 2)
                         
                     csim_g, csim_utils = run_simulation(config_model)
                     cm_utils.append(sum(csim_utils[-1]) / len(config_model.vertices))
+                    print('p={0} i={1}'.format(p, i))
                 
                 ws_social_utils.append((p, ws_utils))
                 cm_social_utils.append((p, cm_utils))
@@ -56,6 +60,7 @@ def run_watts_strogatz(num_vertices, k, plaw_resources=False):
             cm_avg_diam = sum(cm_graph_diams) / len(cm_graph_diams)
             ws_data[r][beta] = {'ws' : {'utils' : ws_social_utils, 'avg_diam' : ws_avg_diam}}
             ws_data[r][beta] = {'cm' : {'utils' : cm_social_utils, 'avg_diam' : cm_avg_diam}}
+#            print('Finished ws r={0}, beta={1}'.format(r, beta))
     return ws_data
 
 def run_erdos_renyi(num_vertices, k, plaw_resources=False):
@@ -65,6 +70,7 @@ def run_erdos_renyi(num_vertices, k, plaw_resources=False):
             er_social_utils = []
             er_graph_diams = []
             
+#            print('Starting er r={0}, ep={1}'.format(r, ep))
             for p in np.linspace(1, 0, 100, endpoint=False):
                 er_utils = []
                 num_iter = 10
@@ -87,6 +93,7 @@ def run_erdos_renyi(num_vertices, k, plaw_resources=False):
 
             er_avg_diam = sum(er_graph_diams) / len(er_graph_diams)
             er_data[r][ep] = {'er' : {'utils' : er_social_utils, 'avg_diam' : er_avg_diam}}
+#            print('Finished er r={0}, ep={1}'.format(r, ep))
     return er_data
 
 if __name__ == '__main__':
