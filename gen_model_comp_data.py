@@ -127,11 +127,13 @@ if __name__ == '__main__':
         ws_json = run_watts_strogatz(num_vertices, reg, r_start, r_end, param_start, param_end)
 
         file_out = 'ws_data_{0}_{1}_{2}_{3}.json'.format(r_start, r_end, param_start, param_end)
+        file_out = 'sim_data/{0}'.format(file_out)
         with open(file_out, 'w+') as wsd:
             wsd.write(json.dumps(ws_json))
     else:
         er_json = run_erdos_renyi(num_vertices, reg, r_start, r_end, param_start, param_end)
         
         file_out = 'er_data_{0}_{1}_{2}_{3}.json'.format(r_start, r_end, param_start, param_end)
+        file_out = 'sim_data/{0}'.format(file_out)
         with open(file_out, 'w+') as erd:
             erd.write(json.dumps(er_json))
