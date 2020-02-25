@@ -68,7 +68,8 @@ def run_simulation(G):
         for v in G.vertices:
 
             #Skip if out of time
-            if not v.time:
+            if not v.time or (v.degree == 0):
+                v.time = 0
                 continue
 
             #Get next available nbor
