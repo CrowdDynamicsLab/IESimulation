@@ -64,7 +64,6 @@ def run_watts_strogatz(num_vertices, k, r_start, r_end, beta_start, beta_end, pl
                         
                     csim_g, csim_utils = run_simulation(config_model)
                     cm_utils.append(sum(csim_utils[-1]) / len(config_model.vertices))
-                    print('p={0} i={1}'.format(p, i))
                 
                 ws_social_utils.append((p, ws_utils))
                 cm_social_utils.append((p, cm_utils))
