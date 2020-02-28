@@ -61,10 +61,12 @@ def run_watts_strogatz(num_vertices, k, r_b_pairs, plaw_resources=False, save=Fa
 
         if str(beta) not in ws_data[str(r)]:
             ws_data[str(r)][str(beta)] = {}
-        ws_data[str(r)][str(beta)]['ws'] = \
-                {'utils' : ws_social_utils, 'avg_diam' : ws_avg_diam}
-        ws_data[str(r)][str(beta)]['cm'] = \
-                {'utils' : cm_social_utils, 'avg_diam' : cm_avg_diam}
+        ws_data['ws'][str(r)][str(round(beta, 3))] = \
+                {'utils' : ws_social_utils, 'avg_diam' : ws_avg_diam,
+                        'plaw' : plaw_resources}
+                ws_data['ws-cm'][str(r)][str(round(beta, 3))] = \
+                {'utils' : cm_social_utils, 'avg_diam' : cm_avg_diam,
+                        'plaw' : plaw_resources}
 
     if save:
         file_out = 'ws_data_{0}.json'.format(str(uuid.uuid4()))
@@ -100,9 +102,9 @@ def run_erdos_renyi(num_vertices, k, r_ep_pairs, plaw_resources=False, save=Fals
             er_social_utils.append((p, er_utils))
 
         er_avg_diam = sum(er_graph_diams) / len(er_graph_diams)
-        er_data[str(r)][str(ep)] = {'er' :
-                {'utils' : er_social_utils, 'avg_diam' : er_avg_diam}}
-
+        er_data['er'][str(r))] = {str(round(ep, 3)) :
+                {'utils' : er_social_utils, 'avg_diam' : er_avg_diam,
+                    'plaw' : plaw_resources}
     if save:
         file_out = 'er_data_{0}.json'.format(str(uuid.uuid4()))
         file_out = 'sim_data/{0}'.format(file_out)
