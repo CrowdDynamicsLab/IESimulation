@@ -19,10 +19,10 @@ def run_watts_strogatz(num_vertices, k, r_b_pairs, plaw_resources=False, save=Fa
         
         cm_social_utils = []
         cm_graph_diams = []
-        for p in np.linspace(1, 0, 100, endpoint=False):
+        for p in np.linspace(1, 0, 10, endpoint=False):
             ws_utils = []
             cm_utils = []
-            num_iter = 10
+            num_iter = 100
             for i in range(num_iter):
                 ring_lat = watts_strogatz(num_vertices, k, beta, p, p, r)
                 
@@ -59,14 +59,16 @@ def run_watts_strogatz(num_vertices, k, r_b_pairs, plaw_resources=False, save=Fa
         ws_avg_diam = sum(ws_graph_diams) / len(ws_graph_diams)
         cm_avg_diam = sum(cm_graph_diams) / len(cm_graph_diams)
 
-        if str(beta) not in ws_data[str(r)]:
-            ws_data[str(r)][str(beta)] = {}
+        if str(beta) not in ws_data['ws']:
+            ws_data['ws'][str(r)] = {}
+        if str(beta) not in ws_data['ws-cm']:
+            ws_data['ws-cm'][str(r)] = {}
         ws_data['ws'][str(r)][str(round(beta, 3))] = \
                 {'utils' : ws_social_utils, 'avg_diam' : ws_avg_diam,
                         'plaw' : plaw_resources}
-                ws_data['ws-cm'][str(r)][str(round(beta, 3))] = \
-                {'utils' : cm_social_utils, 'avg_diam' : cm_avg_diam,
-                        'plaw' : plaw_resources}
+        ws_data['ws-cm'][str(r)][str(round(beta, 3))] = \
+        {'utils' : cm_social_utils, 'avg_diam' : cm_avg_diam,
+                'plaw' : plaw_resources}
 
     if save:
         file_out = 'ws_data_{0}.json'.format(str(uuid.uuid4()))
@@ -81,9 +83,9 @@ def run_erdos_renyi(num_vertices, k, r_ep_pairs, plaw_resources=False, save=Fals
     for r, ep in r_ep_pairs:
         er_social_utils = []
         er_graph_diams = []
-        for p in np.linspace(1, 0, 100, endpoint=False):
+        for p in np.linspace(1, 0, 10, endpoint=False):
             er_utils = []
-            num_iter = 10
+            num_iter = 100
             for i in range(num_iter):
                 ring_lat = erdos_renyi(num_vertices, ep, p, r)
                 
@@ -102,9 +104,9 @@ def run_erdos_renyi(num_vertices, k, r_ep_pairs, plaw_resources=False, save=Fals
             er_social_utils.append((p, er_utils))
 
         er_avg_diam = sum(er_graph_diams) / len(er_graph_diams)
-        er_data['er'][str(r))] = {str(round(ep, 3)) :
+        er_data['er'][str(r)] = {str(round(ep, 3)) :
                 {'utils' : er_social_utils, 'avg_diam' : er_avg_diam,
-                    'plaw' : plaw_resources}
+                    'plaw' : plaw_resources}}
     if save:
         file_out = 'er_data_{0}.json'.format(str(uuid.uuid4()))
         file_out = 'sim_data/{0}'.format(file_out)
