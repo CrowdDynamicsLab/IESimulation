@@ -61,16 +61,20 @@ def run_watts_strogatz(num_vertices, k, r_b_pairs, strat, strat_params, plaw_res
         ws_avg_diam = sum(ws_graph_diams) / len(ws_graph_diams)
         cm_avg_diam = sum(cm_graph_diams) / len(cm_graph_diams)
 
-        if str(beta) not in ws_data['ws']:
+        if str(r) not in ws_data['ws']:
             ws_data['ws'][str(r)] = {}
-        if str(beta) not in ws_data['ws-cm']:
+        if str(r) not in ws_data['ws-cm']:
             ws_data['ws-cm'][str(r)] = {}
-        ws_data['ws'][str(r)][str(round(beta, 3))] = \
+        if str(round(beta, 3)) not in ws_data['ws'][str(r)]:
+            ws_data['ws'][str(r)][str(round(beta, 3))] = {}
+        if str(round(beta, 3)) not in ws_data['ws-cm'][str(r)]:
+            ws_data['ws-cm'][str(r)][str(round(beta, 3))] = {}
+        ws_data['ws'][str(r)][str(round(beta, 3))].update(
                 {'utils' : ws_social_utils, 'avg_diam' : ws_avg_diam,
-                        'plaw' : plaw_resources}
-        ws_data['ws-cm'][str(r)][str(round(beta, 3))] = \
-        {'utils' : cm_social_utils, 'avg_diam' : cm_avg_diam,
-                'plaw' : plaw_resources}
+                        'plaw' : plaw_resources})
+        ws_data['ws-cm'][str(r)][str(round(beta, 3))].update(
+                {'utils' : cm_social_utils, 'avg_diam' : cm_avg_diam,
+                        'plaw' : plaw_resources})
 
     if save:
         file_out = 'ws_data_{0}.json'.format(str(uuid.uuid4()))
@@ -108,9 +112,11 @@ def run_erdos_renyi(num_vertices, k, r_ep_pairs, strat, strat_params, plaw_resou
             er_social_utils.append((p, er_utils))
 
         er_avg_diam = sum(er_graph_diams) / len(er_graph_diams)
-        er_data['er'][str(r)] = {str(round(ep, 3)) :
+        if str(r) not in er_data['er']:
+            er_data['er'][str(r)] = {}
+        er_data['er'][str(r)].update({str(round(ep, 3)) :
                 {'utils' : er_social_utils, 'avg_diam' : er_avg_diam,
-                    'plaw' : plaw_resources}}
+                    'plaw' : plaw_resources}})
     if save:
         file_out = 'er_data_{0}.json'.format(str(uuid.uuid4()))
         file_out = 'sim_data/{0}'.format(file_out)
