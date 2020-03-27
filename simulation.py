@@ -1,22 +1,10 @@
-import graph_create
-import numpy as np
 from collections import defaultdict
 
-#Util methods
-def even_alloc_time(t, n):
-    """
-    Allocate t amount of time n ways evenly
-    Returns list of allocations and amount of time left
-    """
-    if t == 0:
-        return [0] * n, 0
+import numpy as np
 
-    time_splits = np.linspace(0, t, n + 1, dtype=int)
-    allocs = [ time_splits[i + 1] - time_splits[i]\
-            for i in range(len(time_splits) - 1) ]
-    return allocs
+import graph_create
 
-def run_simulation(G):
+def run_simulation(G, strategy):
     """
     Runs a simple simulation of a graph
     No changes are applied to given values such as
@@ -25,7 +13,10 @@ def run_simulation(G):
     People do not know their connections providers at any time
 
     G: Graph to run simulation over
+    strategy: Resource allocation strategy to use - must be initialized
     """
+
+    assert (not strategy.initialize), 'strategy must be initialized'
 
     def graph_utilities():
         return [ v.utility for v in G.vertices ]
@@ -47,17 +38,8 @@ def run_simulation(G):
     #Get vertex ordering
     np.random.shuffle(G.vertices)
 
-    #Dict for nbor idx tracking
-    vtx_cur_nbor = defaultdict(int)
-
-    #Allocate time for each person
-    t_allocs = {}
-    for v in G.vertices:
-        time_splits = even_alloc_time(v.time, v.degree)
-        t_allocs[v] = { nbor : ta for nbor, ta in zip(v.nbors, time_splits) }
-
     iter_num = 0
-    while True:
+    while iter_num < sum([v.time for v in G.vertices]):
         global_util = graph_utilities()
         utilities.append(global_util)
         if sum(global_util) == social_opt:
@@ -72,32 +54,26 @@ def run_simulation(G):
                 v.time = 0
                 continue
 
-            #Get next available nbor
-            found_nbor = False
-            nbor, nedge = list(v.edges.items())[vtx_cur_nbor[v]]
-            for it in range(v.degree):
-                vtime = t_allocs[v][nbor]
-                ntime = t_allocs[nbor][v]
-                if vtime and ntime:
-                    found_nbor = True
-                    break
-                vtx_cur_nbor[v] = (vtx_cur_nbor[v] + 1) % len(v.edges)
-                nbor, nedge = list(v.edges.items())[vtx_cur_nbor[v]]
-
-            #If no nbors available this vtx is effectively finished
-            if not found_nbor:
+            #If no nbors will become available this vertex is effectively done
+            if not sum([nbor.time for nbor in v.nbors]):
                 v.time = 0
                 continue
 
-            #Reduce time by one for v and nbor
-            assert(t_allocs[v][nbor] > 0)
-            assert(t_allocs[nbor][v] > 0)
-            assert(v.time > 0)
-            assert(nbor.time > 0)
-            t_allocs[v][nbor] -= 1
-            t_allocs[nbor][v] -= 1
+            #Get next available nbor from strategy
+            avail_nbors = strategy.get_available_nbor(v)
+
+            if not avail_nbors:
+                continue
+
+            nbor, nedge = avail_nbors
+
+            #Decrement time for v and nbor
             v.time -= 1
             nbor.time -= 1
+
+            #Save data needed to calculate cost of action
+            nbor_prev_util = nbor.utility
+            v_prev_util = v.utility
 
             #Check if transmission occured, if so transmit info if needed
             if np.random.random() <= nedge.trate:
@@ -106,8 +82,8 @@ def run_simulation(G):
                 elif v.utility < nbor.utility:
                     v.provider = nbor.provider
 
-            #Update vtx's nbor idx
-            vtx_cur_nbor[v] = (vtx_cur_nbor[v] + 1) % len(v.edges)
+            #Update time allocations in strategy
+            strategy.update_time_alloc(v_prev_util, v, nbor_prev_util, nbor)
 
         cur_util = calc_util()
 

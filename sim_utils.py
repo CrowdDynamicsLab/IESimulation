@@ -36,26 +36,30 @@ def plot_utils(social_utils, r, regularity, diam):
 
     iplot(fig)
 
-def run_sim(num_vertices, regularity, graph_func, plaw_resources=False):
+def run_sim(num_vertices, regularity, graph_func, strat, strat_params, plaw_resources=False):
     for r in np.linspace(100, 0, 10, endpoint=False):
         social_utils = []
         for p in np.linspace(1, 0, 100, endpoint=False):
             utils = []
             num_iter = 10
             for i in range(num_iter):
-                ring_lat = graph_func(num_vertices, regularity, p, r)
+                G = graph_func(num_vertices, regularity, p, r)
 
-                graph_diam = util.calc_diameter(ring_lat)
+                graph_diam = util.calc_diameter(G)
 
-                simp_ring_lat = reduce_providers_simplest(ring_lat)
+                reduce_providers_simplest(G)
                 
                 if plaw_resources:
-                    powerlaw_dist_time(ring_lat, 2)
+                    powerlaw_dist_time(G, 2)
 
-                sim_g, sim_utils = run_simulation(ring_lat)
+                #Initialize strategy
+                sim_strat = strat(**strat_params)
+                sim_strat.initialize_model(G)
+
+                sim_g, sim_utils = run_simulation(G, sim_strat)
 
                 #Get global social welfare at end of simulation normalized by size
-                utils.append(sum(sim_utils[-1]) / len(ring_lat.vertices))
+                utils.append(sum(sim_utils[-1]) / len(G.vertices))
             social_utils.append((p, utils))
 
         plot_utils(social_utils, r, regularity, graph_diam)
