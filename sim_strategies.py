@@ -76,6 +76,7 @@ class MWU(Strategy):
         """
         Gives cost incurred by one state change
         cost in [0,1]
+        Update by Hedge algorithm
         """
         if v_prev_util < v_cur.utility:
             

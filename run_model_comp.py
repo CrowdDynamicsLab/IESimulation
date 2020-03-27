@@ -34,9 +34,6 @@ ep_vals = [ep_infl_vals[0], *np.linspace(ep_infl_vals[0], ep_infl_vals[1], 4, Tr
 er_val_pairs = [ (r, ep) for r in r_vals for ep in ep_vals]
 er_pairs_split = np.array_split(er_val_pairs, 22)
 
-er_pairs_split = [er_pairs_split[0]]
-print(er_pairs_split)
-
 def run_er():
     for param_set in er_pairs_split:
         sim_proc = Process(target=gmcd.run_erdos_renyi,
@@ -47,6 +44,5 @@ def run_er():
         plaw_proc.start()
 
 if __name__ == '__main__':
-#    run_ws()
+    run_ws()
     run_er()
-    pass
