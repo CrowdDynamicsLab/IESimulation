@@ -51,7 +51,9 @@ def run_watts_strogatz(num_vertices, k, r_b_pairs, strat, strat_params, plaw_res
                 if plaw_resources:
                     powerlaw_dist_time(config_model, 2)
                     
-                csim_g, csim_utils = run_simulation(config_model)
+                csim_strat = strat(**strat_params)
+                csim_strat.initialize_model(config_model)
+                csim_g, csim_utils = run_simulation(config_model, csim_strat)
                 cm_utils.append(sum(csim_utils[-1]) / len(config_model.vertices))
             
             ws_social_utils.append((p, ws_utils))
