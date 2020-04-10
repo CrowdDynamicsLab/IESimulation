@@ -5,11 +5,9 @@ import uuid
 
 import numpy as np
 
-from simulation import run_simulation
-from graph_create import reduce_providers_simplest, powerlaw_dist_time, watts_strogatz, erdos_renyi, configuration_model
-import util
-
-import argparse
+from sim_lib.simulation import run_simulation
+from sim_lib.graph_create import reduce_providers_simplest, powerlaw_dist_time, watts_strogatz, erdos_renyi, configuration_model
+import sim_lib.util as util
 
 def run_watts_strogatz(num_vertices, k, r_b_pairs, strat, strat_params, plaw_resources=False, save=False):
     ws_data = defaultdict(dict)

@@ -2,7 +2,7 @@ from collections import defaultdict
 
 import numpy as np
 
-import graph_create
+import sim_lib.graph_create as graph_create
 
 def run_simulation(G, strategy):
     """

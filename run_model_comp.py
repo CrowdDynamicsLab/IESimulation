@@ -2,7 +2,7 @@ from multiprocessing import Process
 
 import numpy as np
 
-import sim_strategies
+import sim_lib.sim_strategies as sim_strategies
 import gen_model_comp_data as gmcd
 
 # Global params

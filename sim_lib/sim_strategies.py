@@ -2,7 +2,7 @@ from collections import defaultdict
 
 import numpy as np
 
-from sim_strategy_abc import Strategy
+from sim_lib.sim_strategy_abc import Strategy
 
 class EvenAlloc(Strategy):
     def __init__(self):
@@ -40,6 +40,13 @@ class MWU(Strategy):
         self.vtx_weights = defaultdict(lambda : {})
         self.lrate = lrate
 
+    # Overload get_available_nbor to sample from distribution by weights
+    def get_available_nbor(self, v):
+        tot_weight = sum(self.vtx_weights[v].values())
+        probs = [ nw / tot_weight for nw in self.vtx_weights[v].values() ]
+        nbor = np.random.choice(list(self.vtx_weights[v].keys()), p=probs)
+        return nbor, v.edges[nbor]
+
     def update_time_alloc(self, v_prev_util, v_cur, nbor_prev_util, nbor_cur):
 
         # Update weights for pair
@@ -75,13 +82,13 @@ class MWU(Strategy):
     def get_cost(self, v_prev_util, v_cur):
         """
         Gives cost incurred by one state change
-        cost in [0,1]
+        cost in [-1,1]
         Update by Hedge algorithm
         """
         if v_prev_util < v_cur.utility:
             
             # Better, give 0 cost
-            return 0
+            return -0.5
 
         elif v_prev_util > v_cur.utility:
 
@@ -91,4 +98,4 @@ class MWU(Strategy):
         else:
 
             # No change, give positive cost of resource use
-            return 0.01
+            return 0.5

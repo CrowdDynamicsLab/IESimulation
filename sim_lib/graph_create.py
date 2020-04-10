@@ -2,8 +2,8 @@ from collections import defaultdict
 
 import numpy as np
 
-from graph import Graph, Vertex, Edge
-from util import gen_const_ratings, ring_slice, sample_powerlaw, is_connected
+from sim_lib.graph import Graph, Vertex, Edge
+from sim_lib.util import gen_const_ratings, ring_slice, sample_powerlaw, is_connected
 
 def force_connected(graph_func):
     """
@@ -222,6 +222,63 @@ def configuration_model(n, degree_seq, p, time_alloc):
             nbor.edges[vtx] = Edge(p)
 
     return G
+
+def stochastic_block_model(ncomm, comm_size, in_prob, out_prob, p, r):
+    """
+    ncomm is the number of communities
+    comm_size is the size of each community
+    in_prob the probability of an edge existing in each community
+    out_prob the probability of an edge existing going out of a community
+    p probability of transmission
+    r time allocated per person
+
+    NOTE: Only one vertex is given the optimal provider
+    """
+    stoch_block = Graph()
+
+    n = ncomm * comm_size
+
+    num_prov = int(n ** 0.5)
+    provs = list(range(num_prov))
+    global_rank = gen_const_ratings(provs)
+
+    opt_prov_vtx = np.random.randint(0, n + 1)
+    max_prov = max(global_rank, key=global_rank.get)
+    min_prov = min(global_rank, key=global_rank.get)
+
+    # Create vertex set of graph
+    vtx_idx = 0
+    def gen_vertex():
+        nonlocal vtx_idx
+        prov = min_prov
+        if vtx_idx == opt_prov_vtx:
+            prov = max_prov
+        vtx = Vertex(r, prov, global_rank, vnum=vtx_idx)
+        vtx_idx += 1
+        return vtx
+
+    vertices = [ gen_vertex() for i in range(n) ]
+    stoch_block.vertices = vertices
+
+    for vtx in stoch_block.vertices:
+
+        # Iterate over possible neighbors of vidx
+        for pnbor in stoch_block.vertices:
+            if vtx == pnbor:
+                continue
+
+            # If pnbor in same community
+            if (vtx.vnum // comm_size) == (pnbor.vnum // comm_size):
+                if np.random.random() <= in_prob:
+                    vtx.edges[pnbor] = Edge(p)
+                    pnbor.edges[vtx] = Edge(p)
+            else:
+                if np.random.random() <= out_prob:
+                    vtx.edges[pnbor] = Edge(p)
+                    pnbor.edges[vtx] = Edge(p)
+
+    return stoch_block
+    
 
 def reduce_providers_simplest(G):
     """
