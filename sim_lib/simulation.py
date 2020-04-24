@@ -4,7 +4,7 @@ import numpy as np
 
 import sim_lib.graph_create as graph_create
 
-def run_simulation(G, strategy):
+def run_simulation(G, strategy, util_times=False):
     """
     Runs a simple simulation of a graph
     No changes are applied to given values such as
@@ -14,6 +14,8 @@ def run_simulation(G, strategy):
 
     G: Graph to run simulation over
     strategy: Resource allocation strategy to use - must be initialized
+    util_times: If True return times at which each person received their
+    best util and who they received it from
     """
 
     assert (not strategy.initialize), 'strategy must be initialized'
@@ -38,8 +40,10 @@ def run_simulation(G, strategy):
     #Get vertex ordering
     np.random.shuffle(G.vertices)
 
-    iter_num = 0
-    while iter_num < sum([v.time for v in G.vertices]):
+    util_time_map = { v : { 'from' : v, 'ut' : v.utility, 'iter' : 0 } for v in G.vertices }
+
+    iter_num = 1
+    while iter_num < sum([v.time for v in G.vertices]) + 1:
         global_util = graph_utilities()
         utilities.append(global_util)
         if sum(global_util) == social_opt:
@@ -78,8 +82,12 @@ def run_simulation(G, strategy):
             #Check if transmission occured, if so transmit info if needed
             if np.random.random() <= nedge.trate:
                 if v.utility > nbor.utility:
+                    util_time_map[nbor] = util_time_map[v].copy()
+                    util_time_map[nbor]['iter'] = iter_num
                     nbor.provider = v.provider
                 elif v.utility < nbor.utility:
+                    util_time_map[v] = util_time_map[nbor].copy()
+                    util_time_map[v]['iter'] = iter_num
                     v.provider = nbor.provider
 
             #Update time allocations in strategy
@@ -93,4 +101,8 @@ def run_simulation(G, strategy):
         if not graph_time_left():
             break
 
+    if util_times:
+        return G, utilities, util_time_map
+
     return G, utilities
+

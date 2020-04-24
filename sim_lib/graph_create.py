@@ -278,7 +278,111 @@ def stochastic_block_model(ncomm, comm_size, in_prob, out_prob, p, r):
                     pnbor.edges[vtx] = Edge(p)
 
     return stoch_block
-    
+   
+def kleinberg_grid(n, m, r, p, k=1, q=2):
+    """
+    Creates a (n x m) Kleinberg grid
+    Each vertex has k random edges
+    q is the clustering coefficient determining the edge probability
+    r is the amount of resources allocated to each vertex
+    p is the probability of information transmission
+    """
+
+    # Create graph
+    k_grid = Graph()
+
+    num_prov = int(n ** 0.5)
+    provs = list(range(num_prov))
+    global_rank = gen_const_ratings(provs)
+
+    # Generate vertices
+    vtx_idx = 0
+    def gen_vertex():
+        nonlocal vtx_idx
+        prov = np.random.choice(provs)
+        vtx = Vertex(r, prov, global_rank, vnum=vtx_idx)
+        vtx_idx += 1
+        return vtx
+
+    vertices = [ gen_vertex() for i in range(n * m) ]
+    k_grid.vertices = vertices
+
+    # Generate edges
+    rmo = lambda i, j : (i * n) + j
+    vtx = lambda i : k_grid.vertices[i]
+    for i in range(n):
+        for j in range(m):
+
+            cur_idx = rmo(i, j)
+
+            # Add k random edges by distance
+            # Sum to calculate probability of long distance edge
+            lr_prob_cutoffs = [1]
+            max_dist = max(i, n - i - 1) + max(j, m - j - 1)
+            for d in range(2, max_dist + 1):
+                lr_prob_cutoffs.append(lr_prob_cutoffs[-1] + d ** -q)
+
+            for _ in range(k):
+                dist_draw = np.random.uniform(high=lr_prob_cutoffs[-1])
+
+                # Identify distance of target vertex
+                found_dist = -1
+                for pcum, d in zip(lr_prob_cutoffs, list(range(1, max_dist + 1))):
+                    if dist_draw <= pcum:
+                        found_dist = d
+                        break
+
+                # No point in selecting, all vertices at dist 1 already neighbors
+                if found_dist == 1:
+                    continue
+
+                # Get vertices found_dist away, select one at random
+                fd_vtxs = []
+                for it in range(found_dist):
+
+                    # Get vertices in Quad1
+                    ur_i = i - (found_dist - it)
+                    ur_j = j + (it)
+                    if not(ur_i < 0 or ur_j > m - 1):
+                        fd_vtxs.append(vtx(rmo(ur_i, ur_j)))
+
+                    # Get vertices in Quad2
+                    ul_i = i - (found_dist - it)
+                    ul_j = j - (it)
+                    if not (ul_i < 0 or ul_j < 0):
+                        fd_vtxs.append(vtx(rmo(ul_i, ul_j)))
+
+                    # Get vertices in Quad3
+                    bl_i = i + (found_dist - it)
+                    bl_j = j - (it)
+                    if not (bl_i > n - 1 or bl_j < 0):
+                        fd_vtxs.append(vtx(rmo(bl_i, bl_j)))
+
+                    # Get vertices in Quad4
+                    br_i = i + (found_dist - it)
+                    br_j = j + (it)
+                    if not (br_i > n - 1 or br_j > m - 1):
+                        fd_vtxs.append(vtx(rmo(br_i, br_j)))
+
+                lr_vtx = np.random.choice(fd_vtxs)
+                vtx(cur_idx).edges[lr_vtx] = Edge(p)
+                lr_vtx.edges[vtx(cur_idx)] = Edge(p)
+
+            # Only need to add edge for down and right
+
+            # Skip if on last column
+            if j != m - 1:
+                right_idx = rmo(i, j + 1)
+                vtx(cur_idx).edges[vtx(right_idx)] = Edge(p)
+                vtx(right_idx).edges[vtx(cur_idx)] = Edge(p)
+
+            # Skip if on bottom row
+            if i != n - 1:
+                down_idx = rmo(i + 1, j)
+                vtx(cur_idx).edges[vtx(down_idx)] = Edge(p)
+                vtx(down_idx).edges[vtx(cur_idx)] = Edge(p)
+
+    return k_grid
 
 def reduce_providers_simplest(G):
     """
