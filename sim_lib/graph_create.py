@@ -392,7 +392,8 @@ def reduce_providers_simplest(G):
     max_prov = max([ vtx.provider for vtx in G.vertices ])
     for vtx in G.vertices:
         vtx.provider = 0
-    G.vertices[0].provider = max_prov
+    max_vtx = np.random.randint(len(G.vertices))
+    G.vertices[max_vtx].provider = max_prov
 
 def powerlaw_dist_time(G, plaw_exp, plaw_coeff=1):
     """
