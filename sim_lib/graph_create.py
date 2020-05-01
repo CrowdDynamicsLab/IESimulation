@@ -291,7 +291,7 @@ def kleinberg_grid(n, m, r, p, k=1, q=2):
     # Create graph
     k_grid = Graph()
 
-    num_prov = int(n ** 0.5)
+    num_prov = int((n * m) ** 0.5)
     provs = list(range(num_prov))
     global_rank = gen_const_ratings(provs)
 
@@ -326,7 +326,7 @@ def kleinberg_grid(n, m, r, p, k=1, q=2):
                 dist_draw = np.random.uniform(high=lr_prob_cutoffs[-1])
 
                 # Identify distance of target vertex
-                found_dist = -1
+                found_dist = 1
                 for pcum, d in zip(lr_prob_cutoffs, list(range(1, max_dist + 1))):
                     if dist_draw <= pcum:
                         found_dist = d
