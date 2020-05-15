@@ -40,7 +40,8 @@ def run_simulation(G, strategy, util_times=False):
     #Get vertex ordering
     np.random.shuffle(G.vertices)
 
-    util_time_map = { v : { 'from' : v, 'ut' : v.utility, 'iter' : 0 } for v in G.vertices }
+    util_time_map = { v : { 'from' : [v], 'ut' : v.utility, 'iter' : 0 } for v in G.vertices }
+#    util_time_map = { v : { 'from' : v, 'ut' : v.utility, 'iter' : 0 } for v in G.vertices }
 
     iter_num = 1
     while iter_num < sum([v.time for v in G.vertices]) + 1:
@@ -82,11 +83,15 @@ def run_simulation(G, strategy, util_times=False):
             #Check if transmission occured, if so transmit info if needed
             if np.random.random() <= nedge.trate:
                 if v.utility > nbor.utility:
-                    util_time_map[nbor] = util_time_map[v].copy()
+                    util_time_map[nbor]['from'] = util_time_map[v]['from'].copy()
+                    util_time_map[nbor]['from'].append(nbor)
+                    util_time_map[nbor]['ut'] = v.utility
                     util_time_map[nbor]['iter'] = iter_num
                     nbor.provider = v.provider
                 elif v.utility < nbor.utility:
-                    util_time_map[v] = util_time_map[nbor].copy()
+                    util_time_map[v]['from'] = util_time_map[nbor]['from'].copy()
+                    util_time_map[v]['from'].append(v)
+                    util_time_map[v]['ut'] = nbor.utility
                     util_time_map[v]['iter'] = iter_num
                     v.provider = nbor.provider
 
