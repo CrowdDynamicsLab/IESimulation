@@ -99,3 +99,4 @@ class MWU(Strategy):
 
             # No change, give positive cost of resource use
             return 0.5
+

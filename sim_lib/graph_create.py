@@ -384,6 +384,13 @@ def kleinberg_grid(n, m, r, p, k=1, q=2):
 
     return k_grid
 
+def add_selfedges(G):
+    """
+    Adds self-edges on all vertices of G
+    """
+    for vtx in G.vertices:
+        vtx.edges[vtx] = Edge(1)
+
 def reduce_providers_simplest(G):
     """
     Reduces a graph G to the simplest case where exactly one vertex

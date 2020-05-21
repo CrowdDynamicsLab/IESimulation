@@ -18,6 +18,7 @@ class Vertex:
     if one not specified
     global_vnum: Global vertex number, should be unique for each vertex across
     all graphs generated
+    interaction_count: The number of interactions this person has had
     """
 
     vtx_count = 0
@@ -28,6 +29,7 @@ class Vertex:
         self.provider = init_prov
         self.prov_rating = ratings
         self.vnum = vnum
+        self.interaction_count = 0
 
     @property
     def utility(self):

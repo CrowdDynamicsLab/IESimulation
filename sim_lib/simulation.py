@@ -40,8 +40,8 @@ def run_simulation(G, strategy, util_times=False):
     #Get vertex ordering
     np.random.shuffle(G.vertices)
 
-    util_time_map = { v : { 'from' : [v], 'ut' : v.utility, 'iter' : 0 } for v in G.vertices }
-#    util_time_map = { v : { 'from' : v, 'ut' : v.utility, 'iter' : 0 } for v in G.vertices }
+    util_time_map = { v : { 'from' : [v], 'ut' : v.utility, 'iter' : 0, 'int_cnt' : 0 } \
+            for v in G.vertices }
 
     iter_num = 1
     while iter_num < sum([v.time for v in G.vertices]) + 1:
@@ -60,6 +60,7 @@ def run_simulation(G, strategy, util_times=False):
                 continue
 
             #If no nbors will become available this vertex is effectively done
+            #NOTE: This will have to change when ability to add edges is introduced
             if not sum([nbor.time for nbor in v.nbors]):
                 v.time = 0
                 continue
@@ -72,9 +73,17 @@ def run_simulation(G, strategy, util_times=False):
 
             nbor, nedge = avail_nbors
 
+            #For self selection do nothing
+            if nbor.vnum == v.vnum:
+                continue
+
             #Decrement time for v and nbor
             v.time -= 1
             nbor.time -= 1
+
+            #Increment interaction count for both vertices
+            v.interaction_count += 1
+            nbor.interaction_count += 1
 
             #Save data needed to calculate cost of action
             nbor_prev_util = nbor.utility
@@ -87,12 +96,14 @@ def run_simulation(G, strategy, util_times=False):
                     util_time_map[nbor]['from'].append(nbor)
                     util_time_map[nbor]['ut'] = v.utility
                     util_time_map[nbor]['iter'] = iter_num
+                    util_time_map[nbor]['int_cnt'] = nbor.interaction_count
                     nbor.provider = v.provider
                 elif v.utility < nbor.utility:
                     util_time_map[v]['from'] = util_time_map[nbor]['from'].copy()
                     util_time_map[v]['from'].append(v)
                     util_time_map[v]['ut'] = nbor.utility
                     util_time_map[v]['iter'] = iter_num
+                    util_time_map[v]['int_cnt'] = v.interaction_count
                     v.provider = nbor.provider
 
             #Update time allocations in strategy
