@@ -44,7 +44,7 @@ def run_simulation(G, strategy, util_times=False):
             for v in G.vertices }
 
     iter_num = 1
-    while iter_num < sum([v.time for v in G.vertices]) + 1:
+    while iter_num < (sum([v.time for v in G.vertices]) // 2) + 1:
         global_util = graph_utilities()
         utilities.append(global_util)
         if sum(global_util) == social_opt:
@@ -61,7 +61,7 @@ def run_simulation(G, strategy, util_times=False):
 
             #If no nbors will become available this vertex is effectively done
             #NOTE: This will have to change when ability to add edges is introduced
-            if not sum([nbor.time for nbor in v.nbors]):
+            if sum([nbor.time for nbor in v.nbors]) == 0:
                 v.time = 0
                 continue
 
@@ -82,8 +82,8 @@ def run_simulation(G, strategy, util_times=False):
             nbor.time -= 1
 
             #Increment interaction count for both vertices
-            v.interaction_count += 1
-            nbor.interaction_count += 1
+            v.add_init_int()
+            nbor.add_recv_int()
 
             #Save data needed to calculate cost of action
             nbor_prev_util = nbor.utility
@@ -96,14 +96,14 @@ def run_simulation(G, strategy, util_times=False):
                     util_time_map[nbor]['from'].append(nbor)
                     util_time_map[nbor]['ut'] = v.utility
                     util_time_map[nbor]['iter'] = iter_num
-                    util_time_map[nbor]['int_cnt'] = nbor.interaction_count
+                    util_time_map[nbor]['int_cnt'] = nbor.total_ints
                     nbor.provider = v.provider
                 elif v.utility < nbor.utility:
                     util_time_map[v]['from'] = util_time_map[nbor]['from'].copy()
                     util_time_map[v]['from'].append(v)
                     util_time_map[v]['ut'] = nbor.utility
                     util_time_map[v]['iter'] = iter_num
-                    util_time_map[v]['int_cnt'] = v.interaction_count
+                    util_time_map[v]['int_cnt'] = v.total_ints
                     v.provider = nbor.provider
 
             #Update time allocations in strategy
@@ -114,7 +114,7 @@ def run_simulation(G, strategy, util_times=False):
         iter_num += 1
 
         # Stopping condition when all time exhausted
-        if not graph_time_left():
+        if graph_time_left() == 0:
             break
 
     if util_times:

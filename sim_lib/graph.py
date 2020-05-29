@@ -29,7 +29,11 @@ class Vertex:
         self.provider = init_prov
         self.prov_rating = ratings
         self.vnum = vnum
-        self.interaction_count = 0
+
+        # may eventually add per neighbor
+        self.interactions = {'total' : 0,
+                             'initiated' : 0,
+                             'received' : 0}
 
     @property
     def utility(self):
@@ -42,6 +46,26 @@ class Vertex:
     @property
     def nbors(self):
         return list(self.edges.keys())
+
+    @property
+    def total_ints(self):
+        return self.interactions['total']
+
+    @property
+    def init_ints(self):
+        return self.interactions['initiated']
+
+    @property
+    def recv_ints(self):
+        return self.interactions['received']
+
+    def add_init_int(self):
+        self.interactions['total'] += 1
+        self.interactions['initiated'] += 1
+
+    def add_recv_int(self):
+        self.interactions['total'] += 1
+        self.interactions['received'] += 1
 
     def __repr__(self):
         return 'Vertex {0}'.format(self.vnum)

@@ -7,7 +7,7 @@ import numpy as np
 import numpy.linalg as nla
 
 from sim_lib.simulation import run_simulation
-from sim_lib.graph_create import kleinberg_grid, reduce_providers_simplest, powerlaw_dist_time
+from sim_lib.graph_create import kleinberg_grid, reduce_providers_simplest, powerlaw_dist_time, add_selfedges
 from sim_lib.sim_strategies import EvenAlloc, MWU
 import sim_lib.util as util
 
@@ -37,7 +37,7 @@ def gen_data(graph_func, strat_params, plaw_resources=False, simplest=False, deb
         r_vals = [32]
 
     # Create final dict
-    data = { 'plaw' : False }
+    data = { 'plaw' : plaw_resources }
 
     for r in r_vals:
         
@@ -58,8 +58,13 @@ def gen_data(graph_func, strat_params, plaw_resources=False, simplest=False, deb
             emaps = []
             semaps = []
 
+            graphs = []
+            egraphs = []
+            segraphs = []
+
             for i in range(num_iter):
                 G = graph_func(p, r)
+                G_init = copy.deepcopy(G)
 
                 graph_diam = util.calc_diameter(G)
 
@@ -80,6 +85,7 @@ def gen_data(graph_func, strat_params, plaw_resources=False, simplest=False, deb
 
                 #Make copy to run self-edge MWU on
                 G_se = copy.deepcopy(G)
+                add_selfedges(G_se)
 
                 #Initialize strategy
                 sim_strat = MWU(**strat_params)
@@ -108,10 +114,18 @@ def gen_data(graph_func, strat_params, plaw_resources=False, simplest=False, deb
                 emaps.append(stringify_map(even_ut_map))
                 semaps.append(stringify_map(mwu_se_ut_map))
 
+                graphs.append((util.serialize_graph(G_init),
+                    util.serialize_graph(sim_g)))
+                egraphs.append((util.serialize_graph(G_init),
+                    util.serialize_graph(sim_g_even)))
+                segraphs.append((util.serialize_graph(G_init),
+                    util.serialize_graph(sim_g_se)))
+
             p_str = str(round(p, 3))
             data[str(r)][p_str] = {}
             data[str(r)][p_str]['utils'] = { 'mwu' : utils, 'even' : eutils, 'se_mwu' : seutils }
             data[str(r)][p_str]['maps']= { 'mwu' : maps, 'even' : emaps, 'se_mwu' : semaps }
+            data[str(r)][p_str]['graphs'] = { 'mwu' : graphs, 'even' : egraphs, 'se_mwu' : segraphs }
     return data
 
 nonplaw_data = gen_data(create_kg, {'lrate' : lrate}, simplest=False)

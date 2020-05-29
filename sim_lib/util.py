@@ -2,6 +2,8 @@ import numpy as np
 from math import ceil, factorial
 from collections import defaultdict
 
+from sim_lib.graph import Graph, Vertex, Edge
+
 def gen_const_ratings(provs):
     """
     Returns a dict of ratings of provider : int
@@ -146,3 +148,45 @@ def opt_vertices(G):
     """
     max_util = max([ vtx.utility for vtx in G.vertices ])
     return [ vtx for vtx in G.vertices if vtx.utility == max_util ]
+
+def serialize_graph(G):
+    """
+    Put graph into a dict object that can be dumped into a json file
+    """
+    ser_g = { 'vertices' : [] }
+    for vtx in G.vertices:
+        ser_vtx = { 'time' : vtx.time,
+                    'provider' : int(vtx.provider),
+                    'prov_rating' : vtx.prov_rating,
+                    'vnum' : vtx.vnum,
+                    'interactions' : vtx.interactions }
+        ser_edges = []
+        for nbor in vtx.nbors:
+            ser_edges.append(( nbor.vnum , vtx.edges[nbor].trate ))
+        ser_vtx['edges'] = ser_edges
+        ser_g['vertices'].append(ser_vtx)
+    return ser_g
+
+def json_to_graph(ser_G):
+    """
+    Takes a dict read from a json file and puts it into a graph
+    Must be formatted from serialize_graph
+    """
+    G = Graph()
+    vnum_map = {}
+    for ser_vtx in ser_G['vertices']:
+        prov_rating = { int(k) : v for k, v in ser_vtx['prov_rating'].items() }
+        vtx = Vertex(ser_vtx['time'], ser_vtx['provider'],
+                prov_rating, ser_vtx['vnum'])
+        vtx.interactions = ser_vtx['interactions']
+        vnum_map[vtx.vnum] = vtx
+        G.vertices.append(vtx)
+
+    # Need to add edges after all vertices
+    for ser_vtx in ser_G['vertices']:
+        for nbor_vnum, edge_prob in ser_vtx['edges']:
+            vtx = vnum_map[ser_vtx['vnum']]
+            vtx.edges[vnum_map[nbor_vnum]] = Edge(edge_prob)
+
+    return G
+
