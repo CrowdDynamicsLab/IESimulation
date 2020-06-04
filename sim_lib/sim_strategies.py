@@ -4,12 +4,42 @@ import numpy as np
 
 from sim_lib.sim_strategy_abc import Strategy
 
-class EvenAlloc(Strategy):
+class Uniform(Strategy):
     def __init__(self):
         super().__init__()
 
-    def update_time_alloc(self, vpu, vc, npu, nc):
-        pass
+    def initialize_model(self, G):
+        """
+        Set weights based on time allocated to each vertex split evenly
+        """
+        for vtx in G.vertices:
+            t = vtx.time
+            n = len(vtx.nbors)
+
+            time_splits = np.linspace(0, t, n + 1, dtype=int)
+            allocs = [ time_splits[i + 1] - time_splits[i] \
+                    for i in range(len(time_splits) - 1) ]
+
+            self.time_allocs[vtx] = { nbor : ta for nbor, ta \
+                    in zip(vtx.nbors, allocs) }
+
+        self.initialize = False
+
+    def get_available_nbor(self, v):
+        nbors = list(self.time_allocs[v].keys())
+
+        avail = lambda n : self.time_allocs[v][n] > 0 and self.time_allocs[n][v] > 0
+        nbors = [ nb for nb in nbors if avail(nb) ]
+        if len(nbors) == 0:
+            return None
+
+        nbor = np.random.choice(nbors)
+
+        return nbor, v.edges[nbor]
+
+class RoundRobin(Strategy):
+    def __init__(self):
+        super().__init__()
 
     def initialize_model(self, G):
         """
@@ -43,8 +73,9 @@ class MWU(Strategy):
     # Overload get_available_nbor to sample from distribution by weights
     def get_available_nbor(self, v):
         tot_weight = sum(self.vtx_weights[v].values())
-        probs = [ nw / tot_weight for nw in self.vtx_weights[v].values() ]
-        nbor = np.random.choice(list(self.vtx_weights[v].keys()), p=probs)
+        nbors = list(self.vtx_weights[v].keys())
+        probs = [ self.vtx_weights[v][nb] / tot_weight for nb in nbors ]
+        nbor = np.random.choice(nbors, p=probs)
         return nbor, v.edges[nbor]
 
     def update_time_alloc(self, v_prev_util, v_cur, nbor_prev_util, nbor_cur):

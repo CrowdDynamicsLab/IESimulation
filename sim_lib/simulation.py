@@ -44,7 +44,7 @@ def run_simulation(G, strategy, util_times=False):
             for v in G.vertices }
 
     iter_num = 1
-    while iter_num < (sum([v.time for v in G.vertices]) // 2) + 1:
+    while iter_num < max([v.time for v in G.vertices]) + 1:
         global_util = graph_utilities()
         utilities.append(global_util)
         if sum(global_util) == social_opt:

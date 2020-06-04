@@ -8,7 +8,7 @@ import numpy.linalg as nla
 
 from sim_lib.simulation import run_simulation
 from sim_lib.graph_create import kleinberg_grid, reduce_providers_simplest, powerlaw_dist_time, add_selfedges
-from sim_lib.sim_strategies import EvenAlloc, MWU
+from sim_lib.sim_strategies import Uniform, RoundRobin, MWU
 import sim_lib.util as util
 
 _DEBUG = True
@@ -36,6 +36,8 @@ def gen_data(graph_func, strat_params, plaw_resources=False, simplest=False, deb
     if debug:
         r_vals = [32]
 
+    strategies = ['rr', 'unif', 'se_mwu', 'mwu']
+
     # Create final dict
     data = { 'plaw' : plaw_resources }
 
@@ -50,18 +52,12 @@ def gen_data(graph_func, strat_params, plaw_resources=False, simplest=False, deb
         data[str(r)] = {}
         
         for p in np.linspace(1, 0, num_p, endpoint=False):
-            utils = []
-            eutils = []
-            seutils = []
+            utils = { st : [] for st in strategies }
+            maps = { st : [] for st in strategies }
+            graphs = { st : [] for st in strategies }
+
+            init_graphs = []
             
-            maps = []
-            emaps = []
-            semaps = []
-
-            graphs = []
-            egraphs = []
-            segraphs = []
-
             for i in range(num_iter):
                 G = graph_func(p, r)
                 G_init = copy.deepcopy(G)
@@ -80,56 +76,67 @@ def gen_data(graph_func, strat_params, plaw_resources=False, simplest=False, deb
                 if plaw_resources:
                     powerlaw_dist_time(G, 2)
                     
-                #Make copy of graph to run even alloc strategy on
-                G_even = copy.deepcopy(G)
+                #Make copy of graph to run round robin
+                G_rr = copy.deepcopy(G)
 
                 #Make copy to run self-edge MWU on
                 G_se = copy.deepcopy(G)
                 add_selfedges(G_se)
 
-                #Initialize strategy
-                sim_strat = MWU(**strat_params)
-                sim_strat.initialize_model(G)
+                #Make copy of graph for time weighted
+                G_unif = copy.deepcopy(G)
 
-                sim_g, sim_utils, mwu_ut_map = run_simulation(G, sim_strat, True)
-                
-                #Initialize even alloc strategy
-                even_strat = EvenAlloc()
-                even_strat.initialize_model(G_even)
-                
-                sim_g_even, sim_utils_even, even_ut_map = run_simulation(G_even, even_strat, True)
+                #Initialize MWU
+                mwu_strat = MWU(**strat_params)
+                mwu_strat.initialize_model(G)
+
+                sim_g_mwu, sim_utils_mwu, mwu_ut_map = run_simulation(G, mwu_strat, True)
 
                 #Initialize MWU for self edge
                 mwu_self = MWU(**strat_params)
                 mwu_self.initialize_model(G_se)
 
                 sim_g_se, sim_utils_se, mwu_se_ut_map = run_simulation(G_se, mwu_self, True)
+                
+                #Initialize round robin strategy
+                rr_strat = RoundRobin()
+                rr_strat.initialize_model(G_rr)
+                
+                sim_g_rr, sim_utils_rr, rr_ut_map = run_simulation(G_rr, rr_strat, True)
+
+                #Initialize time weighted strategy
+                unif_strat = Uniform()
+                unif_strat.initialize_model(G_unif)
+                sim_g_unif, sim_utils_unif, unif_ut_map = run_simulation(G_unif, unif_strat, True)
 
                 #Get global social welfare at end of simulation normalized by size
-                utils.append(sim_utils)
-                eutils.append(sim_utils_even)
-                seutils.append(sim_utils_se)
+                utils['mwu'].append(sim_utils_mwu)
+                utils['se_mwu'].append(sim_utils_se)
+                utils['rr'].append(sim_utils_rr)
+                utils['unif'].append(sim_utils_unif)
 
-                maps.append(stringify_map(mwu_ut_map))
-                emaps.append(stringify_map(even_ut_map))
-                semaps.append(stringify_map(mwu_se_ut_map))
+                maps['mwu'].append(stringify_map(mwu_ut_map))
+                maps['se_mwu'].append(stringify_map(mwu_se_ut_map))
+                maps['rr'].append(stringify_map(rr_ut_map))
+                maps['unif'].append(stringify_map(unif_ut_map))
 
-                graphs.append((util.serialize_graph(G_init),
-                    util.serialize_graph(sim_g)))
-                egraphs.append((util.serialize_graph(G_init),
-                    util.serialize_graph(sim_g_even)))
-                segraphs.append((util.serialize_graph(G_init),
-                    util.serialize_graph(sim_g_se)))
+                graphs['mwu'].append(util.serialize_graph(sim_g_mwu))
+                graphs['se_mwu'].append(util.serialize_graph(sim_g_se))
+                graphs['rr'].append(util.serialize_graph(sim_g_rr))
+                graphs['unif'].append(util.serialize_graph(sim_g_unif))
+
+                init_graphs.append(util.serialize_graph(G_init))
 
             p_str = str(round(p, 3))
             data[str(r)][p_str] = {}
-            data[str(r)][p_str]['utils'] = { 'mwu' : utils, 'even' : eutils, 'se_mwu' : seutils }
-            data[str(r)][p_str]['maps']= { 'mwu' : maps, 'even' : emaps, 'se_mwu' : semaps }
-            data[str(r)][p_str]['graphs'] = { 'mwu' : graphs, 'even' : egraphs, 'se_mwu' : segraphs }
+            data[str(r)][p_str]['utils'] = utils
+            data[str(r)][p_str]['maps']= maps
+            data[str(r)][p_str]['graphs'] = graphs
+            data[str(r)][p_str]['init_graphs'] = init_graphs
     return data
 
-nonplaw_data = gen_data(create_kg, {'lrate' : lrate}, simplest=False)
-plaw_data = gen_data(create_kg, {'lrate' : lrate}, simplest=False, plaw_resources=True)
+nonplaw_data = gen_data(create_kg, {'lrate' : lrate}, simplest=False, debug=False)
+plaw_data = gen_data(create_kg, {'lrate' : lrate}, simplest=False, plaw_resources=True, debug=False)
 
 with open ('data/kgrid_data.json', 'w+') as kd:
     kd.write(json.dumps(nonplaw_data))

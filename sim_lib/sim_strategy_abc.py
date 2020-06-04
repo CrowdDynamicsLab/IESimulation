@@ -15,15 +15,21 @@ class Strategy(ABC):
         self.vtx_cur_nbor = defaultdict(lambda : 0)
         super().__init__()
 
-    @abstractmethod
-    def update_time_alloc(self, v_prev, v_cur, nbor_prev, nbor_cur):
-        pass
+    def update_time_alloc(self, v_prev_ut, v_cur, nbor_prev_ut, nbor_cur):
+        """
+        Decrements vertex time allocations
+        """
+        self.time_allocs[v_cur][nbor_cur] -= 1
+        self.time_allocs[nbor_cur][v_cur] -= 1
 
     @abstractmethod
     def initialize_model(self, **kwargs):
         pass
 
     def get_available_nbor(self, v):
+        """
+        Gets the next available neighbor in sequence
+        """
         found_nbor = False
         nbor, nedge = list(v.edges.items())[self.vtx_cur_nbor[v]]
         for it in range(v.degree):
@@ -44,10 +50,5 @@ class Strategy(ABC):
         assert self.time_allocs[nbor][v] > 0
         assert v.time > 0, f"{self.time_allocs[v]} {v.time}"
         assert nbor.time > 0, f"{self.time_allocs[nbor]} {nbor.time}"
-
-        self.time_allocs[v][nbor] -= 1
-        self.time_allocs[nbor][v] -= 1
-        v.time -= 1
-        nbor.time -= 1
 
         return nbor, nedge
