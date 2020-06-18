@@ -406,8 +406,25 @@ def powerlaw_dist_time(G, plaw_exp, plaw_coeff=1):
     """
     Redistribute time per person based on specified powerlaw
     """
-    tot_time = sum([ vtx.time for vtx in G.vertices ])
+    tot_time = sum([ vtx.time for vtx in G.vertices ]) - len(G.vertices)
     plaw_times = sample_powerlaw(len(G.vertices), tot_time, plaw_exp, plaw_coeff, True)
     for idx, vtx in enumerate(G.vertices):
         vtx.time = plaw_times[idx]
+
+def powerlaw_dist_util(G, plaw_exp, plaw_coeff=1, rating_dict=None):
+    """
+    Assumes provider rating list is uniform unless a rating dictionary is given
+    Redistributes _global provider_ utilities based on specified powerlaw
+    """
+    prov_ratings = None
+    if rating_dict:
+        prov_ratings = rating_dict
+    else:
+        prov_ratings = G.vertices[0].prov_rating
+
+    provs = list(prov_ratings.keys())
+    plaw_utils = sample_powerlaw(len(provs), 1, plaw_exp, plaw_coeff, False)
+    plaw_ratings = { prov : plaw_utils[idx] for idx, prov in enumerate(provs) }
+    for vtx in G.vertices:
+        vtx.prov_rating = plaw_ratings
 

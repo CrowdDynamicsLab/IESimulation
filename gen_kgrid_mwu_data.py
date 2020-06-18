@@ -7,7 +7,7 @@ import numpy as np
 import numpy.linalg as nla
 
 from sim_lib.simulation import run_simulation
-from sim_lib.graph_create import kleinberg_grid, reduce_providers_simplest, powerlaw_dist_time, add_selfedges
+from sim_lib.graph_create import kleinberg_grid, reduce_providers_simplest, powerlaw_dist_time, powerlaw_dist_util, add_selfedges
 from sim_lib.sim_strategies import Uniform, RoundRobin, MWU
 import sim_lib.util as util
 
@@ -30,7 +30,7 @@ def stringify_map(ut_map):
         str_map[vtx.vnum] = vum
     return str_map
 
-def gen_data(graph_func, strat_params, plaw_resources=False, simplest=False, debug=False):
+def gen_data(graph_func, strat_params, plaw_resources=False, plaw_utils=False, simplest=False, debug=False):
     r_vals = [ 2 ** k for k in range(1, 8) ][::-1]
 
     if debug:
@@ -39,7 +39,8 @@ def gen_data(graph_func, strat_params, plaw_resources=False, simplest=False, deb
     strategies = ['rr', 'unif', 'se_mwu', 'mwu']
 
     # Create final dict
-    data = { 'plaw' : plaw_resources }
+    data = { 'plaw_r' : plaw_resources }
+    data['plaw_util'] = plaw_utils
 
     for r in r_vals:
         
@@ -59,38 +60,43 @@ def gen_data(graph_func, strat_params, plaw_resources=False, simplest=False, deb
             init_graphs = []
             
             for i in range(num_iter):
-                G = graph_func(p, r)
-                G_init = copy.deepcopy(G)
+                G_init = graph_func(p, r)
 
-                graph_diam = util.calc_diameter(G)
+                graph_diam = util.calc_diameter(G_init)
 
                 if simplest:
-                    reduce_providers_simplest(G)
+                    reduce_providers_simplest(G_init)
                 
                 #Get opt to find shortest paths later on
-                opt_seeds = util.opt_vertices(G)
-                initial_utils = set([ v.utility for v in G.vertices ])
-                initial_seeds = { ut : [ v for v in G.vertices if v.utility == ut ] 
+                opt_seeds = util.opt_vertices(G_init)
+                initial_utils = set([ v.utility for v in G_init.vertices ])
+                initial_seeds = { ut : [ v for v in G_init.vertices if v.utility == ut ] 
                                  for ut in initial_utils }
                 
                 if plaw_resources:
-                    powerlaw_dist_time(G, 2)
-                    
+                    powerlaw_dist_time(G_init, 2)
+
+                if plaw_utils:
+                    powerlaw_dist_util(G_init, 2)
+                
+                #Make copy of graph to run MWU on
+                G_mwu = copy.deepcopy(G_init)
+
                 #Make copy of graph to run round robin
-                G_rr = copy.deepcopy(G)
+                G_rr = copy.deepcopy(G_init)
 
                 #Make copy to run self-edge MWU on
-                G_se = copy.deepcopy(G)
+                G_se = copy.deepcopy(G_init)
                 add_selfedges(G_se)
 
                 #Make copy of graph for time weighted
-                G_unif = copy.deepcopy(G)
+                G_unif = copy.deepcopy(G_init)
 
                 #Initialize MWU
                 mwu_strat = MWU(**strat_params)
-                mwu_strat.initialize_model(G)
+                mwu_strat.initialize_model(G_mwu)
 
-                sim_g_mwu, sim_utils_mwu, mwu_ut_map = run_simulation(G, mwu_strat, True)
+                sim_g_mwu, sim_utils_mwu, mwu_ut_map = run_simulation(G_mwu, mwu_strat, True)
 
                 #Initialize MWU for self edge
                 mwu_self = MWU(**strat_params)
@@ -136,11 +142,19 @@ def gen_data(graph_func, strat_params, plaw_resources=False, simplest=False, deb
     return data
 
 nonplaw_data = gen_data(create_kg, {'lrate' : lrate}, simplest=False, debug=False)
-plaw_data = gen_data(create_kg, {'lrate' : lrate}, simplest=False, plaw_resources=True, debug=False)
+plaw_r_data = gen_data(create_kg, {'lrate' : lrate}, simplest=False, plaw_resources=True, debug=False)
+plaw_ut_data = gen_data(create_kg, {'lrate' : lrate}, simplest=False, plaw_utils=True, debug=False)
+plaw_both_data = gen_data(create_kg, {'lrate' : lrate}, simplest=False, plaw_resources=True, plaw_utils=True, debug=False)
 
-with open ('data/kgrid_data.json', 'w+') as kd:
+with open ('kgrid_data/kgrid_data.json', 'w+') as kd:
     kd.write(json.dumps(nonplaw_data))
 
-with open ('data/kgrid_plaw_data.json', 'w+') as kd:
-    kd.write(json.dumps(plaw_data))
+with open ('kgrid_data/kgrid_plaw_r_data.json', 'w+') as kd:
+    kd.write(json.dumps(plaw_r_data))
+
+with open ('kgrid_data/kgrid_plaw_ut_data.json', 'w+') as kd:
+    kd.write(json.dumps(plaw_ut_data))
+
+with open ('kgrid_data/kgrid_plaw_both_data.json', 'w+') as kd:
+    kd.write(json.dumps(plaw_both_data))
 

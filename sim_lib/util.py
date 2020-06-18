@@ -81,7 +81,7 @@ def sample_powerlaw(n, tot_val, exp, coeff=1, discretize=False):
 
     requires that exp > 0 and x_min > 0
 
-    Takes ceiling of 
+    Rounds if discretize is specified
     """
 
     plaw_raw = coeff * np.random.pareto(exp, n)
@@ -89,7 +89,7 @@ def sample_powerlaw(n, tot_val, exp, coeff=1, discretize=False):
     scale_fac = tot_val / plaw_sum
     scaled = scale_fac * plaw_raw
     if discretize:
-        return [ ceil(samp) for samp in scaled ]
+        return [ round(samp, 0) for samp in scaled ]
     else:
         return scaled
 

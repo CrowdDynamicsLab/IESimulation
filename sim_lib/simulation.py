@@ -32,7 +32,7 @@ def run_simulation(G, strategy, util_times=False):
     #Get initial utility
     init_util = calc_util()
 
-    social_opt = max(G.vertices[0].prov_rating.values()) * G.num_people
+    social_opt = sum([ max(v.prov_rating.values()) for v in G.vertices ])
 
     #Utilities over time
     utilities = []
@@ -106,7 +106,7 @@ def run_simulation(G, strategy, util_times=False):
                     util_time_map[v]['int_cnt'] = v.total_ints
                     v.provider = nbor.provider
 
-            #Update time allocations in strategy
+            #Update time allocations in strategy (updates v and nbor)
             strategy.update_time_alloc(v_prev_util, v, nbor_prev_util, nbor)
 
         cur_util = calc_util()
