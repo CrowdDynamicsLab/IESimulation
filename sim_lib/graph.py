@@ -34,6 +34,7 @@ class Vertex:
         self.interactions = {'total' : 0,
                              'initiated' : 0,
                              'received' : 0}
+        self.initial = {'time' : time, 'provider' : init_prov, 'prov_rating' : ratings}
 
     @property
     def utility(self):
@@ -66,6 +67,18 @@ class Vertex:
     def add_recv_int(self):
         self.interactions['total'] += 1
         self.interactions['received'] += 1
+
+    def reset(self):
+        """
+        Reset to initial state
+        """
+        self.interactions = {'total' : 0,
+                             'initiated' : 0,
+                             'received' : 0}
+        self.edges = OrderedDict()
+        self.time = self.initial['time']
+        self.provider = self.initial['provider']
+        self.prov_rating = self.initial['prov_rating']
 
     def __repr__(self):
         return 'Vertex {0}'.format(self.vnum)

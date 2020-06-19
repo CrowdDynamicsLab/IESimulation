@@ -17,7 +17,26 @@ def force_connected(graph_func):
         return G
     return con_graph_func
 
-def ring_lattice(k, n, itrate, time_alloc):
+def create_vtx_set(n, r, ratings=None):
+    prov_ratings = ratings
+
+    if not ratings:
+        num_prov = int(n ** 0.5)
+        provs = list(range(num_prov))
+        global_rank = gen_const_ratings(provs)
+        prov_ratings = global_rank
+
+    vtx_idx = 0
+    def gen_vertex():
+        nonlocal vtx_idx
+        vtx = Vertex(r, np.random.choice(provs), prov_ratings, vnum=vtx_idx)
+        vtx_idx += 1
+        return vtx
+
+    vertices = [ gen_vertex() for i in range(n) ]
+    return vertices
+
+def ring_lattice(k, n, itrate, time_alloc, vtx_set=None):
     """
     Generates a simple k-regular graph with n vertices
     If n <= k, n will be rounded up to k + 1
@@ -29,6 +48,7 @@ def ring_lattice(k, n, itrate, time_alloc):
     n: Min number of vertices
     itrate: Initial transmission rate
     time_alloc: Initial time allocation
+    vtx_set: Predefined set of vertices. Overrides time_alloc
 
     Note: This is not guaranteed to generate a simple connected graph
     """
@@ -39,29 +59,9 @@ def ring_lattice(k, n, itrate, time_alloc):
         n = k + 1
 
     #Must have even number of vertices by handshake lemma
-    if n % 2 == 1:
-        n += 1
+    assert n % 2 == 0 or k % 2 == 0, 'Must have even number of vertices or even regularity'
 
-    #Initialize providers
-    num_prov = int(n ** 0.5)
-    
-    #Increasing number of providers increases number of non-convergence cases
-    #but does not create case where converges in >3 iterations
-    #num_prov = n
-    provs = list(range(num_prov))
-
-    #Assume rankings are objective and global
-    global_rank = gen_const_ratings(provs)
-
-    #Create vertex set of graph
-    vtx_idx = 0
-    def gen_vertex():
-        nonlocal vtx_idx
-        vtx = Vertex(time_alloc, np.random.choice(provs), global_rank, vnum=vtx_idx)
-        vtx_idx += 1
-        return vtx
-
-    vertices = [ gen_vertex() for i in range(n) ]
+    vertices = vtx_set if vtx_set is not None else create_vtx_set(n, time_alloc)
     kreg.vertices = vertices
 
     #Generate cycle
@@ -89,30 +89,30 @@ def ring_lattice(k, n, itrate, time_alloc):
         next_stop = (next_start + m)
         for ni in range(next_start, next_stop):
             cvert.edges[kreg.vertices[ni %n ]] = Edge(itrate)
-        if k % 2 == 1:
+        if k % 2 == 1: # handles both parities
             op_idx = (i + (n // 2)) % n
             cvert.edges[kreg.vertices[op_idx]] = Edge(itrate)
 
     return kreg
 
-def watts_strogatz(n, k, b, close_trate, far_trate, time_alloc):
+def watts_strogatz(n, k, b, trate, time_alloc, vtx_set=None):
     """
     Creates a Watts-Strogatz model graph
     n: Number of vertices
     k: Average degree
     b: Rewiring factor beta
-    close_trate: Transmission rate of close (initial) homophily edges
-    far_trate: Transmission rate of further (rewired) heterophily edges
+    trate: Transmission rate of edges
     time_alloc: Initial time allocation
+    vtx_set: Predefined set of vertices. Overrides time_alloc
     """
 
-    init_g = ring_lattice(k, n, close_trate, time_alloc)
+    init_g = ring_lattice(k, n, trate, time_alloc, vtx_set)
     min_vtx_num = min([ vtx.vnum for vtx in init_g.vertices ])
     def non_nbor(u, v):
         return (u not in v.edges and v not in u.edges and u != v)
     for vtx in init_g.vertices:
 
-        #Possibly rewire rightmost k/2 edges
+        #Possibly rewire rightmost k/2 edges - requires vertices to be vnum ordered
         start_idx = (vtx.vnum - min_vtx_num + 1) % n
         end_idx = (vtx.vnum - min_vtx_num + 1 + (k // 2)) % n
         for nbor in ring_slice(init_g.vertices, start_idx, end_idx):
@@ -126,20 +126,22 @@ def watts_strogatz(n, k, b, close_trate, far_trate, time_alloc):
                 #Rewire edges
                 vtx.edges.pop(nbor)
                 nbor.edges.pop(vtx)
-                vtx.edges[new_nbor] = Edge(far_trate)
-                new_nbor.edges[vtx] = Edge(far_trate)
+                vtx.edges[new_nbor] = Edge(trate)
+                new_nbor.edges[vtx] = Edge(trate)
     return init_g
 
-def erdos_renyi(n, ep, p, time_alloc):
+def erdos_renyi(n, ep, p, time_alloc, vtx_set=None):
     """
     Creates an erdos-renyi graph
     n: Number of edges
     ep: Probability of an edge forming between any pair of vertices
     p: Transmission probability
     time_alloc: Time allocated to each vertex
+    vtx_set: Predefined set of vertices. Overrides time_alloc
     """
 
-    G = ring_lattice(0, n, p, time_alloc)
+    G = Graph()
+    G.vertices = vtx_set if vtx_set is not None else create_vtx_set(n, time_alloc)
 
     for vtx in G.vertices:
         for pnbor in G.vertices:
@@ -151,13 +153,14 @@ def erdos_renyi(n, ep, p, time_alloc):
 
     return G
 
-def configuration_model(n, degree_seq, p, time_alloc):
+def configuration_model(n, degree_seq, p, time_alloc, vtx_set=None):
     """
     Creates a coniguration model graph by the following parameters
     n: number of vertices
     degree_seq: degree of each vertex
     p: probability of transmission
     time_alloc: time allocated to each vertex
+    vtx_set: Predefined set of vertices. Overrides time_alloc
 
     NOTE: Uses repeated configuration model as described by
     https://arxiv.org/pdf/1509.06985.pdf
@@ -165,7 +168,7 @@ def configuration_model(n, degree_seq, p, time_alloc):
     assert len(degree_seq) == n, 'Degree sequence must be of same length as number vertices'
     assert sum(degree_seq) % 2 == 0, 'Degree sequence must have even sum'
 
-    G = ring_lattice(0, n, p, time_alloc)
+    G = ring_lattice(0, n, p, time_alloc, vtx_set)
 
     # For randomly matching, edge_stubs is flattened edge_acc
     vtx_deg = zip(G.vertices, degree_seq)
@@ -279,7 +282,7 @@ def stochastic_block_model(ncomm, comm_size, in_prob, out_prob, p, r):
 
     return stoch_block
    
-def kleinberg_grid(n, m, r, p, k=1, q=2):
+def kleinberg_grid(n, m, r, p, k=1, q=2, vtx_set=None):
     """
     Creates a (n x m) Kleinberg grid
     Each vertex has k random edges
@@ -291,21 +294,7 @@ def kleinberg_grid(n, m, r, p, k=1, q=2):
     # Create graph
     k_grid = Graph()
 
-    num_prov = int((n * m) ** 0.5)
-    provs = list(range(num_prov))
-    global_rank = gen_const_ratings(provs)
-
-    # Generate vertices
-    vtx_idx = 0
-    def gen_vertex():
-        nonlocal vtx_idx
-        prov = np.random.choice(provs)
-        vtx = Vertex(r, prov, global_rank, vnum=vtx_idx)
-        vtx_idx += 1
-        return vtx
-
-    vertices = [ gen_vertex() for i in range(n * m) ]
-    k_grid.vertices = vertices
+    k_grid.vertices = vtx_set if vtx_set is not None else create_vtx_set(n * m, r)
 
     # Generate edges
     rmo = lambda i, j : (i * n) + j
