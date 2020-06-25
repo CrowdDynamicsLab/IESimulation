@@ -10,8 +10,7 @@ def gen_const_ratings(provs):
     representing ratings of each respective provider
     """
     ratings = np.linspace(0, 1, len(provs))
-    #np.random.shuffle(ratings)
-    return { provs[didx] : ratings[didx] for didx in range(len(provs)) }
+    return { provs[didx] : float(ratings[didx]) for didx in range(len(provs)) }
 
 def is_connected(G):
     """

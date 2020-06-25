@@ -19,12 +19,14 @@ def force_connected(graph_func):
 
 def create_vtx_set(n, r, ratings=None):
     prov_ratings = ratings
+    provs = None
 
-    if not ratings:
+    if ratings is None:
         num_prov = int(n ** 0.5)
         provs = list(range(num_prov))
-        global_rank = gen_const_ratings(provs)
-        prov_ratings = global_rank
+        prov_ratings = gen_const_ratings(provs)
+    else:
+        provs = list(ratings.keys())
 
     vtx_idx = 0
     def gen_vertex():
@@ -143,8 +145,10 @@ def erdos_renyi(n, ep, p, time_alloc, vtx_set=None):
     G = Graph()
     G.vertices = vtx_set if vtx_set is not None else create_vtx_set(n, time_alloc)
 
-    for vtx in G.vertices:
-        for pnbor in G.vertices:
+    for i in range(len(G.vertices)):
+        for j in range(i, len(G.vertices)):
+            vtx = G.vertices[i]
+            pnbor = G.vertices[j]
             if vtx == pnbor or (pnbor in vtx.edges):
                 continue
             if np.random.rand() < ep:

@@ -32,6 +32,7 @@ def run_simulation(G, strategy, util_times=False):
     #Get initial utility
     init_util = calc_util()
 
+    #May matter for plaw distributed cases for checking
     social_opt = sum([ max(v.prov_rating.values()) for v in G.vertices ])
 
     #Utilities over time
@@ -43,12 +44,11 @@ def run_simulation(G, strategy, util_times=False):
     util_time_map = { v : { 'from' : [v], 'ut' : v.utility, 'iter' : 0, 'int_cnt' : 0 } \
             for v in G.vertices }
 
+    max_iter = max([v.time for v in G.vertices]) + 1
     iter_num = 1
-    while iter_num < max([v.time for v in G.vertices]) + 1:
+    while iter_num < max_iter:
         global_util = graph_utilities()
         utilities.append(global_util)
-        if sum(global_util) == social_opt:
-            break
 
         #Get amount of interaction time for each person
         min_times = defaultdict(lambda : {})
@@ -111,11 +111,12 @@ def run_simulation(G, strategy, util_times=False):
 
         cur_util = calc_util()
 
-        iter_num += 1
-
-        # Stopping condition when all time exhausted
-        if graph_time_left() == 0:
+        # May need to change if we care about regretful time spending
+        if cur_util == social_opt:
             break
+        assert cur_util <= social_opt, 'cur_util exceeded social_opt'
+
+        iter_num += 1
 
     if util_times:
         return G, utilities, util_time_map
