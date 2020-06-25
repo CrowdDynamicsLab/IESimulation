@@ -10,6 +10,13 @@
 * unif : Select from available neighbors with uniform prob
 * rr : Round robin selection of neighbors
 
+# Types of graphs
+* 'rl' : Ring lattice
+* 'er' : Erdos-Renyi
+* 'cm' : Erdos-Renyi configuration model
+* 'ws' : Watts-Strogatz
+* 'kg' : Kleinberg grid
+
 # Structure
 graph.py contains graph implementation
 
