@@ -146,11 +146,10 @@ def erdos_renyi(n, ep, p, time_alloc, vtx_set=None):
     G.vertices = vtx_set if vtx_set is not None else create_vtx_set(n, time_alloc)
 
     for i in range(len(G.vertices)):
-        for j in range(i, len(G.vertices)):
+        for j in range(i + 1, len(G.vertices)):
             vtx = G.vertices[i]
             pnbor = G.vertices[j]
-            if vtx == pnbor or (pnbor in vtx.edges):
-                continue
+
             if np.random.rand() < ep:
                 vtx.edges[pnbor] = Edge(p)
                 pnbor.edges[vtx] = Edge(p)
