@@ -21,3 +21,5 @@
 graph.py contains graph implementation
 
 simualtion.py contains code to run actual simulations over graph
+
+# Run files in data_gen in the IESimulation directory

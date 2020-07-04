@@ -47,11 +47,6 @@ for r, r_data in ntwk_data.items():
         ntwk_types = list(utils.keys())
 
         for ntwk in ntwk_types:
-
-            # TODO: Determine how to fix ER connectivity issues
-            if ntwk == 'er':
-                continue
-
             for util_list, ser_g in zip(utils[ntwk], graphs[ntwk]):
                 stats = calc_stats(util_list, ser_g)
 

@@ -7,11 +7,12 @@ import numpy as np
 import numpy.linalg as nla
 
 from sim_lib.simulation import run_simulation
-from sim_lib.graph_create import create_vtx_set, ring_lattice, watts_strogatz, erdos_renyi, configuration_model, kleinberg_grid
+from sim_lib.graph_create import create_vtx_set, ring_lattice, watts_strogatz, erdos_renyi, configuration_model, kleinberg_grid, force_connected, reduce_providers_simplest
 from sim_lib.sim_strategies import Uniform
 import sim_lib.util as util
 
 _DEBUG = True
+_SIMPLEST = True
 
 # Constants
 n = 100
@@ -24,7 +25,11 @@ def stringify_map(ut_map):
         str_map[vtx.vnum] = vum
     return str_map
 
-def gen_data(debug=False):
+@force_connected()
+def conn_erdos_renyi(n, ep, p, r, vtx_set):
+    return erdos_renyi(n, ep, p, r, vtx_set)
+
+def gen_data(debug=False, simplest=False):
     r_vals = [ 2 ** k for k in range(1, 8) ][::-1]
 
     if debug:
@@ -59,21 +64,24 @@ def gen_data(debug=False):
                     
                     # Create graph based on current network type
                     if ntwk == 'rl':
-                        G = ntwk_func(expec_deg, n, p, r, vtx_set)
+                        G = ring_lattice(expec_deg, n, p, r, vtx_set)
                     elif ntwk == 'ws':
                         beta = 0.1 # see ws paper - "spreadability" plateaus around here
-                        G = ntwk_func(n, expec_deg, beta, p, r, vtx_set)
+                        G = watts_strogatz(n, expec_deg, beta, p, r, vtx_set)
                     elif ntwk == 'er':
                         ep = expec_deg / (n - 1)
                         assert ep > np.log(n) / n, 'Edge probability must be greater than ln(n) / n for connectedness'
-                        G = erdos_renyi(n, ep, p, r, vtx_set)
+                        G = conn_erdos_renyi(n, ep, p, r, vtx_set)
                     elif ntwk == 'cm' :
                         deg_seq = [ expec_deg ] * n
-                        G = ntwk_func(n, deg_seq, p, r, vtx_set)
+                        G = configuration_model(n, deg_seq, p, r, vtx_set)
                     elif ntwk == 'kg':
                         m = int(n ** 0.5)
                         assert m * m == n, 'For now n must have an integer root'
                         G = kleinberg_grid(m, m, r, p, vtx_set=vtx_set)
+
+                    if simplest:
+                        reduce_providers_simplest(G)
 
                     init_graphs[ntwk].append(util.serialize_graph(G))
 
@@ -95,8 +103,12 @@ def gen_data(debug=False):
             data[str(r)][p_str]['init_graphs'] = init_graphs
     return data
 
-full_data = gen_data(debug=False)
+full_data = gen_data(debug=False, simplest=_SIMPLEST)
 
-with open ('ntwk_data/ntwk_data.json', 'w+') as ndata:
+filename = 'ntwk_data/ntwk_data.json'
+if _SIMPLEST:
+    filename = 'ntwk_data/ntwk_data_simplest.json'
+
+with open (filename, 'w+') as ndata:
     ndata.write(json.dumps(full_data))
 

@@ -5,17 +5,27 @@ import numpy as np
 from sim_lib.graph import Graph, Vertex, Edge
 from sim_lib.util import gen_const_ratings, ring_slice, sample_powerlaw, is_connected
 
-def force_connected(graph_func):
+def force_connected(retries=None, error=False):
     """
     Forces a graph creation func to return a connected graph
+    retries: Number of times the graph should be recreated
+    error: Raise error if fail to connect
     """
 
-    def con_graph_func(*args):
-        G = graph_func(*args)
-        while not is_connected(G):
+    def con_graph_wrap(graph_func):
+        def con_graph_func(*args):
             G = graph_func(*args)
-        return G
-    return con_graph_func
+            num_attempts = 0
+            while not is_connected(G):
+                G = graph_func(*args)
+                num_attempts += 1
+                if retries is not None and num_attempts > retries:
+                    if error:
+                        raise ValueError(f'Graph could not be connected in {num_attempts} attempts')
+                    break
+            return G
+        return con_graph_func
+    return con_graph_wrap
 
 def create_vtx_set(n, r, ratings=None):
     prov_ratings = ratings
