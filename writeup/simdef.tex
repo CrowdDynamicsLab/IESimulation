@@ -1,0 +1,55 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage[left=2cm, right=2cm, top=2cm]{geometry}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathrsfs}
+\usepackage[ruled,vlined]{algorithm2e}
+\usepackage{float}
+
+\begin{document}
+
+The information elicitation game is modeled on a network $G$ with vertices $V$ representing people and edges $E$ representing relationships between people.
+Each vertex $v \in V$ is given an initial utility $v_u$ from $0$ to $1$
+Each vertex $v \in V$ is allocated an initial amount of resources, $v_r$.
+
+In each turn of the game we iterate over every vertex with resources greater than $0$.
+Each vertex selects a neighbor with resources greater than $0$ by a strategy $S$.
+$S(v)$ represents the neighbor selected by vertex $v$ using strategy $S$.
+After selection one resource is subtracted from that vertex and the selected neighbor.
+Then with probability $p$ the vertex and its neighbor exchange information.
+Both the vertex and its neighbor switch to whichever provider gives the highest utility.
+
+The game ends when all resources have been expended.
+
+In other words,
+
+\begin{algorithm}[H]
+\SetAlgoLined
+ let $G = (V, E)$\;
+ let $S$ be the strategy used\;
+ \While{$v_r > 0 \ \forall v \in V$} {
+ 	\For{$v \in V$} {
+ 		\If{$v_r = 0$} {
+ 			continue\;
+ 		}
+ 		
+ 		\If{$\sum_{w \in N(v)} w_r = 0$} {
+ 			let $v_r = 0$\;
+ 			continue\;
+ 		}
+ 		
+ 		let $w = S(v)$\;
+ 		$v_r = v_r - 1$\;
+ 		$w_r = w_r - 1$\;
+ 		$v_u = w_u = \max\{v_u, w_u\}$\;
+ 	}
+ }
+ \caption{Information elicitation}
+\end{algorithm}
+
+As this is an iterative process we may denote the utility of a given vertex $v$ at a turn $t$ as $v_r^t$.
+A basic measure of the efficiency of a network $G$ or strategy $S$ can be represented as $\frac{\sum_{v \in V} v_r^T}{|V|}$ where $T$ is the final iteration.
+
+\end{document}

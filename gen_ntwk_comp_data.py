@@ -78,7 +78,7 @@ def gen_data(debug=False, simplest=False):
                     elif ntwk == 'kg':
                         m = int(n ** 0.5)
                         assert m * m == n, 'For now n must have an integer root'
-                        G = kleinberg_grid(m, m, r, p, vtx_set=vtx_set)
+                        G = kleinberg_grid(m, m, r, p, k=2, vtx_set=vtx_set)
 
                     if simplest:
                         reduce_providers_simplest(G)

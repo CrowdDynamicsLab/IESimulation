@@ -63,7 +63,7 @@ def init_vertex_traces():
             size=10,
             line=dict(width=2),
             color=[],
-            colorscale='Electric',
+            colorscale='hot',
             cmax=1,
             cmin=0,
             showscale=True,
@@ -162,7 +162,7 @@ def init_trace_values(G, radius, vtx_trace, edge_trace, mode='ring'):
         vtx_text = '{0}: {1}'.format(str(vert), str(vert.utility))
         vtx_trace['text'] += tuple([vtx_text])
         vertex_pos[vert.vnum] = (xpos, ypos)
-        vtx_trace['marker']['color'] += tuple([vert.utility])
+        vtx_trace['marker']['color'] += tuple([vert.utility - 0.5])
 
     # Create edges
     for vert in sorted_vtxs:
