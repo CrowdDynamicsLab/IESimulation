@@ -1,0 +1,25 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage[left=2cm, right=2cm, top=2cm]{geometry}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathrsfs}
+\usepackage[ruled,vlined]{algorithm2e}
+\usepackage{float}
+
+\begin{document}
+
+We first define a flooding protocol.
+Given a graph $G=(V, E)$ and a seed vertex $s \in V$. Define the set of vertices $F$ as the vertices which have already been flooded.
+Initially $F = \{ s \}$
+In each iteration all vertices in the neighborhood of $F$ but not in $F$ are added to $F$. This process continues until this neighborhood set is empty.
+More explicitly, in iteration $t$ we have $F_t = (\cup_{v \in F_{t - 1}} N(v)) \cup F_{t - 1}$.
+Note that this is the same setup as the problem of firefighters on graphs.
+
+Consider the problem of adding $k$ edges from $s$ to any vertex in $V \setminus \{s\}$ in order to minimize the number of iterations to the end of the process.
+On a grid with the seed at the center it is not sufficient to place edges from the seed to any single quadrant center.
+Four edges must be added, one in each quadrant, in order to decrease the flooding time.
+By adding all four edges the flooding time the flooding time can be decreased to $1 + \text{ the Manhattan distance from the quadrant center to corner }$.
+
+\end{document}

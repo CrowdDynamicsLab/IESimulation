@@ -119,6 +119,16 @@ def weighted_apsp(G, weights):
     
     return dist, next_ptr
 
+def unweighted_apsp(G):
+    """
+    Calls weighted with all unit weights
+    """
+    weights = defaultdict(lambda : {})
+    for vtx in G.vertices:
+        for nbor in vtx.nbors:
+            weights[vtx][nbor] = 1
+    return weighted_apsp(G, weights)
+
 def fw_edge_len(G, next_ptr):
     """
     Takes the next_ptr matrix produced by weighted_apsp and creates

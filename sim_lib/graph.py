@@ -107,3 +107,10 @@ class Graph:
     @property
     def num_people(self):
         return len(self.vertices)
+
+    def add_edge(self, u, v, p):
+        """
+        Adds edge between u and v having transmission probability p
+        """
+        u.edges[v] = Edge(p)
+        v.edges[u] = Edge(p)

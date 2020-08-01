@@ -1,0 +1,25 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage[left=2cm, right=2cm, top=2cm]{geometry}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathrsfs}
+\usepackage[ruled,vlined]{algorithm2e}
+\usepackage{float}
+
+\begin{document}
+
+Given a set of vertices $V$ which have two attributes, $A$ and $B$, we will have an edge between vertices $u, v \in V$ having opposing advantages in $A$ and $B$.
+That is $uv \in E$ the set of edges $\iff u_A > v_A \text{ and } u_B < v_B$
+or $u_A < v_A \text{ and } u_B > v_B$.
+Suppose the attribute values are independently selected from a distribution of the integers from $1$ to $k$ inclusive.
+Then the probability of an edge forming is $2 * (\frac{1 - \Pr[u_A = v_A]}{2} * \frac{1 - \Pr[u_B = v_B]}{2}) = \frac{(1 - \frac1k)^2}{2}$.
+In the case where $k = 10$ this probability is $0.405$.
+
+This gives rise to an Erdos-Renyi graph with edge probability $\frac{(1 - \frac1k)^2}{2}$.
+The sharp boundary for connectivity in an Erdos-Renyi is an edge probability of $\frac{\ln n}{n}$ where $n = |V|$.
+Thus for a given $k$ we must select an $n$ s.t. $\frac{(1 - \frac1k)^2}{2} > \frac{\ln n}{n}$.
+Because $\frac{\ln n}{n}$ is monotonically decreasing for all $n > 1$ and $n = 1, 2$ fulfill this criteria all values of $n$ will give a connected graph when $k = 10$.
+
+\end{document}

@@ -1,3 +1,7 @@
+# Latex files
+*.gz
+*.aux
+
 # Testing files
 test*.py
 
