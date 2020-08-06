@@ -22,4 +22,9 @@ On a grid with the seed at the center it is not sufficient to place edges from t
 Four edges must be added, one in each quadrant, in order to decrease the flooding time.
 By adding all four edges the flooding time the flooding time can be decreased to $1 + \text{ the Manhattan distance from the quadrant center to corner }$.
 
+We may also consider the number of vertices which are flooded in each iteration.
+By adding edges we can flood more edges earlier even if the overall time is unchanged.
+Thus taking the sum of the number of flooded vertices in each iteration gives a convenient metric for measuring how effective a set of added edges was in increasing the flood.
+With no edges a flood seeded at the center of a square grid grows roughly quadratically.
+
 \end{document}

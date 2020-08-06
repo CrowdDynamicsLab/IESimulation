@@ -10,13 +10,22 @@ grid = gc.kleinberg_grid(9, 9, 0, 1, k=0, q=0, vtx_set=vtx_grid_flat)
 grid_center = vtx_grid[4][4]
 
 ##################################
+# Utils
+##################################
+def area_under_curve(y_vals):
+    """
+    Riemann sum assuming y_vals corresponding with 1-indexed x vals
+    """
+    return 
+
+##################################
 # Add edges
 ##################################
 
 # Add edge to far center of quadrants
-grid.add_edge(grid_center, vtx_grid[2][6], 1)
-grid.add_edge(grid_center, vtx_grid[2][2], 1)
-grid.add_edge(grid_center, vtx_grid[6][6], 1)
+#grid.add_edge(grid_center, vtx_grid[2][6], 1)
+#grid.add_edge(grid_center, vtx_grid[2][2], 1)
+#grid.add_edge(grid_center, vtx_grid[6][6], 1)
 #grid.add_edge(grid_center, vtx_grid[6][2], 1)
 
 ##################################
@@ -28,8 +37,8 @@ def flood_fill(G, seed):
     """
 
     flood_set = set(seed)
+    flood_size = [len(flood_set)]
 
-    iter_cnt = 0
     while True:
         if len(flood_set) == len(G.vertices):
             break
@@ -38,10 +47,8 @@ def flood_fill(G, seed):
         f_nborhood = set(flatten(f_nborhood_grid))
         flood_set = flood_set.union(f_nborhood)
 
-        print(len(flood_set))
+        flood_size.append(len(flood_set))
 
-        iter_cnt += 1
+    return flood_size
 
-    return iter_cnt
-
-print(flood_fill(grid, [grid_center]))
+print(sum(flood_fill(grid, [grid_center])))
