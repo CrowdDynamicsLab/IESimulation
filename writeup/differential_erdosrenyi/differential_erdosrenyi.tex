@@ -10,6 +10,8 @@
 
 \begin{document}
 
+\section{Deterministic existance of edges}
+
 Given a set of vertices $V$ which have two attributes, $A$ and $B$, we will have an edge between vertices $u, v \in V$ having opposing advantages in $A$ and $B$.
 That is $uv \in E$ the set of edges $\iff u_A > v_A \text{ and } u_B < v_B$
 or $u_A < v_A \text{ and } u_B > v_B$.
@@ -20,6 +22,23 @@ In the case where $k = 10$ this probability is $0.405$.
 This gives rise to an Erdos-Renyi graph with edge probability $\frac{(1 - \frac1k)^2}{2}$.
 The sharp boundary for connectivity in an Erdos-Renyi is an edge probability of $\frac{\ln n}{n}$ where $n = |V|$.
 Thus for a given $k$ we must select an $n$ s.t. $\frac{(1 - \frac1k)^2}{2} > \frac{\ln n}{n}$.
-Because $\frac{\ln n}{n}$ is monotonically decreasing for all $n > 1$ and $n = 1, 2$ fulfill this criteria all values of $n$ will give a connected graph when $k = 10$.
+Because $\frac{\ln n}{n}$ is monotonically decreasing for all $n > 1$ and $n = 1, 2$ fulfill this criteria all values of $n$ will meet the Erdos-Renyi threshold for a connected graph.
+However because there is a $\frac{2}{k^2}$ probability of a vertex having either both the highest or the lowest attribute values in expectation there will be $\frac{2n}{k^2}$ vertices that have no neighbors and so depending on the value of $n$ the graph may have a high probability of being disconnected.
+
+When instead of $k$ options we select a real number from $0$ to $1$ we instead have an edge probability of $\frac12$. Similarly any value of $n$ will give a connected component.
+Here the probability that a vertex has the max or min attribute values is $2*(\frac12)^{n-1}$
+
+By simulation this tends to give shorter average path lengths than a Kleinberg grid which is expected given the known expected path lengths in Erdos-Renyi and Kleinberg grid graphs.
+% https://arxiv.org/abs/cond-mat/0407098 gives ER APL
+% https://www.researchgate.net/publication/221344073_Analyzing_Kleinberg's_and_other_small-world_Models references KG APL
+
+\section{Probabilistic existance of edges}
+
+Consider a formulation where the attributes determine the probability of an edge existing.
+We will introduce a new parameter $C$ with defines the initial edge probability.
+Thus we start with an Erdos-Renyi graph having edge probability $C$.
+
+Next as before we discard all edges where the incident vertices do not have attribute differentials.
+Then we keep edges with probability $-1 * (u_A - v_A) * (u_B - v_B)$. % isn't this 0?
 
 \end{document}

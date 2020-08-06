@@ -10,39 +10,46 @@ import sim_lib.util as util
 _N = 10
 _M = 10
 
-def attribute_graph(n, init_ep):
+def attribute_graph(n):
     vtx_set = []
     attr_dict = {}
 
     def has_edge(u, v):
-        attr1_diff = attr_dict[u][1] - attr_dict[v][1]
-        attr2_diff = attr_dict[u][2] - attr_dict[v][2]
-
-        return np.random.random() < -1 * attr1_diff * attr2_diff
+        if attr_dict[u][1] > attr_dict[v][1] and attr_dict[u][2] < attr_dict[v][2]:
+            return True
+        elif attr_dict[u][1] < attr_dict[v][1] and attr_dict[u][2] > attr_dict[v][2]:
+            return True
+        return False
 
     for i in range(n):
         vtx = graph.Vertex(0, 0, {0 : 0}, i)
         attr_dict[vtx] = { 1 : np.random.random(),
                 2 : np.random.random() }
         vtx_set.append(vtx)
-
-    G = gc.erdos_renyi(n, init_ep, 1, 0, vtx_set)
-
+    G = graph.Graph()
+    G.vertices = vtx_set
     for u in G.vertices:
-        for v in u.nbors:
-            if not has_edge(u, v):
-                G.remove_edge(u, v)
+        for v in G.vertices:
+            if u.vnum == v.vnum:
+                continue
+            if has_edge(u, v):
+                G.add_edge(u, v, 1)
 
     trivial_comp = 0
     for v in G.vertices:
         if v.degree == 0:
             trivial_comp += 1
+            print(attr_dict[v])
+            print(min([ attr_dict[v][1] for v in G.vertices ]))
+            print(max([ attr_dict[v][1] for v in G.vertices ]))
+            print(min([ attr_dict[v][2] for v in G.vertices ]))
+            print(max([ attr_dict[v][2] for v in G.vertices ]))
     if trivial_comp > 0:
         print('num trivial comp', trivial_comp)
 
     return G
 
-def attribute_graph_conn(n, init_ep, retries=3):
+def attribute_graph_conn(n, retries=3):
     for _ in range(retries):
         G = attribute_graph(n)
         if util.is_connected(G):
@@ -58,10 +65,22 @@ def kleinberg_sw(n, m):
                 kg.add_edge(vtx, nbor, 1)
     return kg
 
+attr_apl_sum = 0
+kg_apl_sum = 0
 for i in range(10):
-    G_attr = attribute_graph(_N * _M, 0.5)
+    G_attr = attribute_graph_conn(_N * _M)
     G_attr_nx = gnx.graph_to_nx(G_attr)
-    print(sum([ v.degree for v in G_attr.vertices ]) / 2)
 
     G_kg = kleinberg_sw(_N, _M)
     G_kg_nx = gnx.graph_to_nx(G_kg)
+
+    G_attr_apl = nx.average_shortest_path_length(G_attr_nx)
+    G_kg_apl = nx.average_shortest_path_length(G_kg_nx)
+    print('attr apl', G_attr_apl)
+    print('kg apl', G_kg_apl)
+
+    attr_apl_sum += G_attr_apl
+    kg_apl_sum += G_kg_apl
+
+print('avg attr apl', attr_apl_sum / 10)
+print('avg kg apl', kg_apl_sum / 10)

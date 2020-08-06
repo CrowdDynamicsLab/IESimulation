@@ -114,3 +114,13 @@ class Graph:
         """
         u.edges[v] = Edge(p)
         v.edges[u] = Edge(p)
+
+    def remove_edge(self, u, v, reflexive=True):
+        """
+        Removes edge between u and v if exists
+        If reflexive deletes uv and vu, else just deletes edge uv
+        """
+        if v in u.edges:
+            u.edges.pop(v)
+        if reflexive and u in v.edges:
+            v.edges.pop(u)
