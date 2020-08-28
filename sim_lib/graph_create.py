@@ -166,6 +166,20 @@ def erdos_renyi(n, ep, p, time_alloc, vtx_set=None):
 
     return G
 
+def clique(n, p, time_alloc, vtx_set=None):
+    G = Graph()
+    G.vertices = vtx_set if vtx_set is not None else create_vtx_set(n, time_alloc)
+
+    for i in range(len(G.vertices)):
+        for j in range(i + 1, len(G.vertices)):
+            vtx = G.vertices[i]
+            pnbor = G.vertices[j]
+
+            vtx.edges[pnbor] = Edge(p)
+            pnbor.edges[vtx] = Edge(p)
+
+    return G
+
 def configuration_model(n, degree_seq, p, time_alloc, vtx_set=None):
     """
     Creates a coniguration model graph by the following parameters

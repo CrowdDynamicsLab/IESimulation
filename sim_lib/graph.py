@@ -36,6 +36,10 @@ class Vertex:
                              'received' : 0}
         self.initial = {'time' : time, 'provider' : init_prov, 'prov_rating' : ratings}
 
+        Vertex.vtx_count += 1
+
+        self.data = None
+
     @property
     def utility(self):
         return self.prov_rating[self.provider]
@@ -104,6 +108,8 @@ class Graph:
     def __init__(self):
         self.vertices = []
 
+        self.data = None
+
     @property
     def num_people(self):
         return len(self.vertices)
@@ -124,3 +130,7 @@ class Graph:
             u.edges.pop(v)
         if reflexive and u in v.edges:
             v.edges.pop(u)
+
+    @property
+    def edge_count(self):
+        return sum([ v.degree for v in self.vertices ]) // 2
