@@ -134,3 +134,6 @@ class Graph:
     @property
     def edge_count(self):
         return sum([ v.degree for v in self.vertices ]) // 2
+
+    def are_neighbors(self, u, v):
+        return (u in v.nbors) and (v in u.nbors)
