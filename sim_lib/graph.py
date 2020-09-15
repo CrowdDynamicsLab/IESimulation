@@ -98,6 +98,7 @@ class Edge:
 
     def __init__(self, trate):
         self.trate = trate
+        self.data = None
 
 class Graph:
     """
@@ -127,8 +128,10 @@ class Graph:
         If reflexive deletes uv and vu, else just deletes edge uv
         """
         if v in u.edges:
+            u.edges[v].data = None
             u.edges.pop(v)
         if reflexive and u in v.edges:
+            v.edges[u].data = None
             v.edges.pop(u)
 
     @property
