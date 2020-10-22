@@ -4,6 +4,7 @@ Util functions used in attribute search network
 
 import numpy as np
 import networkx as nx
+import networkx.algorithms.community as nx_comm
 
 import sim_lib.graph_networkx as gnx
 
@@ -57,3 +58,20 @@ def indirect_distance(u, v, G):
     G.add_edge(u, v, 1)
     return indirect_dist
 
+###########################
+# Attribute distributions #
+###########################
+def pareto_dist(num_attrs):
+    dist = np.random.pareto(2, num_attrs)
+    return dist / sum(dist)
+
+def uniform_dist(num_attrs):
+    return [ 1 / num_attrs for _ in range(num_attrs) ]
+
+###########
+# Metrics #
+###########
+def modularity(G_nx):
+    # Gets modularity based on greedily optimized maximum
+    partitions = nx_comm.greedy_modularity_communities(G_nx)
+    return nx_comm.modularity(G_nx, partitions)
