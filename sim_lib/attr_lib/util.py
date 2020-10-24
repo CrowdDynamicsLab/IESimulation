@@ -61,7 +61,19 @@ def indirect_distance(u, v, G):
 ###########################
 # Attribute distributions #
 ###########################
+
+#NOTE: Both pareto dists have roughly 20% of attributes taking 50% of prob mass
 def pareto_dist(num_attrs):
+
+    # From Buddana Kozubowski discrete Pareto
+    alpha = 2 # "shape"
+    sigma = 1 # "size"
+    std_exp_dist  = np.random.exponential(scale=1.0, size=num_attrs)
+    gamma_dist = np.random.gamma(alpha, scale=sigma, size=num_attrs)
+    pareto_dist = np.ceil(std_exp_dist / gamma_dist)
+    return pareto_dist / sum(pareto_dist)
+
+def quasi_pareto_dist(num_attrs):
     dist = np.random.pareto(2, num_attrs)
     return dist / sum(dist)
 
