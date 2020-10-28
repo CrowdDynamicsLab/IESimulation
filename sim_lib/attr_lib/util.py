@@ -12,14 +12,14 @@ import sim_lib.graph_networkx as gnx
 # Probability functions #
 #########################
 
-def exp_surprise(u, v, G, context_dist):
+def exp_surprise(u, v, G):
     total_surprise = 0
     for ctx in G.data[u]:
         if ctx in G.data[v]:
-            total_surprise += - np.log2(context_dist[ctx])
-    return 1 - 2 ** (-2 * total_surprise)
+            total_surprise += np.log2(u.data[ctx] * v.data[ctx])
+    return 1 - 2 ** (total_surprise)
 
-def simple_sigmoid(u, v, G, context_dist):
+def simple_sigmoid(u, v, G):
     # Simple sigmoid, |X| / (1 + |X|) where X is intersecting
     # contexts. Does not account for rarity of context
     match_count = 0

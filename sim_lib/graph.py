@@ -38,7 +38,11 @@ class Vertex:
 
         Vertex.vtx_count += 1
 
+        # For data about the vertex in model
         self.data = None
+
+        # For data about the vertex when drawn
+        self.draw_params = {}
 
     @property
     def utility(self):
@@ -109,6 +113,7 @@ class Graph:
     def __init__(self):
         self.vertices = []
 
+        # For data about the graph in model
         self.data = None
 
     @property
