@@ -77,6 +77,28 @@ def quasi_pareto_dist(num_attrs):
     dist = np.random.pareto(2, num_attrs)
     return dist / sum(dist)
 
+def split_dist(num_attrs, attr_split=0.2, mass_split=0.8):
+    # Splits mass_split of the probability amongst attr_split of the attributes
+    # evenly. Distributes the remainder evenly.
+
+    heavy_attrs = int(np.ceil(num_attrs * attr_split))
+    light_attrs = num_attrs - heavy_attrs
+    heavy_probs = [ mass_split / heavy_attrs] * heavy_attrs
+    light_probs = [ (1 - mass_split) / light_attrs] * light_attrs
+    return heavy_probs + light_probs
+
+def log_dist(num_attrs):
+    # Attempts to follow 80/20 rules by log distribution
+    hattrs = int(np.ceil(num_attrs * 0.2))
+    lattrs = num_attrs - hattrs
+    hlogs = np.logspace(0, 0.8, num=hattrs + 1, base=2.0)
+    llogs = np.logspace(0.8, 1.0, endpoint=True, num=lattrs + 1, base=2.0)
+    hprobs = [ hlogs[i + 1] - hlogs[i] for i in range(hattrs) ]
+    lprobs = [ llogs[i + 1] - llogs[i] for i in range(lattrs) ]
+
+    assert sum(lprobs) + sum(hprobs) == 1.0, 'log_dist must have probabilities summing to 1.0'
+    return hprobs + lprobs
+
 def uniform_dist(num_attrs):
     return [ 1 / num_attrs for _ in range(num_attrs) ]
 
