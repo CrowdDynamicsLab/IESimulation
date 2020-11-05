@@ -14,9 +14,17 @@ import sim_lib.graph_networkx as gnx
 
 def exp_surprise(u, v, G):
     total_surprise = 0
+    matches = []
     for ctx in G.data[u]:
         if ctx in G.data[v]:
             total_surprise += np.log2(u.data[ctx] * v.data[ctx])
+            matches.append(ctx)
+    if u.draw_params['color'] != v.draw_params['color'] and len(matches) > 0:
+        for ctx in matches:
+            print(u.data[ctx], u.vnum)
+            print(v.data[ctx], v.vnum)
+        print(matches)
+        print('--------------')
     return 1 - 2 ** (total_surprise)
 
 def simple_sigmoid(u, v, G):
@@ -98,6 +106,15 @@ def log_dist(num_attrs):
 
     assert sum(lprobs) + sum(hprobs) == 1.0, 'log_dist must have probabilities summing to 1.0'
     return hprobs + lprobs
+
+
+def gen_peak_dist(num_attrs, peak, peak_prob=0.99):
+    def peak_dist(num_attrs):
+        probs = [ (1 - peak_prob) / (num_attrs - 1) for _ in range(num_attrs) ]
+        probs[peak] = peak_prob
+        return probs
+    return peak_dist
+
 
 def uniform_dist(num_attrs):
     return [ 1 / num_attrs for _ in range(num_attrs) ]
