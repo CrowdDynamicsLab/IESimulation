@@ -19,12 +19,6 @@ def exp_surprise(u, v, G):
         if ctx in G.data[v]:
             total_surprise += np.log2(u.data[ctx] * v.data[ctx])
             matches.append(ctx)
-    if u.draw_params['color'] != v.draw_params['color'] and len(matches) > 0:
-        for ctx in matches:
-            print(u.data[ctx], u.vnum)
-            print(v.data[ctx], v.vnum)
-        print(matches)
-        print('--------------')
     return 1 - 2 ** (total_surprise)
 
 def simple_sigmoid(u, v, G):
