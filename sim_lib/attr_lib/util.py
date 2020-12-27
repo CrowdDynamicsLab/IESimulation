@@ -8,9 +8,9 @@ import networkx.algorithms.community as nx_comm
 
 import sim_lib.graph_networkx as gnx
 
-#########################
-# Probability functions #
-#########################
+##########################
+# Edge utility functions #
+##########################
 
 def exp_surprise(u, v, G):
     total_surprise = 0
@@ -21,14 +21,23 @@ def exp_surprise(u, v, G):
             matches.append(ctx)
     return 1 - 2 ** (total_surprise)
 
-def simple_sigmoid(u, v, G):
+def simple_sigmoid(u, v, G, scale=1.0):
+
     # Simple sigmoid, |X| / (1 + |X|) where X is intersecting
     # contexts. Does not account for rarity of context
     match_count = 0
-    for ctx in G.data[u]:
-        if ctx in G.data[v]:
+    for ctx, attrs in G.data[u].items():
+        if ctx in G.data[v] and attrs in G.data[v][ctx]:
             match_count += 1
-    return match_count / (1 + match_count)
+    return match_count / (scale + match_count)
+
+##############################
+# Edge probability functions #
+##############################
+
+def logistic(u, util, scale=1.0):
+    total_util = u.data + util
+    return (2 / (1 + np.exp(-1 * scale * total_util))) - 1
 
 ##################
 # Cost functions #
@@ -49,6 +58,7 @@ def calc_cost(u, direct_cost, indirect_cost, G):
 #########################
 # Measurement functions #
 #########################
+
 def indirect_distance(u, v, G):
     G.remove_edge(u, v)
     G_nx = gnx.graph_to_nx(G)
@@ -63,6 +73,15 @@ def indirect_distance(u, v, G):
 ###########################
 # Attribute distributions #
 ###########################
+
+def discrete_pareto_val():
+
+    # From Buddana Kozubowski discrete Pareto
+    alpha = 2 # "shape"
+    sigma = 1 # "size"
+    std_exp_val  = np.random.exponential(scale=1.0)
+    gamma_val = np.random.gamma(alpha, scale=sigma)
+    return np.ceil(std_exp_val / gamma_val)
 
 #NOTE: Both pareto dists have roughly 20% of attributes taking 50% of prob mass
 def pareto_dist(num_attrs):
@@ -101,14 +120,12 @@ def log_dist(num_attrs):
     assert sum(lprobs) + sum(hprobs) == 1.0, 'log_dist must have probabilities summing to 1.0'
     return hprobs + lprobs
 
-
 def gen_peak_dist(num_attrs, peak, peak_prob=0.99):
     def peak_dist(num_attrs):
         probs = [ (1 - peak_prob) / (num_attrs - 1) for _ in range(num_attrs) ]
         probs[peak] = peak_prob
         return probs
     return peak_dist
-
 
 def uniform_dist(num_attrs):
     return [ 1 / num_attrs for _ in range(num_attrs) ]

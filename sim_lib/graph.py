@@ -44,6 +44,9 @@ class Vertex:
         # For data about the vertex when drawn
         self.draw_params = {}
 
+        # For params relating to the simulation
+        self.sim_params = {}
+
     @property
     def utility(self):
         return self.prov_rating[self.provider]
