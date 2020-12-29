@@ -11,7 +11,7 @@ import sim_lib.attr_lib.util as attr_util
 
 # Edge selection
 def has_edge(u, v, G):
-    edge_util = G.sim_params['edge_util_func'](u, v, G)
+    edge_util = G.potential_utils[u.vnum][v.vnum]
     u_edge_prob = G.sim_params['edge_prob_func'](u, edge_util)
     v_edge_prob = G.sim_params['edge_prob_func'](v, edge_util)
     return np.random.random() <= u_edge_prob * v_edge_prob
@@ -19,13 +19,13 @@ def has_edge(u, v, G):
 def add_edge(u, v, G):
     assert (v in u.edges) == (u in v.edges), 'connection must be symmetric'
     if not G.are_neighbors(u, v):
-        G.add_edge(u, v, 1)
-        edge_util = G.sim_params['edge_util_func'](u, v, G)
+        edge_util = G.potential_utils[u.vnum][v.vnum]
+        G.add_edge(u, v, edge_util)
         u.data += edge_util
         v.data += edge_util
 
-def remove_edge(u, v, G):
-    edge_util = G.sim_params['edge_util_func'](u, v, G)
+def remove_edge(u, v):
+    edge_util = u.edges[v].util
 
     u.edges[v].data = None
     u.edges.pop(v)
@@ -34,7 +34,16 @@ def remove_edge(u, v, G):
     v.edges[u].data = None
     v.edges.pop(u)
     v.data -= edge_util
-        
+    
+def calc_utils(G):
+    util_mat = np.zeros((G.num_people, G.num_people))
+    for i, u in enumerate(G.vertices):
+        for v in G.vertices[i + 1:]:
+            util_mat[u.vnum][v.vnum] = G.sim_params['edge_util_func'](u, v, G)
+            util_mat[v.vnum][u.vnum] = util_mat[u.vnum][v.vnum]
+    G.potential_utils = util_mat
+    return util_mat
+
 def calc_edges(G, dunbar=150):
     edge_candidates = []
     
@@ -45,29 +54,27 @@ def calc_edges(G, dunbar=150):
         for vidx in range(uidx + 1, G.num_people):
             v = G.vertices[vidx]
             
-            if has_edge(u, v, G):
+            potential_edge = has_edge(u, v, G)
+            if potential_edge:
                 edge_candidates.append((u, v))
-            elif G.are_neighbors(u, v) and not has_edge(u, v, G):
-                remove_edge(u, v, G)
+            elif G.are_neighbors(u, v) and not potential_edge:
+                remove_edge(u, v)
                 
     # Add valid edges in random order until vertex runs out of budget
     np.random.shuffle(edge_candidates)
     for ec_u, ec_v in edge_candidates:
         add_edge(ec_u, ec_v, G)
-        u_cost = attr_util.calc_cost(ec_u,
-                G.sim_params['direct_cost'], G.sim_params['indirect_cost'], G)
-        v_cost = attr_util.calc_cost(ec_v,
-                G.sim_params['direct_cost'], G.sim_params['indirect_cost'], G)
-        budget = dunbar * G.sim_params['direct_cost']
-        if u_cost > budget or v_cost > budget:
-            remove_edge(u, v, G)
+        min_remaining = min([ attr_util.remaining_budget(v, G, dunbar) \
+                for v in G.vertices ])
+        if min_remaining < 0:
+            remove_edge(ec_u, ec_v)
 
 # Graph creation
 def attribute_network(n, params):
     vtx_set = []
 
     for i in range(n):
-        vtx = graph.Vertex(0, 0, {0 : 0}, i)
+        vtx = graph.Vertex(i)
         vtx.data = 0
         vtx_set.append(vtx)
 
@@ -79,9 +86,13 @@ def attribute_network(n, params):
     
     # Initialize contexts
     for vtx in G.vertices:
-        contexts = np.random.choice(list(range(params['context_count'])), size=params['k'])
-        G.data[vtx] = { context : [ params['attr_func']() ] for context in contexts }
+        contexts = np.random.choice(list(range(params['context_count'])),
+                replace=False, size=params['k'])
+        G.data[vtx] = { context : { params['attr_func']() } for context in contexts }
     
+    # Calculate edge utils
+    calc_utils(G)
+
     # Set initial edges
     calc_edges(G)
     
@@ -89,9 +100,48 @@ def attribute_network(n, params):
 
 # For adding to graph
 def add_attr_graph_vtx(G, v):
-    contexts = np.random.choice(list(range(G.sim_params['context_count'])), size=G.sim_params['k'])
-    G.data[v] = { context : [ G.sim_params['attr_func']() ] for context in contexts }
+    contexts = np.random.choice(list(range(G.sim_params['context_count'])),
+            replace=False, size=G.sim_params['k'])
+    G.data[v] = { context : { G.sim_params['attr_func']() } for context in contexts }
 
     G.vertices.append(v)
     return v
 
+def attr_copy(u, v, G):
+    # Copy an attribute from v to u
+    v_contexts = list(G.data[v].keys())
+    v_context_sizes = [ len(G.data[v][vctxt]) for vctxt in v_contexts ]
+    v_context = np.random.choice(v_contexts,
+            p=[ csize / sum(v_context_sizes) for csize in v_context_sizes ])
+    v_attr = np.random.choice(list(G.data[v][v_context]))
+
+    if v_context in G.data[u]:
+        G.data[u][v_context].add(v_attr)
+    else: # Case where context may be switched
+        G.data[u][v_context] = { v_attr }
+        u_contexts = list(G.data[u].keys())
+        u_context_sizes = [ len(G.data[u][uctxt]) for uctxt in u_contexts ]
+        context_count = G.sim_params['k']
+        u_context_set = np.random.choice(u_contexts,
+                size=context_count, replace=False,
+                p=[ csize / sum(u_context_sizes) for csize in u_context_sizes ])
+        u_context_map = { ctxt : G.data[u][ctxt] for ctxt in u_context_set }
+        G.data[u] = u_context_map
+
+def random_walk(u, G, k):
+    # Take a random walk starting at u on G of length k
+
+    if u.degree == 0:
+        return
+
+    starting_vtx = u
+    visited = []
+    cur_vtx = starting_vtx
+    for _ in range(k):
+        edge_utils = [ e.util for e in cur_vtx.edges.values() ]
+        next_vtx = np.random.choice(list(cur_vtx.edges.keys()),
+                p=[ eu / sum(edge_utils) for eu in edge_utils ])
+        cur_vtx = next_vtx
+        if cur_vtx == starting_vtx:
+            continue
+        attr_copy(starting_vtx, cur_vtx, G)

@@ -27,8 +27,8 @@ def simple_sigmoid(u, v, G, scale=1.0):
     # contexts. Does not account for rarity of context
     match_count = 0
     for ctx, attrs in G.data[u].items():
-        if ctx in G.data[v] and attrs in G.data[v][ctx]:
-            match_count += 1
+        if ctx in G.data[v]:
+            match_count += len(attrs.intersection(G.data[v][ctx]))
     return match_count / (scale + match_count)
 
 ##############################
@@ -51,9 +51,15 @@ def calc_cost(u, direct_cost, indirect_cost, G):
     assert u_subgraph_degree % 2 == 0, 'sum of degrees must be even'
     edge_count = u_subgraph_degree / 2
     total_direct_cost = len(nbor_set) * direct_cost
-    total_indirect_cost = (edge_count - len(nbor_set)) * indirect_cost
+    total_indirect_cost = edge_count * indirect_cost
 
     return total_direct_cost + total_indirect_cost
+
+def remaining_budget(u, G, dunbar=150):
+    u_cost = calc_cost(u, G.sim_params['direct_cost'],
+            G.sim_params['indirect_cost'], G)
+    budget = dunbar * G.sim_params['direct_cost']
+    return budget - u_cost
 
 #########################
 # Measurement functions #

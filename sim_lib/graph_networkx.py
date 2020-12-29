@@ -15,8 +15,8 @@ def graph_to_nx(G):
     for vtx in G.vertices:
         nx_G.add_node(vtx)
         for nbor in vtx.nbors:
-            trate = vtx.edges[nbor].trate
-            nx_G.add_edge(vtx, nbor, trate=trate)
+            util = vtx.edges[nbor].util
+            nx_G.add_edge(vtx, nbor, util=util)
 
     return nx_G
 
