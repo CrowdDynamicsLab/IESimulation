@@ -44,6 +44,16 @@ def calc_utils(G):
     G.potential_utils = util_mat
     return util_mat
 
+def budget_resolution(v, G):
+
+    # When v goes over budget due to some edge not incident to v
+    # v must drop an edge
+
+    inv_util_set = [ 1 / G.potential_utils[v.vnum][u.vnum] for u in v.nbors ]
+    dropped_nbor = np.random.choice(v.nbors,
+            p= [ iut / sum(inv_util_set) for iut in inv_util_set ])
+    remove_edge(v, dropped_nbor)
+
 def calc_edges(G, dunbar=150):
     edge_candidates = []
     
@@ -64,10 +74,13 @@ def calc_edges(G, dunbar=150):
     np.random.shuffle(edge_candidates)
     for ec_u, ec_v in edge_candidates:
         add_edge(ec_u, ec_v, G)
-        min_remaining = min([ attr_util.remaining_budget(v, G, dunbar) \
-                for v in G.vertices ])
-        if min_remaining < 0:
-            remove_edge(ec_u, ec_v)
+        for v in G.vertices:
+            itr_count = 0
+            while attr_util.remaining_budget(v, G, dunbar) < 0:
+                budget_resolution(v, G)
+                itr_count += 1
+                assert itr_count <= len(G.vertices), \
+                        'Budget resolution occured more than number of vertices'
 
 # Graph creation
 def attribute_network(n, params):
@@ -95,7 +108,7 @@ def attribute_network(n, params):
 
     # Set initial edges
     calc_edges(G)
-    
+
     return G
 
 # For adding to graph

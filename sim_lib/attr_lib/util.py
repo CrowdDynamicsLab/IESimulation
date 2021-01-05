@@ -31,13 +31,32 @@ def simple_sigmoid(u, v, G, scale=1.0):
             match_count += len(attrs.intersection(G.data[v][ctx]))
     return match_count / (scale + match_count)
 
+def discrete_pareto_pdf(k, alpha=2, sigma=1):
+    
+    # PDF of discrete Pareto distribution (Pareto II)
+    k_1 = ( 1 / ( 1 + k / sigma) ) ** alpha
+    k_2 = ( 1 / ( 1 + ( (k + 1) / sigma ) ) ) ** alpha
+    return k_1 - k_2
+
+def total_likelihood(u, v, G):
+    # Gives utility as the summed likelihood of shared attributes
+    # In discrete choice terms it is 1_u^T theta 1_v where theta is the
+    # diagonal matrix with normalized attribute likelihoods
+
+    sum_likelihood = 0
+    for ctx, u_attrs in G.data[u].items():
+        if ctx in G.data[v]:
+            for attr in u_attrs.intersection(G.data[v][ctx]):
+                sum_likelihood += discrete_pareto_pdf(attr)
+    return sum_likelihood / G.sim_params['k']
+
 ##############################
 # Edge probability functions #
 ##############################
 
-def logistic(u, util, scale=1.0):
-    total_util = u.data + util
-    return (2 / (1 + np.exp(-1 * scale * total_util))) - 1
+def marginal_logistic(u, util, scale=15.0):
+    log_func = lambda x : (2 / (1 + np.exp(-1 * scale * x))) - 1
+    return log_func(u.data + util) - log_func(u.data)
 
 ##################
 # Cost functions #
@@ -80,29 +99,13 @@ def indirect_distance(u, v, G):
 # Attribute distributions #
 ###########################
 
-def discrete_pareto_val():
+def discrete_pareto_val(alpha=2, sigma=1):
 
     # From Buddana Kozubowski discrete Pareto
-    alpha = 2 # "shape"
-    sigma = 1 # "size"
+    # alpha "shape" sigma "size"
     std_exp_val  = np.random.exponential(scale=1.0)
     gamma_val = np.random.gamma(alpha, scale=sigma)
     return np.ceil(std_exp_val / gamma_val)
-
-#NOTE: Both pareto dists have roughly 20% of attributes taking 50% of prob mass
-def pareto_dist(num_attrs):
-
-    # From Buddana Kozubowski discrete Pareto
-    alpha = 2 # "shape"
-    sigma = 1 # "size"
-    std_exp_dist  = np.random.exponential(scale=1.0, size=num_attrs)
-    gamma_dist = np.random.gamma(alpha, scale=sigma, size=num_attrs)
-    pareto_dist = np.ceil(std_exp_dist / gamma_dist)
-    return pareto_dist / sum(pareto_dist)
-
-def quasi_pareto_dist(num_attrs):
-    dist = np.random.pareto(2, num_attrs)
-    return dist / sum(dist)
 
 def split_dist(num_attrs, attr_split=0.2, mass_split=0.8):
     # Splits mass_split of the probability amongst attr_split of the attributes
