@@ -1,6 +1,7 @@
 """
 Util functions used in attribute search network
 """
+import math
 
 import numpy as np
 import networkx as nx
@@ -56,7 +57,7 @@ def total_likelihood(u, v, G):
 
 def marginal_logistic(u, util, scale=15.0):
     log_func = lambda x : (2 / (1 + np.exp(-1 * scale * x))) - 1
-    return log_func(u.data + util) - log_func(u.data)
+    return (log_func(u.data + util) - log_func(u.data)) ** 0.5
 
 ##################
 # Cost functions #
@@ -94,6 +95,12 @@ def indirect_distance(u, v, G):
         indirect_dist = -1
     G.add_edge(u, v, 1)
     return indirect_dist
+
+def random_walk_length(u, G):
+
+    # Uses budget calculation to get length of walk that u should take on G
+    walk_budget = remaining_budget(u, G)
+    return math.floor(walk_budget / 100)
 
 ###########################
 # Attribute distributions #
