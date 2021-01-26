@@ -73,24 +73,34 @@ class Graph:
     def num_people(self):
         return len(self.vertices)
 
-    def add_edge(self, u, v, util):
+    def add_edge(self, u, v):
         """
-        Adds edge between u and v having utility util
+        Adds edge between u and v
         """
-        u.edges[v] = Edge(util)
-        v.edges[u] = Edge(util)
+
+        assert (v in u.edges) == (u in v.edges), 'connection must be symmetric'
+        if not self.are_neighbors(u, v):
+            edge_util = self.potential_utils[u.vnum][v.vnum]
+            u.edges[v] = Edge(edge_util)
+            v.edges[u] = Edge(edge_util)
+            u.data += edge_util
+            v.data += edge_util
 
     def remove_edge(self, u, v, reflexive=True):
         """
         Removes edge between u and v if exists
         If reflexive deletes uv and vu, else just deletes edge uv
         """
+        edge_util = u.edges[v].util
+
         if v in u.edges:
             u.edges[v].data = None
             u.edges.pop(v)
+            u.data -= edge_util
         if reflexive and u in v.edges:
             v.edges[u].data = None
             v.edges.pop(u)
+            v.data -= edge_util
 
     @property
     def edge_count(self):

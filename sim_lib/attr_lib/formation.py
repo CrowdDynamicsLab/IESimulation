@@ -15,25 +15,6 @@ def has_edge(u, v, G):
     u_edge_prob = G.sim_params['edge_prob_func'](u, edge_util)
     v_edge_prob = G.sim_params['edge_prob_func'](v, edge_util)
     return np.random.random() <= u_edge_prob * v_edge_prob
-
-def add_edge(u, v, G):
-    assert (v in u.edges) == (u in v.edges), 'connection must be symmetric'
-    if not G.are_neighbors(u, v):
-        edge_util = G.potential_utils[u.vnum][v.vnum]
-        G.add_edge(u, v, edge_util)
-        u.data += edge_util
-        v.data += edge_util
-
-def remove_edge(u, v):
-    edge_util = u.edges[v].util
-
-    u.edges[v].data = None
-    u.edges.pop(v)
-    u.data -= edge_util
-
-    v.edges[u].data = None
-    v.edges.pop(u)
-    v.data -= edge_util
     
 def calc_utils(G):
     util_mat = np.zeros((G.num_people, G.num_people))
@@ -44,19 +25,10 @@ def calc_utils(G):
     G.potential_utils = util_mat
     return util_mat
 
-def budget_resolution(v, G):
-
-    # When v goes over budget due to some edge not incident to v
-    # v must drop an edge
-
-    inv_util_set = [ 1 / G.potential_utils[v.vnum][u.vnum] for u in v.nbors ]
-    dropped_nbor = np.random.choice(v.nbors,
-            p= [ iut / sum(inv_util_set) for iut in inv_util_set ])
-    remove_edge(v, dropped_nbor)
-
 def calc_edges(G, dunbar=150):
-    edge_candidates = []
     
+    edge_candidates = []
+
     # NOTE: May eventually constrain to "known" vertices
     for uidx in range(G.num_people - 1):
         u = G.vertices[uidx]
@@ -67,20 +39,8 @@ def calc_edges(G, dunbar=150):
             potential_edge = has_edge(u, v, G)
             if potential_edge:
                 edge_candidates.append((u, v))
-            elif G.are_neighbors(u, v) and not potential_edge:
-                remove_edge(u, v)
-                
-    # Add valid edges in random order until vertex runs out of budget
-    np.random.shuffle(edge_candidates)
-    for ec_u, ec_v in edge_candidates:
-        add_edge(ec_u, ec_v, G)
-        for v in G.vertices:
-            itr_count = 0
-            while attr_util.remaining_budget(v, G, dunbar) < 0:
-                budget_resolution(v, G)
-                itr_count += 1
-                assert itr_count <= len(G.vertices), \
-                        'Budget resolution occured more than number of vertices'
+
+    G.sim_params['edge_selection'](G, edge_candidates)
 
 # Graph creation
 def attribute_network(n, params):
@@ -141,20 +101,25 @@ def attr_copy(u, v, G):
         u_context_map = { ctxt : G.data[u][ctxt] for ctxt in u_context_set }
         G.data[u] = u_context_map
 
-def random_walk(u, G, k):
-    # Take a random walk starting at u on G of length k
+def random_walk(G):
+    # Take a random walk
 
-    if u.degree == 0:
-        return
+    walk_lengths = { v : attr_util.random_walk_length(v, G) for v in G.vertices }
+    pos_tokens = { v : v for v in G.vertices }
 
-    starting_vtx = u
-    visited = []
-    cur_vtx = starting_vtx
-    for _ in range(k):
-        edge_utils = [ e.util for e in cur_vtx.edges.values() ]
-        next_vtx = np.random.choice(list(cur_vtx.edges.keys()),
-                p=[ eu / sum(edge_utils) for eu in edge_utils ])
-        cur_vtx = next_vtx
-        if cur_vtx == starting_vtx:
-            continue
-        attr_copy(starting_vtx, cur_vtx, G)
+    for _ in range(max(walk_lengths.values())):
+        if len(walk_lengths) == 0:
+            break
+        for v in walk_lengths:
+            if walk_lengths[v] == 0:
+                walk_lengths.pop(v)
+                continue
+            cur_vtx = pos_tokens[v]
+            edge_utils = [ e.util for e in cur_vtx.edges.values() ]
+            next_vtx = np.random.choice(list(cur_vtx.edges.keys()),
+                    p=[ eu / sum(edge_utils) for eu in edge_utils ])
+            pos_tokens[v] = next_vtx
+            if cur_vtx == v:
+                continue
+            attr_copy(v, cur_vtx, G)
+

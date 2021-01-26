@@ -2,6 +2,7 @@
 Util functions used in attribute search network
 """
 import math
+from collections import defaultdict
 
 import numpy as np
 import networkx as nx
@@ -39,23 +40,35 @@ def discrete_pareto_pdf(k, alpha=2, sigma=1):
     k_2 = ( 1 / ( 1 + ( (k + 1) / sigma ) ) ) ** alpha
     return k_1 - k_2
 
-def total_likelihood(u, v, G):
-    # Gives utility as the summed likelihood of shared attributes
+def total_inv_likelihood(u, v, G):
+    # Gives utility as the summed inverse likelihood of shared attributes
     # In discrete choice terms it is 1_u^T theta 1_v where theta is the
-    # diagonal matrix with normalized attribute likelihoods
+    # diagonal matrix with inverse attribute likelihoods
 
     sum_likelihood = 0
     for ctx, u_attrs in G.data[u].items():
         if ctx in G.data[v]:
             for attr in u_attrs.intersection(G.data[v][ctx]):
-                sum_likelihood += discrete_pareto_pdf(attr)
+                sum_likelihood += 1 / discrete_pareto_pdf(attr)
     return sum_likelihood / G.sim_params['k']
+
+def total_inv_frequency(u, v, G):
+    # Sum of inverse frequency amongst all vertices
+
+    sum_inv_freq = 0
+    for ctx, u_attrs in G.data[u].items():
+        if ctx in G.data[v]:
+            for attr in u_attrs.intersection(G.data[v][ctx]):
+                num_occurences = len([ vtx for vtx in G.vertices \
+                        if ctx in G.data[vtx] and attr in G.data[vtx][ctx] ])
+                sum_inv_freq += len(G.vertices) / num_occurences
+    return sum_inv_freq
 
 ##############################
 # Edge probability functions #
 ##############################
 
-def marginal_logistic(u, util, scale=15.0):
+def marginal_logistic(u, util, scale=1.0):
     log_func = lambda x : (2 / (1 + np.exp(-1 * scale * x))) - 1
     return (log_func(u.data + util) - log_func(u.data)) ** 0.5
 
@@ -80,6 +93,57 @@ def remaining_budget(u, G, dunbar=150):
             G.sim_params['indirect_cost'], G)
     budget = dunbar * G.sim_params['direct_cost']
     return budget - u_cost
+
+####################
+# Edge calculation #
+####################
+
+def inv_util_edge_calc(G, edge_candidates):
+    for u, v in edge_candidates:
+        G.add_edge(u, v)
+
+    for v in G.vertices:
+        if remaining_budget(v, G) >= 0:
+            continue
+        inv_util_set = [ 1 / G.potential_utils[v.vnum][u.vnum] for u in v.nbors ]
+        dropped_nbor = np.random.choice(v.nbors,
+                p= [ iut / sum(inv_util_set) for iut in inv_util_set ])
+        G.remove_edge(v, dropped_nbor)
+
+def greedy_simul_edge_calc(G, edge_candidates, dunbar=150):
+
+    # Each vertex greedily selects top edges within budget then keep checking if
+    # all other vertices agree until everyone is satisfied
+    # This assumes that there is no indirect cost
+
+    max_degree = dunbar // G.sim_params['direct_cost']
+
+    # Put edge candidates into dict
+    candidates = defaultdict(list)
+    for u, v in edge_candidates:
+        candidates[u].append(v)
+        candidates[v].append(u)
+
+    # Gets ordered candidates per vertex
+    util_cands = {}
+    for v in candidates:
+        util_cands[v] = list(zip(candidates[v], \
+                [ G.potential_utils[v.vnum][u.vnum] for u in candidates[v] ]))
+        util_cands[v].sort(key=lambda k : k[1], reverse=True)
+        nbor_candidates, ec_vals = zip(*util_cands[v])
+        util_cands[v] = nbor_candidates
+
+    # Loose upper bound on max number of iters possible
+    for i in range(len(G.vertices) ** 2):
+        proposals = { v : util_cands[v][:max_degree - v.degree] for v in util_cands }
+        had_add_edge = False
+        for v in proposals:
+            for u in proposals:
+                if u != v and v in proposals[u] and u.degree < max_degree:
+                    G.add_edge(u, v)
+                    had_add_edge = True
+        if not had_add_edge:
+            break
 
 #########################
 # Measurement functions #
@@ -112,7 +176,7 @@ def discrete_pareto_val(alpha=2, sigma=1):
     # alpha "shape" sigma "size"
     std_exp_val  = np.random.exponential(scale=1.0)
     gamma_val = np.random.gamma(alpha, scale=sigma)
-    return np.ceil(std_exp_val / gamma_val)
+    return np.ceil(std_exp_val / gamma_val) - 1.0
 
 def split_dist(num_attrs, attr_split=0.2, mass_split=0.8):
     # Splits mass_split of the probability amongst attr_split of the attributes
