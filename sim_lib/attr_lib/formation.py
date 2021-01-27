@@ -14,6 +14,7 @@ def has_edge(u, v, G):
     edge_util = G.potential_utils[u.vnum][v.vnum]
     u_edge_prob = G.sim_params['edge_prob_func'](u, edge_util)
     v_edge_prob = G.sim_params['edge_prob_func'](v, edge_util)
+    #print(u, v, u_edge_prob, v_edge_prob)
     return np.random.random() <= u_edge_prob * v_edge_prob
     
 def calc_utils(G):
@@ -23,7 +24,7 @@ def calc_utils(G):
             util_mat[u.vnum][v.vnum] = G.sim_params['edge_util_func'](u, v, G)
             util_mat[v.vnum][u.vnum] = util_mat[u.vnum][v.vnum]
     G.potential_utils = util_mat
-    return util_mat
+    return G.potential_utils
 
 def calc_edges(G, dunbar=150):
     
@@ -36,8 +37,7 @@ def calc_edges(G, dunbar=150):
         for vidx in range(uidx + 1, G.num_people):
             v = G.vertices[vidx]
             
-            potential_edge = has_edge(u, v, G)
-            if potential_edge:
+            if has_edge(u, v, G):
                 edge_candidates.append((u, v))
 
     G.sim_params['edge_selection'](G, edge_candidates)
@@ -107,12 +107,14 @@ def random_walk(G):
     walk_lengths = { v : attr_util.random_walk_length(v, G) for v in G.vertices }
     pos_tokens = { v : v for v in G.vertices }
 
-    for _ in range(max(walk_lengths.values())):
+    max_iters = max(walk_lengths.values())
+    for _ in range(max_iters):
         if len(walk_lengths) == 0:
             break
+        pop_list = []
         for v in walk_lengths:
-            if walk_lengths[v] == 0:
-                walk_lengths.pop(v)
+            if walk_lengths[v] == 0 or v.degree == 0:
+                pop_list.append(v)
                 continue
             cur_vtx = pos_tokens[v]
             edge_utils = [ e.util for e in cur_vtx.edges.values() ]
@@ -122,4 +124,6 @@ def random_walk(G):
             if cur_vtx == v:
                 continue
             attr_copy(v, cur_vtx, G)
+        for v in pop_list:
+            walk_lengths.pop(v)
 

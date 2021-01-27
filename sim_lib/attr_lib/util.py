@@ -68,7 +68,7 @@ def total_inv_frequency(u, v, G):
 # Edge probability functions #
 ##############################
 
-def marginal_logistic(u, util, scale=1.0):
+def marginal_logistic(u, util, scale=2 ** -4):
     log_func = lambda x : (2 / (1 + np.exp(-1 * scale * x))) - 1
     return (log_func(u.data + util) - log_func(u.data)) ** 0.5
 
