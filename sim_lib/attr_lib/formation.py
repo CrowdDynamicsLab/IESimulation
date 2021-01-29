@@ -12,9 +12,16 @@ import sim_lib.attr_lib.util as attr_util
 # Edge selection
 def has_edge(u, v, G):
     edge_util = G.potential_utils[u.vnum][v.vnum]
+    if u in v.edges:
+        u.data -= edge_util
+    if v in u.edges:
+        v.data -= edge_util
     u_edge_prob = G.sim_params['edge_prob_func'](u, edge_util)
     v_edge_prob = G.sim_params['edge_prob_func'](v, edge_util)
-    #print(u, v, u_edge_prob, v_edge_prob)
+    if u in v.edges:
+        u.data += edge_util
+    if v in u.edges:
+        v.data += edge_util
     return np.random.random() <= u_edge_prob * v_edge_prob
     
 def calc_utils(G):

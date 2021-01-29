@@ -72,6 +72,11 @@ def marginal_logistic(u, util, scale=2 ** -4):
     log_func = lambda x : (2 / (1 + np.exp(-1 * scale * x))) - 1
     return (log_func(u.data + util) - log_func(u.data)) ** 0.5
 
+def logistic(u, util, scale=2 ** -4):
+    log_func = lambda x : (2 / (1 + np.exp(-1 * scale * x))) - 1
+    return (log_func(util)) ** 0.5
+
+
 ##################
 # Cost functions #
 ##################
@@ -99,6 +104,12 @@ def remaining_budget(u, G, dunbar=150):
 ####################
 
 def inv_util_edge_calc(G, edge_candidates):
+
+    # Reset graph
+    for v in G.vertices:
+        for u in v.nbors:
+            G.remove_edge(u, v)
+
     for u, v in edge_candidates:
         G.add_edge(u, v)
 
@@ -117,6 +128,13 @@ def greedy_simul_edge_calc(G, edge_candidates, dunbar=150):
     # This assumes that there is no indirect cost
 
     max_degree = dunbar // G.sim_params['direct_cost']
+
+    # Reset graph
+    for v in G.vertices:
+        for u in v.nbors:
+            G.remove_edge(u, v)
+
+    print(sum([v.data for v in G.vertices]))
 
     # Put edge candidates into dict
     candidates = defaultdict(list)
@@ -144,6 +162,7 @@ def greedy_simul_edge_calc(G, edge_candidates, dunbar=150):
                     had_add_edge = True
         if not had_add_edge:
             break
+    print(sum([v.data for v in G.vertices]))
 
 #########################
 # Measurement functions #
