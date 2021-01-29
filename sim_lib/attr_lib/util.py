@@ -134,8 +134,6 @@ def greedy_simul_edge_calc(G, edge_candidates, dunbar=150):
         for u in v.nbors:
             G.remove_edge(u, v)
 
-    print(sum([v.data for v in G.vertices]))
-
     # Put edge candidates into dict
     candidates = defaultdict(list)
     for u, v in edge_candidates:
@@ -162,7 +160,6 @@ def greedy_simul_edge_calc(G, edge_candidates, dunbar=150):
                     had_add_edge = True
         if not had_add_edge:
             break
-    print(sum([v.data for v in G.vertices]))
 
 #########################
 # Measurement functions #

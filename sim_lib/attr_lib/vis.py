@@ -31,3 +31,4 @@ def draw_graph(G_attr, nvtx=None):
     plt.figure(figsize=(15,15))
     nx.draw_networkx(G_attr_nx, pos=G_attr_vtx_pos, node_color=colors,
                      node_size=40, width=0.6, with_labels=None)
+    plt.show()
