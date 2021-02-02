@@ -87,28 +87,7 @@ def add_attr_graph_vtx(G, v):
     G.vertices.append(v)
     return v
 
-def attr_copy(u, v, G):
-    # Copy an attribute from v to u
-    v_contexts = list(G.data[v].keys())
-    v_context_sizes = [ len(G.data[v][vctxt]) for vctxt in v_contexts ]
-    v_context = np.random.choice(v_contexts,
-            p=[ csize / sum(v_context_sizes) for csize in v_context_sizes ])
-    v_attr = np.random.choice(list(G.data[v][v_context]))
-
-    if v_context in G.data[u]:
-        G.data[u][v_context].add(v_attr)
-    else: # Case where context may be switched
-        G.data[u][v_context] = { v_attr }
-        u_contexts = list(G.data[u].keys())
-        u_context_sizes = [ len(G.data[u][uctxt]) for uctxt in u_contexts ]
-        context_count = G.sim_params['k']
-        u_context_set = np.random.choice(u_contexts,
-                size=context_count, replace=False,
-                p=[ csize / sum(u_context_sizes) for csize in u_context_sizes ])
-        u_context_map = { ctxt : G.data[u][ctxt] for ctxt in u_context_set }
-        G.data[u] = u_context_map
-
-def random_walk(G):
+def simul_random_walk(G):
     # Take a random walk
 
     walk_lengths = { v : attr_util.random_walk_length(v, G) for v in G.vertices }
@@ -119,6 +98,7 @@ def random_walk(G):
         if len(walk_lengths) == 0:
             break
         pop_list = []
+        context_updates = {}
         for v in walk_lengths:
             if walk_lengths[v] == 0 or v.degree == 0:
                 pop_list.append(v)
@@ -130,7 +110,21 @@ def random_walk(G):
             pos_tokens[v] = next_vtx
             if cur_vtx == v:
                 continue
-            attr_copy(v, cur_vtx, G)
+            context_updates[v] = G.sim_params['attr_copy'](v, next_vtx, G)
         for v in pop_list:
             walk_lengths.pop(v)
+        for v, ctxts in context_updates.items():
+            G.data[v] = ctxts
 
+def seq_random_walk(G):
+    for v in np.random.permutation(G.vertices):
+        cur_vtx = v
+        for _ in range(attr_util.random_walk_length(v, G)):
+            edge_utils = [ e.util for e in cur_vtx.edges.values() ]
+            next_vtx = np.random.choice(list(cur_vtx.edges.keys()),
+                    p=[ eu / sum(edge_utils) for eu in edge_utils ])
+            cur_vtx = next_vtx
+            if cur_vtx == v:
+                continue
+            G.data[v] = G.sim_params['attr_copy'](v, cur_vtx, G)
+            

@@ -226,6 +226,126 @@ def gen_peak_dist(num_attrs, peak, peak_prob=0.99):
 def uniform_dist(num_attrs):
     return [ 1 / num_attrs for _ in range(num_attrs) ]
 
+#####################
+# Attribute copying #
+#####################
+
+def indep_attr_copy(u, v, G):
+    # Copy an attribute from v to u by random selection
+
+    v_contexts = list(G.data[v].keys())
+    v_context_sizes = [ len(G.data[v][vctxt]) for vctxt in v_contexts ]
+    v_context = np.random.choice(v_contexts,
+            p=[ csize / sum(v_context_sizes) for csize in v_context_sizes ])
+    v_attr = np.random.choice(list(G.data[v][v_context]))
+
+    u_context_map = G.data[u].copy()
+    if v_context in u_context_map:
+        u_context_map[v_context].add(v_attr)
+        return u_context_map
+    else: # Case where context may be switched
+        u_context_map[v_context] = { v_attr }
+        u_contexts = list(u_context_map.keys())
+        u_context_sizes = [ len(u_context_map[uctxt]) for uctxt in u_contexts ]
+        context_count = G.sim_params['k']
+        u_context_set = np.random.choice(u_contexts,
+                size=context_count, replace=False,
+                p=[ csize / sum(u_context_sizes) for csize in u_context_sizes ])
+        u_context_map = { ctxt : u_context_map[ctxt] for ctxt in u_context_set }
+
+    return u_context_map
+
+def freq_attr_copy(u, v, G):
+    # Supposes specific strategy: copy attributes that your neighbors have
+    # Weigh by increase to utility if you take that attribute
+
+    u_context_map = G.data[u]
+
+    def shared_attr_util(u, v, G, ctxt, attr):
+        assert attr not in u_context_map[ctxt], 'Func only used when attr not present'
+
+        pre_add_util = sum([ G.sim_params['edge_util_func'](u, w, G) for w in u.nbors ])
+        u_context_map[ctxt].add(attr)
+        post_add_util = sum([ G.sim_params['edge_util_func'](u, w, G) for w in u.nbors ])
+        u_context_map[ctxt].remove(attr)
+        return post_add_util - pre_add_util
+
+    def diff_attr_util(u, v, G, v_ctxt, v_attr, u_ctxt):
+        assert v_ctxt not in u_context_map, 'Only used when v_ctxt not in u'
+        assert u_ctxt in u_context_map, 'u_ctxt must be in u'
+
+        pre_add_util = sum([ G.sim_params['edge_util_func'](u, w, G) for w in u.nbors ])
+        u_ctxt_attrs = u_context_map.pop(u_ctxt)
+        u_context_map[v_ctxt] = { v_attr }
+        post_add_util = sum([ G.sim_params['edge_util_func'](u, w, G) for w in u.nbors ])
+        u_context_map.pop(v_ctxt)
+        u_context_map[u_ctxt] = u_ctxt_attrs
+        return post_add_util - pre_add_util
+
+    u_contexts = set(u_context_map.keys())
+    v_contexts = set(G.data[v].keys())
+
+    sum_gain = 0
+
+    # Get common context attributes
+    # These are monotonic
+    shared_ctxt_attributes = { ctxt : { attr : 0 for attr in G.data[v][ctxt] } \
+            for ctxt in v_contexts.intersection(u_contexts) }
+    for ctxt, attr_map in shared_ctxt_attributes.items():
+        for attr in attr_map.keys():
+            if attr in u_context_map[ctxt]:
+                continue
+            attr_map[attr] = shared_attr_util(u, v, G, ctxt, attr)
+            sum_gain += attr_map[attr]
+
+    # Get new context attributes
+    # These may not be monotonic so we must drop options here
+    diff_ctxt_attributes = { ctxt : { attr : 0 for attr in G.data[v][ctxt] } \
+            for ctxt in v_contexts.difference(u_contexts) }
+    for v_ctxt, attr_map in diff_ctxt_attributes.items():
+        attr_map_drop = []
+        for v_attr in attr_map.keys():
+            max_gain_u_ctxt = None
+            max_gain = -1
+            for u_ctxt in u_contexts:
+                drop_gain = diff_attr_util(u, v, G, v_ctxt, v_attr, u_ctxt)
+                if max_gain_u_ctxt == None or drop_gain > max_gain:
+                    max_gain_u_ctxt = u_ctxt
+                    max_gain = drop_gain
+            if max_gain < 0:
+                attr_map_drop.append(v_attr)
+            else:
+                attr_map[v_attr] = (max_gain, max_gain_u_ctxt)
+                sum_gain += max_gain
+        for attr in attr_map_drop:
+            attr_map.pop(attr)
+
+    if sum_gain == 0:
+        return u_context_map
+
+    # Select an attribute based on largest gain
+    attribute_candidates = {}
+    for ctxt, attr_map in shared_ctxt_attributes.items():
+        for attr, gain in attr_map.items():
+            attribute_candidates[(ctxt, attr)] = gain / sum_gain
+    for ctxt, attr_map in diff_ctxt_attributes.items():
+        for attr, (gain, u_ctxt) in attr_map.items():
+            attribute_candidates[(ctxt, attr)] = gain / sum_gain
+    ctxt_attr_pairs = list(attribute_candidates.keys())
+    attr_gains = [ attribute_candidates[ca] for ca in ctxt_attr_pairs ]
+    chosen_idx = np.random.choice(len(ctxt_attr_pairs), p=attr_gains)
+    chosen_ctxt, chosen_attr = ctxt_attr_pairs[chosen_idx]
+
+    if chosen_ctxt in diff_ctxt_attributes:
+        _, drop_context = diff_ctxt_attributes[chosen_ctxt][chosen_attr]
+        u_context_map.pop(drop_context)
+        u_context_map[chosen_ctxt] = { chosen_attr }
+    else:
+        assert chosen_ctxt in u_context_map, 'chosen ctxt must be in u_context_map'
+        u_context_map[chosen_ctxt].add(chosen_attr)
+
+    return u_context_map
+
 ###########
 # Metrics #
 ###########
