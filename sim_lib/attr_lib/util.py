@@ -121,7 +121,7 @@ def inv_util_edge_calc(G, edge_candidates):
                 p= [ iut / sum(inv_util_set) for iut in inv_util_set ])
         G.remove_edge(v, dropped_nbor)
 
-def greedy_simul_edge_calc(G, edge_candidates, dunbar=150):
+def greedy_simul_set_proposal(G, edge_candidates, dunbar=150):
 
     # Each vertex greedily selects top edges within budget then keep checking if
     # all other vertices agree until everyone is satisfied
@@ -159,6 +159,44 @@ def greedy_simul_edge_calc(G, edge_candidates, dunbar=150):
                     G.add_edge(u, v)
                     had_add_edge = True
         if not had_add_edge:
+            break
+
+def greedy_simul_sequence_proposal(G, edge_candidates):
+    
+    # Each vertex constructs sequence of proposals up until constraints are meant
+    # Sequence is ordered greedily
+
+    # Reset graph
+    for v in G.vertices:
+        for u in v.nbors:
+            G.remove_edge(u, v)
+
+    candidates = defaultdict(list)
+    for u, v in edge_candidates:
+        candidates[u].append(v)
+        candidates[v].append(u)
+
+    sequences = defaultdict(list)
+    for v in G.vertices:
+        sequences[v] = list(zip(candidates[v], \
+                [ G.potential_utils[v.vnum][u.vnum] for u in candidates[v] ]))
+        sequences[v].sort(key=lambda k : k[1], reverse=True)
+        sequences_vtx, vtx_values = zip(*sequences[v])
+        sequences[v] = sequences_vtx
+
+    for i in range(len(G.vertices)):
+        # Check for mutuals up until index i
+        had_addition = False
+        proposals = { v : sequences[v][:i + 1] for v in sequences }
+        for v in proposals:
+            for u in proposals[v]:
+                if not G.are_neighbors(u, v) and v in proposals[u]:
+                    G.add_edge(u, v)
+                    if remaining_budget(u, G) < 0:
+                        G.remove_edge(u, v)
+                    else:
+                        had_addition = True
+        if not had_addition:
             break
 
 #########################
