@@ -39,6 +39,10 @@ class Vertex:
     def nbors(self):
         return list(self.edges.keys())
 
+    @property
+    def total_edge_util(self):
+        return sum([ e.util for e in self.edges.values() ])
+
     def __repr__(self):
         return 'Vertex {0}'.format(self.vnum)
 
@@ -83,8 +87,6 @@ class Graph:
             edge_util = self.potential_utils[u.vnum][v.vnum]
             u.edges[v] = Edge(edge_util)
             v.edges[u] = Edge(edge_util)
-            u.data += edge_util
-            v.data += edge_util
 
     def remove_edge(self, u, v, reflexive=True):
         """
@@ -96,11 +98,9 @@ class Graph:
         if v in u.edges:
             u.edges[v].data = None
             u.edges.pop(v)
-            u.data -= edge_util
         if reflexive and u in v.edges:
             v.edges[u].data = None
             v.edges.pop(u)
-            v.data -= edge_util
 
     @property
     def edge_count(self):

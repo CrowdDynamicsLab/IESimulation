@@ -70,18 +70,20 @@ def total_inv_frequency(u, v, G):
 
 def marginal_logistic(u, util, scale=2 ** -4):
     log_func = lambda x : (2 / (1 + np.exp(-1 * scale * x))) - 1
-    return (log_func(u.data + util) - log_func(u.data)) ** 0.5
+    return (log_func(u.total_edge_util + util) - log_func(u.total_edge_util)) ** 0.5
 
 def logistic(u, util, scale=2 ** -4):
     log_func = lambda x : (2 / (1 + np.exp(-1 * scale * x))) - 1
     return (log_func(util)) ** 0.5
 
-
 ##################
 # Cost functions #
 ##################
 
-def calc_cost(u, direct_cost, indirect_cost, G):
+def calc_cost(u, G, dunbar=150):
+    direct_cost = u.data['direct_cost']
+    indirect_cost = u.data['indirect_cost']
+
     u_subgraph_degree = 0
     nbor_set = set(u.nbors)
     for v in nbor_set:
@@ -91,13 +93,13 @@ def calc_cost(u, direct_cost, indirect_cost, G):
     total_direct_cost = len(nbor_set) * direct_cost
     total_indirect_cost = edge_count * indirect_cost
 
-    return total_direct_cost + total_indirect_cost
+    budget = dunbar * direct_cost
+
+    return (total_direct_cost + total_indirect_cost) / budget
 
 def remaining_budget(u, G, dunbar=150):
-    u_cost = calc_cost(u, G.sim_params['direct_cost'],
-            G.sim_params['indirect_cost'], G)
-    budget = dunbar * G.sim_params['direct_cost']
-    return budget - u_cost
+    u_cost = calc_cost(u, G)
+    return 1 - u_cost
 
 ####################
 # Edge calculation #
@@ -127,7 +129,7 @@ def greedy_simul_set_proposal(G, edge_candidates, dunbar=150):
     # all other vertices agree until everyone is satisfied
     # This assumes that there is no indirect cost
 
-    max_degree = dunbar // G.sim_params['direct_cost']
+    max_degree = dunbar // max([ u.data['direct_cost'] for u in G.vertices ])
 
     # Reset graph
     for v in G.vertices:
@@ -199,20 +201,50 @@ def greedy_simul_sequence_proposal(G, edge_candidates):
         if not had_addition:
             break
 
+def iter_drop_max_objective(G, edge_proposals):
+    # While over budget, drop edges that result in greatest net objective
+    # After within budget, drop edges until reach local max objective
+
+    obj = lambda v, G : G.sim_params['vtx_util'](v, v.total_edge_util) - calc_cost(v, G)
+
+    def steepest_hill_iter(v, G):
+        max_obj_val = obj(v, G) 
+        max_obj_edge = None
+        for u in v.nbors:
+            G.remove_edge(v, u)
+            current_obj = obj(v, G)
+            G.add_edge(v, u)
+            if current_obj > max_obj_val:
+                max_obj_edge = u
+                max_obj_val = current_obj
+        if max_obj_edge is not None:
+            G.remove_edge(v, max_obj_edge)
+
+    # Assume all proposals are accepted
+    for v in edge_proposals:
+        for u in edge_proposals[v]:
+            G.add_edge(u, v)
+
+    # Resolve budget and do local optimization
+    for _ in range(G.num_people):
+        for v in G.vertices:
+            if remaining_budget(v, G) < 0:
+                max_obj_val = np.NINF
+                max_obj_edge = None
+                for u in v.nbors:
+                    G.remove_edge(v, u)
+                    current_obj = obj(v, G) 
+                    G.add_edge(v, u)
+                    if current_obj >= max_obj_val:
+                        max_obj_val = current_obj
+                        max_obj_edge = u
+                G.remove_edge(v, max_obj_edge)
+            else:
+                steepest_hill_iter(v, G)
+
 #########################
 # Measurement functions #
 #########################
-
-def indirect_distance(u, v, G):
-    G.remove_edge(u, v)
-    G_nx = gnx.graph_to_nx(G)
-    indirect_dist = 0
-    try:
-        indirect_dist = nx.shortest_path_length(G_nx, source=u, target=v)
-    except nx.NetworkXNoPath:
-        indirect_dist = -1
-    G.add_edge(u, v, 1)
-    return indirect_dist
 
 def random_walk_length(u, G):
 
@@ -384,10 +416,3 @@ def freq_attr_copy(u, v, G):
 
     return u_context_map
 
-###########
-# Metrics #
-###########
-def modularity(G_nx):
-    # Gets modularity based on greedily optimized maximum
-    partitions = nx_comm.greedy_modularity_communities(G_nx)
-    return nx_comm.modularity(G_nx, partitions)

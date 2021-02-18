@@ -1,29 +1,16 @@
+from collections.abc import Iterable
+import copy
+
 import networkx as nx
 import numpy as np
-from collections.abc import Iterable
 
 import sim_lib.graph as graph
 import sim_lib.graph_create as gc
 import sim_lib.graph_networkx as gnx
 import sim_lib.util as util
-
 import sim_lib.attr_lib.util as attr_util
 
 # Edge selection
-def has_edge(u, v, G):
-    edge_util = G.potential_utils[u.vnum][v.vnum]
-    if u in v.edges:
-        u.data -= edge_util
-    if v in u.edges:
-        v.data -= edge_util
-    u_edge_prob = G.sim_params['edge_prob_func'](u, edge_util)
-    v_edge_prob = G.sim_params['edge_prob_func'](v, edge_util)
-    if u in v.edges:
-        u.data += edge_util
-    if v in u.edges:
-        v.data += edge_util
-    return np.random.random() <= u_edge_prob * v_edge_prob
-    
 def calc_utils(G):
     util_mat = np.zeros((G.num_people, G.num_people))
     for i, u in enumerate(G.vertices):
@@ -35,27 +22,34 @@ def calc_utils(G):
 
 def calc_edges(G, dunbar=150):
     
-    edge_candidates = []
+    edge_proposals = {}
 
     # NOTE: May eventually constrain to "known" vertices
-    for uidx in range(G.num_people - 1):
-        u = G.vertices[uidx]
-        
-        for vidx in range(uidx + 1, G.num_people):
-            v = G.vertices[vidx]
+    for u in G.vertices:
+        edge_proposals[u] = []
+        for v in G.vertices:
+            if G.are_neighbors(u, v) or u == v:
+                continue
             
-            if has_edge(u, v, G):
-                edge_candidates.append((u, v))
+            edge_util = G.potential_utils[u.vnum][v.vnum]
+            if G.sim_params['edge_proposal'](u, edge_util) >= np.random.random():
+                edge_proposals[u].append(v)
 
-    G.sim_params['edge_selection'](G, edge_candidates)
+    G.sim_params['edge_selection'](G, edge_proposals)
 
 # Graph creation
 def attribute_network(n, params):
     vtx_set = []
 
+    vtx_type_dists = { t : td['likelihood'] for t, td in params['vtx_types'].items() }
+    vtx_types = list(vtx_type_dists.keys())
+    vtx_type_likelihoods = [ vtx_type_dists[vt] for vt in vtx_types ]
     for i in range(n):
         vtx = graph.Vertex(i)
-        vtx.data = 0
+        chosen_type = np.random.choice(vtx_types, p=vtx_type_likelihoods)
+        vtx.data = copy.copy(params['vtx_types'][chosen_type])
+        vtx.data['type_name'] = chosen_type
+        vtx.data.pop('likelihood')
         vtx_set.append(vtx)
 
     G = graph.Graph()
