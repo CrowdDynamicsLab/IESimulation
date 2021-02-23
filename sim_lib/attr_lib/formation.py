@@ -24,46 +24,67 @@ def calc_edges(G, dunbar=150):
     
     edge_proposals = {}
 
-    # NOTE: May eventually constrain to "known" vertices
     for u in G.vertices:
         edge_proposals[u] = []
-        for v in G.vertices:
+
+        # Only need to check visited edges for proposal
+        for v in u.data['visited']:
             if G.are_neighbors(u, v) or u == v:
                 continue
-            
+           
             edge_util = G.potential_utils[u.vnum][v.vnum]
             if G.sim_params['edge_proposal'](u, edge_util) >= np.random.random():
                 edge_proposals[u].append(v)
 
     G.sim_params['edge_selection'](G, edge_proposals)
 
-# Graph creation
-def attribute_network(n, params):
-    vtx_set = []
+def initialize_vertex(G, vtx=None):
+    # If no vertex is passed as arg, creates a vertex. Otherwise uses given.
+    if vtx == None:
+        vtx = graph.Vertex(G.num_people)
 
-    vtx_type_dists = { t : td['likelihood'] for t, td in params['vtx_types'].items() }
+    vtx_type_dists = { t : td['likelihood'] for t, td in G.sim_params['vtx_types'].items() }
     vtx_types = list(vtx_type_dists.keys())
     vtx_type_likelihoods = [ vtx_type_dists[vt] for vt in vtx_types ]
-    for i in range(n):
-        vtx = graph.Vertex(i)
-        chosen_type = np.random.choice(vtx_types, p=vtx_type_likelihoods)
-        vtx.data = copy.copy(params['vtx_types'][chosen_type])
-        vtx.data['type_name'] = chosen_type
-        vtx.data.pop('likelihood')
-        vtx_set.append(vtx)
+    chosen_type = np.random.choice(vtx_types, p=vtx_type_likelihoods)
+    vtx.data = copy.copy(G.sim_params['vtx_types'][chosen_type])
+    vtx.data['type_name'] = chosen_type
+    vtx.data.pop('likelihood')
+
+    vtx.data['visited'] = set()
+
+    contexts = np.random.choice(list(range(G.sim_params['context_count'])),
+            replace=False, size=G.sim_params['k'])
+    G.data[vtx] = { context : { G.sim_params['attr_func']() } for context in contexts }
+
+    return vtx
+
+# Graph creation
+def attribute_network(n, params):
+    # If clique is true, initialize network as a clique
 
     G = graph.Graph()
-    G.vertices = vtx_set
-    
     G.data = {}
     G.sim_params = params
-    
-    # Initialize contexts
-    for vtx in G.vertices:
-        contexts = np.random.choice(list(range(params['context_count'])),
-                replace=False, size=params['k'])
-        G.data[vtx] = { context : { params['attr_func']() } for context in contexts }
-    
+
+    vtx_set = []
+
+    for i in range(n):
+        vtx = graph.Vertex(i)
+        vtx = initialize_vertex(G, vtx)
+        vtx_set.append(vtx)
+
+    G.vertices = vtx_set
+
+    if params['seed_type'] == 'clique':
+
+        # This may give a network that starts as over budget
+        calc_utils(G)
+        for v_idx in range(n):
+            for u_idx in range(v_idx + 1, n):
+                G.add_edge(G.vertices[v_idx], G.vertices[u_idx])
+        return G
+
     # Calculate edge utils
     calc_utils(G)
 
@@ -73,19 +94,28 @@ def attribute_network(n, params):
     return G
 
 # For adding to graph
-def add_attr_graph_vtx(G, v):
-    contexts = np.random.choice(list(range(G.sim_params['context_count'])),
-            replace=False, size=G.sim_params['k'])
-    G.data[v] = { context : { G.sim_params['attr_func']() } for context in contexts }
+def add_attr_graph_vtx(G, vtx=None):
+    vtx = initialize_vertex(G, vtx)
 
-    G.vertices.append(v)
-    return v
+    # Select initial neighbor candidate
+    likelihoods = [ G.sim_params['edge_util_func'](vtx, u, G) for u in G.vertices ]
+    scaled_likelihoods = [ lk / sum(likelihoods) for lk in likelihoods ]
+    candidate = np.random.choice(G.vertices, p=scaled_likelihoods)
+    single_random_walk(G, vtx, candidate)
+
+    G.vertices.append(vtx)
+    calc_utils(G)
+    return vtx
 
 def simul_random_walk(G):
     # Take a random walk
 
     walk_lengths = { v : attr_util.random_walk_length(v, G) for v in G.vertices }
     pos_tokens = { v : v for v in G.vertices }
+
+    # Reset visited vertices
+    for v in G.vertices:
+        v.data['visited'] = set()
 
     max_iters = max(walk_lengths.values())
     for _ in range(max_iters):
@@ -104,21 +134,43 @@ def simul_random_walk(G):
             pos_tokens[v] = next_vtx
             if cur_vtx == v:
                 continue
+            v.data['visited'].add(cur_vtx)
             context_updates[v] = G.sim_params['attr_copy'](v, next_vtx, G)
         for v in pop_list:
             walk_lengths.pop(v)
         for v, ctxts in context_updates.items():
             G.data[v] = ctxts
 
-def seq_random_walk(G):
-    for v in np.random.permutation(G.vertices):
+def single_random_walk(G, v, start=None):
+
+    # Random walk of a single vertex
+    v.data['visited'] = set()
+    if start is not None:
+        cur_vtx = start
+        v.data['visited'].add(cur_vtx)
+        G.data[v] = G.sim_params['attr_copy'](v, cur_vtx, G)
+    else:
         cur_vtx = v
-        for _ in range(attr_util.random_walk_length(v, G)):
-            edge_utils = [ e.util for e in cur_vtx.edges.values() ]
-            next_vtx = np.random.choice(list(cur_vtx.edges.keys()),
-                    p=[ eu / sum(edge_utils) for eu in edge_utils ])
+
+    if cur_vtx.degree == 0:
+        return
+
+    for i in range(attr_util.random_walk_length(v, G)):
+        edge_utils = [ e.util for e in cur_vtx.edges.values() ]
+        next_vtx = np.random.choice(list(cur_vtx.edges.keys()),
+                p=[ eu / sum(edge_utils) for eu in edge_utils ])
+        if cur_vtx == v or (i == 0 and start is not None):
             cur_vtx = next_vtx
-            if cur_vtx == v:
-                continue
+        else:
+            v.data['visited'].add(cur_vtx)
             G.data[v] = G.sim_params['attr_copy'](v, cur_vtx, G)
-            
+            cur_vtx = next_vtx
+
+def seq_random_walk(G):
+
+    # Reset visited vertices
+    for v in G.vertices:
+        v.data['visited'] = set()
+
+    for v in np.random.permutation(G.vertices):
+        single_random_walk(G, v)

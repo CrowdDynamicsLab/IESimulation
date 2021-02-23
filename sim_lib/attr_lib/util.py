@@ -70,6 +70,7 @@ def total_inv_frequency(u, v, G):
 
 def marginal_logistic(u, util, scale=2 ** -4):
     log_func = lambda x : (2 / (1 + np.exp(-1 * scale * x))) - 1
+    print((log_func(u.total_edge_util + util) - log_func(u.total_edge_util)) ** 0.5)
     return (log_func(u.total_edge_util + util) - log_func(u.total_edge_util)) ** 0.5
 
 def logistic(u, util, scale=2 ** -4):
@@ -250,7 +251,7 @@ def random_walk_length(u, G):
 
     # Uses budget calculation to get length of walk that u should take on G
     walk_budget = remaining_budget(u, G)
-    return math.floor(walk_budget / 100)
+    return math.floor(walk_budget / 0.1)
 
 ###########################
 # Attribute distributions #
