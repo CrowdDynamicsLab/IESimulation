@@ -80,7 +80,7 @@ def logistic(u, util, scale=2 ** -4):
 # Cost functions #
 ##################
 
-def calc_cost(u, G, dunbar=150):
+def calc_cost(u, G):
     direct_cost = u.data['direct_cost']
     indirect_cost = u.data['indirect_cost']
 
@@ -93,11 +93,9 @@ def calc_cost(u, G, dunbar=150):
     total_direct_cost = len(nbor_set) * direct_cost
     total_indirect_cost = edge_count * indirect_cost
 
-    budget = dunbar * direct_cost
+    return (total_direct_cost + total_indirect_cost) / G.sim_params['vtx_budget']
 
-    return (total_direct_cost + total_indirect_cost) / budget
-
-def remaining_budget(u, G, dunbar=150):
+def remaining_budget(u, G):
     u_cost = calc_cost(u, G)
     return 1 - u_cost
 

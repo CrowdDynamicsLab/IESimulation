@@ -99,7 +99,12 @@ def add_attr_graph_vtx(G, vtx=None):
 
     # Select initial neighbor candidate
     likelihoods = [ G.sim_params['edge_util_func'](vtx, u, G) for u in G.vertices ]
-    scaled_likelihoods = [ lk / sum(likelihoods) for lk in likelihoods ]
+    scaled_likelihoods = []
+    total_likelihood = sum(likelihoods)
+    if total_likelihood > 0:
+        scaled_likelihoods = [ lk / sum(likelihoods) for lk in likelihoods ]
+    else:
+        scaled_likelihoods = [ 1 / G.num_people for _ in range(G.num_people) ]
     candidate = np.random.choice(G.vertices, p=scaled_likelihoods)
     single_random_walk(G, vtx, candidate)
 
@@ -132,7 +137,7 @@ def simul_random_walk(G):
             next_vtx = np.random.choice(list(cur_vtx.edges.keys()),
                     p=[ eu / sum(edge_utils) for eu in edge_utils ])
             pos_tokens[v] = next_vtx
-            if cur_vtx == v:
+            if cur_vtx == v or cur_vtx in v.data['visited']:
                 continue
             v.data['visited'].add(cur_vtx)
             context_updates[v] = G.sim_params['attr_copy'](v, next_vtx, G)
@@ -159,7 +164,7 @@ def single_random_walk(G, v, start=None):
         edge_utils = [ e.util for e in cur_vtx.edges.values() ]
         next_vtx = np.random.choice(list(cur_vtx.edges.keys()),
                 p=[ eu / sum(edge_utils) for eu in edge_utils ])
-        if cur_vtx == v or (i == 0 and start is not None):
+        if cur_vtx in v.data['visited'] or cur_vtx == v or (i == 0 and start is not None):
             cur_vtx = next_vtx
         else:
             v.data['visited'].add(cur_vtx)
