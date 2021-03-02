@@ -240,6 +240,19 @@ def iter_drop_max_objective(G, edge_proposals):
             else:
                 steepest_hill_iter(v, G)
 
+def indep_context_proposal(G, v):
+    # Independently select a vertex in G that has a context shared with v
+    # to be proposed to by v. Adds selected vertex to v's visited set
+    # Select in proportion to context count (for trivial will usually be IID)
+    v_context_counts = [ ( ctx, len(G.data[v][ctx]) ) for ctx in G.data[v] ]
+    v_contexts, context_counts = zip(*v_context_counts)
+    context_probs = [ cnt / sum(context_counts) for cnt in context_counts ]
+    search_context = np.random.choice(v_contexts, p=context_probs)
+
+    valid_vertices = [ u for u in G.vertices if (search_context in G.data[u]) ]
+    proposed_vertex = np.random.choice(valid_vertices)
+    v.data['visited'].add(proposed_vertex)
+
 #########################
 # Measurement functions #
 #########################
