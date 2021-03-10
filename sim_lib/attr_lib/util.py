@@ -64,6 +64,39 @@ def total_inv_frequency(u, v, G):
                 sum_inv_freq += len(G.vertices) / num_occurences
     return sum_inv_freq
 
+# Structural (normalized)
+def neighborhood_density(v, G):
+    # Density is already "normalized", clique is density 1
+    if len(v.nbors) == 0:
+        return 0
+    if len(v.nbors) == 1:
+        return 1
+    return sum([ u.degree for u in v.nbors ]) / (len(v.nbors) * (len(v.nbors) - 1))
+
+def ball2_size(v, G):
+    if len(v.nbors) == 0:
+        return 0
+
+    visited = set()
+    queue = list(zip(v.nbors, [ 1 ] * len(v.nbors)))
+    for u, depth in queue:
+        if u in visited:
+            continue
+
+        visited.add(u)
+
+        if depth == 2:
+            continue
+
+        for u_prime in u.nbors:
+            queue.append((u_prime, depth + 1))
+    size = len(visited)
+
+    max_ball_size = sum([ (G.sim_params['vtx_budget'] // u.data['direct_cost']) - 1 \
+            for u in v.nbors ]) + len(v.nbors)
+
+    return size / max_ball_size
+
 ##############################
 # Edge probability functions #
 ##############################
@@ -75,6 +108,9 @@ def marginal_logistic(u, util, scale=2 ** -4):
 def logistic(u, util, scale=2 ** -4):
     log_func = lambda x : (2 / (1 + np.exp(-1 * scale * x))) - 1
     return (log_func(util)) ** 0.5
+
+def const_one(u, util):
+    return 1.0
 
 ##################
 # Cost functions #
@@ -240,7 +276,58 @@ def iter_drop_max_objective(G, edge_proposals):
             else:
                 steepest_hill_iter(v, G)
 
-def indep_context_proposal(G, v):
+def seq_projection_single_selection(G, edge_proposals):
+    # Sequentially (non-random) pick one edge to propose to via projection
+    # of multiobjective optimization function
+    # Assumes even split of coefficients
+
+    for v in G.vertices:
+        attr_util_deltas = []
+        struct_util_deltas = []
+        cost_deltas = []
+
+        if len(v.nbors) == 0 and len(edge_proposals[v]) == 0:
+            continue
+
+        candidates = [ u for u in v.nbors ]
+
+        cur_attr_util = v.total_edge_util
+        cur_struct_util = v.data['struct_util'](v, G)
+        cur_cost = calc_cost(v, G)
+        for u in v.nbors:
+            G.remove_edge(v, u)
+            attr_util_deltas.append(v.total_edge_util - cur_attr_util)
+            struct_util_deltas.append(v.data['struct_util'](v, G) - cur_struct_util)
+            cost_deltas.append(calc_cost(v, G) - cur_cost)
+            G.add_edge(v, u)
+        for u in edge_proposals[v]:
+            if u in candidates:
+                continue
+
+            G.add_edge(v, u)
+            if remaining_budget(v, G) >= 0:
+                attr_util_deltas.append(v.total_edge_util - cur_attr_util)
+                struct_util_deltas.append(v.data['struct_util'](v, G) - cur_struct_util)
+                cost_deltas.append(calc_cost(v, G) - cur_cost)
+                candidates.append(u)
+            G.remove_edge(v, u)
+
+        # Normalize attr util by maximum values in current t
+
+        max_attr_util = G.sim_params['edge_util_func'](v, v, G)
+        attr_util_deltas = [ aud / max_attr_util for aud in attr_util_deltas ]
+
+        candidate_value_points = list(zip(attr_util_deltas, struct_util_deltas, cost_deltas))
+        norm_values = [ np.linalg.norm([a, s, c]) for a, s, c in candidate_value_points ]
+        max_val_candidate_idx = np.argmax(norm_values)
+        max_val_candidate = candidates[ max_val_candidate_idx ]
+
+        if max_val_candidate in v.nbors:
+            G.remove_edge(v, max_val_candidate)
+        else:
+            G.add_edge(v, max_val_candidate)
+
+def indep_context_proposal(G, v, copy_attr=True):
     # Independently select a vertex in G that has a context shared with v
     # to be proposed to by v. Adds selected vertex to v's visited set
     # Select in proportion to context count (for trivial will usually be IID)
@@ -249,9 +336,17 @@ def indep_context_proposal(G, v):
     context_probs = [ cnt / sum(context_counts) for cnt in context_counts ]
     search_context = np.random.choice(v_contexts, p=context_probs)
 
-    valid_vertices = [ u for u in G.vertices if (search_context in G.data[u]) ]
+    valid_vertices = [ u for u in G.vertices if \
+            (search_context in G.data[u]) and u.vnum != v.vnum ]
+
+    if len(valid_vertices) == 0:
+        return
+
     proposed_vertex = np.random.choice(valid_vertices)
     v.data['visited'].add(proposed_vertex)
+
+    if copy_attr:
+        G.data[v] = G.sim_params['attr_copy'](v, proposed_vertex, G)
 
 #########################
 # Measurement functions #
