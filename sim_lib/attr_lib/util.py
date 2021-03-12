@@ -281,12 +281,15 @@ def seq_projection_single_selection(G, edge_proposals):
     # of multiobjective optimization function
     # Assumes even split of coefficients
 
+    proposed_by = { v : [ u for u, u_props in edge_proposals.items() if v in u_props ] \
+            for v in G.vertices }
+
     for v in G.vertices:
         attr_util_deltas = []
         struct_util_deltas = []
         cost_deltas = []
 
-        if len(v.nbors) == 0 and len(edge_proposals[v]) == 0:
+        if len(v.nbors) == 0 and len(proposed_by[v]) == 0:
             continue
 
         candidates = [ u for u in v.nbors ]
@@ -300,7 +303,7 @@ def seq_projection_single_selection(G, edge_proposals):
             struct_util_deltas.append(v.data['struct_util'](v, G) - cur_struct_util)
             cost_deltas.append(calc_cost(v, G) - cur_cost)
             G.add_edge(v, u)
-        for u in edge_proposals[v]:
+        for u in proposed_by[v]:
             if u in candidates:
                 continue
 
@@ -326,6 +329,8 @@ def seq_projection_single_selection(G, edge_proposals):
             G.remove_edge(v, max_val_candidate)
         else:
             G.add_edge(v, max_val_candidate)
+
+# Non-neighbor and visited vertex set proposals
 
 def indep_context_proposal(G, v, copy_attr=True):
     # Independently select a vertex in G that has a context shared with v
@@ -369,38 +374,6 @@ def discrete_pareto_val(alpha=2, sigma=1):
     std_exp_val  = np.random.exponential(scale=1.0)
     gamma_val = np.random.gamma(alpha, scale=sigma)
     return np.ceil(std_exp_val / gamma_val) - 1.0
-
-def split_dist(num_attrs, attr_split=0.2, mass_split=0.8):
-    # Splits mass_split of the probability amongst attr_split of the attributes
-    # evenly. Distributes the remainder evenly.
-
-    heavy_attrs = int(np.ceil(num_attrs * attr_split))
-    light_attrs = num_attrs - heavy_attrs
-    heavy_probs = [ mass_split / heavy_attrs] * heavy_attrs
-    light_probs = [ (1 - mass_split) / light_attrs] * light_attrs
-    return heavy_probs + light_probs
-
-def log_dist(num_attrs):
-    # Attempts to follow 80/20 rules by log distribution
-    hattrs = int(np.ceil(num_attrs * 0.2))
-    lattrs = num_attrs - hattrs
-    hlogs = np.logspace(0, 0.8, num=hattrs + 1, base=2.0)
-    llogs = np.logspace(0.8, 1.0, endpoint=True, num=lattrs + 1, base=2.0)
-    hprobs = [ hlogs[i + 1] - hlogs[i] for i in range(hattrs) ]
-    lprobs = [ llogs[i + 1] - llogs[i] for i in range(lattrs) ]
-
-    assert sum(lprobs) + sum(hprobs) == 1.0, 'log_dist must have probabilities summing to 1.0'
-    return hprobs + lprobs
-
-def gen_peak_dist(num_attrs, peak, peak_prob=0.99):
-    def peak_dist(num_attrs):
-        probs = [ (1 - peak_prob) / (num_attrs - 1) for _ in range(num_attrs) ]
-        probs[peak] = peak_prob
-        return probs
-    return peak_dist
-
-def uniform_dist(num_attrs):
-    return [ 1 / num_attrs for _ in range(num_attrs) ]
 
 #####################
 # Attribute copying #
