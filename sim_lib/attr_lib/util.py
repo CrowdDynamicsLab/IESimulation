@@ -318,7 +318,7 @@ def seq_projection_single_selection(G, edge_proposals):
         attr_util_deltas = [ aud / max_attr_util for aud in attr_util_deltas ]
 
         candidate_value_points = list(zip(attr_util_deltas, struct_util_deltas, cost_deltas))
-        norm_values = [ np.linalg.norm([a, s, c]) for a, s, c in candidate_value_points ]
+        norm_values = [ sum([a, s, c]) for a, s, c in candidate_value_points ]
         max_val_candidate_idx = np.argmax(norm_values)
         max_val_candidate = candidates[ max_val_candidate_idx ]
 
