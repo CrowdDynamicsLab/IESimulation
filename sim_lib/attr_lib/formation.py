@@ -5,9 +5,6 @@ import networkx as nx
 import numpy as np
 
 import sim_lib.graph as graph
-import sim_lib.graph_create as gc
-import sim_lib.graph_networkx as gnx
-import sim_lib.util as util
 import sim_lib.attr_lib.util as attr_util
 
 # Edge selection
