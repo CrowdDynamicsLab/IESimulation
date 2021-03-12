@@ -71,7 +71,12 @@ def neighborhood_density(v, G):
         return 0
     if len(v.nbors) == 1:
         return 1
-    return sum([ u.degree for u in v.nbors ]) / (len(v.nbors) * (len(v.nbors) - 1))
+    nbor_edges = 0
+    for u in v.nbors:
+        for w in u.nbors:
+            if v.is_nbor(w):
+                nbor_edges += 1
+    return nbor_edges / (len(v.nbors) * (len(v.nbors) - 1))
 
 def ball2_size(v, G):
     if len(v.nbors) == 0:
@@ -281,6 +286,8 @@ def seq_projection_single_selection(G, edge_proposals):
     # of multiobjective optimization function
     # Assumes even split of coefficients
 
+    print('-----------------------------------------')
+
     proposed_by = { v : [ u for u, u_props in edge_proposals.items() if v in u_props ] \
             for v in G.vertices }
 
@@ -297,12 +304,16 @@ def seq_projection_single_selection(G, edge_proposals):
         cur_attr_util = v.total_edge_util
         cur_struct_util = v.data['struct_util'](v, G)
         cur_cost = calc_cost(v, G)
+
         for u in v.nbors:
             G.remove_edge(v, u)
             attr_util_deltas.append(v.total_edge_util - cur_attr_util)
             struct_util_deltas.append(v.data['struct_util'](v, G) - cur_struct_util)
-            cost_deltas.append(calc_cost(v, G) - cur_cost)
+
+            # Ordered so that reduction in cost is positive
+            cost_deltas.append(cur_cost - calc_cost(v, G))
             G.add_edge(v, u)
+
         for u in proposed_by[v]:
             if u in candidates:
                 continue
@@ -311,7 +322,7 @@ def seq_projection_single_selection(G, edge_proposals):
             if remaining_budget(v, G) >= 0:
                 attr_util_deltas.append(v.total_edge_util - cur_attr_util)
                 struct_util_deltas.append(v.data['struct_util'](v, G) - cur_struct_util)
-                cost_deltas.append(calc_cost(v, G) - cur_cost)
+                cost_deltas.append(cur_cost - calc_cost(v, G))
                 candidates.append(u)
             G.remove_edge(v, u)
 
@@ -325,7 +336,23 @@ def seq_projection_single_selection(G, edge_proposals):
         max_val_candidate_idx = np.argmax(norm_values)
         max_val_candidate = candidates[ max_val_candidate_idx ]
 
-        if max_val_candidate in v.nbors:
+
+        print(v, 'degree', v.degree)
+        print(candidate_value_points)
+        print([ sum([a, s, c]) for a, s, c in candidate_value_points ])
+        print('chose', max_val_candidate_idx, candidate_value_points[max_val_candidate_idx])
+        print('chosen vtx', max_val_candidate)
+        if norm_values[max_val_candidate_idx] < 0:
+            print('chose do nothing')
+        elif max_val_candidate in v.nbors:
+            print('chose to drop')
+        else:
+            print('chose to add')
+        print("###########################")
+
+        if norm_values[max_val_candidate_idx] < 0:
+            continue
+        elif max_val_candidate in v.nbors:
             G.remove_edge(v, max_val_candidate)
         else:
             G.add_edge(v, max_val_candidate)

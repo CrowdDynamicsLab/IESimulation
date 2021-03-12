@@ -43,6 +43,9 @@ class Vertex:
     def total_edge_util(self):
         return sum([ e.util for e in self.edges.values() ])
 
+    def is_nbor(self, v):
+        return v in self.edges
+
     def __repr__(self):
         return 'Vertex {0}'.format(self.vnum)
 
@@ -108,3 +111,14 @@ class Graph:
 
     def are_neighbors(self, u, v):
         return (u in v.nbors) and (v in u.nbors)
+
+    @property
+    def adj_matrix(self):
+
+        # Returns numpy matrix indexed by vnum
+        adj_mat = np.zeros((G.num_people, G.num_people))
+        for idx, v in enumerate(G.vertices):
+            for u in G.vertices[idx + 1:]:
+                if v.is_nbor(u):
+                    adj_mat[v.vnum][u.vnum] = 1
+        return adj_matrix
