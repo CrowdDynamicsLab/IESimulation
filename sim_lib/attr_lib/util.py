@@ -40,7 +40,7 @@ def discrete_pareto_pdf(k, alpha=2, sigma=1):
     k_2 = ( 1 / ( 1 + ( (k + 1) / sigma ) ) ) ** alpha
     return k_1 - k_2
 
-def total_inv_likelihood(u, v, G):
+def total_inv_likelihood(u, v, G, normalized=False):
     # Gives utility as the summed inverse likelihood of shared attributes
     # In discrete choice terms it is 1_u^T theta 1_v where theta is the
     # diagonal matrix with inverse attribute likelihoods
@@ -63,6 +63,22 @@ def total_inv_frequency(u, v, G):
                         if ctx in G.data[vtx] and attr in G.data[vtx][ctx] ])
                 sum_inv_freq += len(G.vertices) / num_occurences
     return sum_inv_freq
+
+def max_inv_frequency(u, v, G):
+    # Maximum inverse frequency amongst all vertices
+
+    inv_freqs = []
+    for ctx, u_attrs in G.data[u].items():
+        if ctx in G.data[v]:
+            for attr in u_attrs.intersection(G.data[v][ctx]):
+                num_occurences = len([ vtx for vtx in G.vertices \
+                        if ctx in G.data[vtx] and attr in G.data[vtx][ctx] ])
+                inv_freqs.append(G.num_people / num_occurences)
+
+    if len(inv_freqs) == 0:
+        return 0
+
+    return max(inv_freqs)
 
 # Structural (normalized)
 def neighborhood_density(v, G):
@@ -97,10 +113,16 @@ def ball2_size(v, G):
             queue.append((u_prime, depth + 1))
     size = len(visited)
 
-    max_ball_size = sum([ (G.sim_params['vtx_budget'] // u.data['direct_cost']) - 1 \
+    #TODO: Check this, currently unused
+    max_ball_size = sum([ math.floor(1 / G.sim_params['direct_cost']) - 1 \
             for u in v.nbors ]) + len(v.nbors)
 
     return size / max_ball_size
+
+def degree_util(v, G):
+    
+    # Gives utility based on degree normalized by potential by cost
+    return v.degree / min(( 1 / G.sim_params['direct_cost'] ), G.num_people)
 
 ##############################
 # Edge probability functions #
@@ -122,8 +144,8 @@ def const_one(u, util):
 ##################
 
 def calc_cost(u, G):
-    direct_cost = u.data['direct_cost']
-    indirect_cost = u.data['indirect_cost']
+    direct_cost = G.sim_params['direct_cost']
+    indirect_cost = G.sim_params['indirect_cost']
 
     u_subgraph_degree = 0
     nbor_set = set(u.nbors)
@@ -134,7 +156,7 @@ def calc_cost(u, G):
     total_direct_cost = len(nbor_set) * direct_cost
     total_indirect_cost = edge_count * indirect_cost
 
-    return (total_direct_cost + total_indirect_cost) / G.sim_params['vtx_budget']
+    return total_direct_cost + total_indirect_cost
 
 def remaining_budget(u, G):
     u_cost = calc_cost(u, G)
@@ -168,7 +190,7 @@ def greedy_simul_set_proposal(G, edge_candidates, dunbar=150):
     # all other vertices agree until everyone is satisfied
     # This assumes that there is no indirect cost
 
-    max_degree = dunbar // max([ u.data['direct_cost'] for u in G.vertices ])
+    max_degree = dunbar // max([ G.sim_params['direct_cost'] for u in G.vertices ])
 
     # Reset graph
     for v in G.vertices:
@@ -281,12 +303,13 @@ def iter_drop_max_objective(G, edge_proposals):
             else:
                 steepest_hill_iter(v, G)
 
-def seq_projection_single_selection(G, edge_proposals):
+def seq_projection_single_selection(G, edge_proposals, log=False):
     # Sequentially (non-random) pick one edge to propose to via projection
     # of multiobjective optimization function
     # Assumes even split of coefficients
 
-    print('-----------------------------------------')
+    if log:
+        print('-----------------------------------------')
 
     proposed_by = { v : [ u for u, u_props in edge_proposals.items() if v in u_props ] \
             for v in G.vertices }
@@ -326,29 +349,27 @@ def seq_projection_single_selection(G, edge_proposals):
                 candidates.append(u)
             G.remove_edge(v, u)
 
-        # Normalize attr util by maximum values in current t
-
-        max_attr_util = G.sim_params['edge_util_func'](v, v, G)
-        attr_util_deltas = [ aud / max_attr_util for aud in attr_util_deltas ]
+        #TODO: Come up with good way to parametrize normalization method
+        attr_util_deltas = [ aud / (G.num_people / 2) for aud in attr_util_deltas ]
 
         candidate_value_points = list(zip(attr_util_deltas, struct_util_deltas, cost_deltas))
-        norm_values = [ sum([a, s, c]) for a, s, c in candidate_value_points ]
+        norm_values = [ ((a + s) / 2) + c for a, s, c in candidate_value_points ]
         max_val_candidate_idx = np.argmax(norm_values)
         max_val_candidate = candidates[ max_val_candidate_idx ]
 
-
-        print(v, 'degree', v.degree)
-        print(candidate_value_points)
-        print([ sum([a, s, c]) for a, s, c in candidate_value_points ])
-        print('chose', max_val_candidate_idx, candidate_value_points[max_val_candidate_idx])
-        print('chosen vtx', max_val_candidate)
-        if norm_values[max_val_candidate_idx] < 0:
-            print('chose do nothing')
-        elif max_val_candidate in v.nbors:
-            print('chose to drop')
-        else:
-            print('chose to add')
-        print("###########################")
+        if log:
+            print(v, 'degree', v.degree)
+            print(candidate_value_points)
+            print([ sum([a, s, c]) for a, s, c in candidate_value_points ])
+            print('chose', max_val_candidate_idx, candidate_value_points[max_val_candidate_idx])
+            print('chosen vtx', max_val_candidate)
+            if norm_values[max_val_candidate_idx] < 0:
+                print('chose do nothing')
+            elif max_val_candidate in v.nbors:
+                print('chose to drop')
+            else:
+                print('chose to add')
+            print("###########################")
 
         if norm_values[max_val_candidate_idx] < 0:
             continue

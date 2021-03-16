@@ -66,6 +66,12 @@ def attribute_network(n, params):
 
     vtx_set = []
 
+    cost_polynomial = [ G.sim_params['max_clique_size'], G.sim_params['max_clique_size'], -1 ]
+    cost_roots = np.roots(cost_polynomial)
+
+    G.sim_params['direct_cost'] = max(cost_roots)
+    G.sim_params['indirect_cost'] = G.sim_params['direct_cost'] ** 2
+
     for i in range(n):
         vtx = graph.Vertex(i)
         vtx = initialize_vertex(G, vtx)
