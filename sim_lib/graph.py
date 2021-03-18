@@ -46,6 +46,15 @@ class Vertex:
     def is_nbor(self, v):
         return v in self.edges
 
+    @property
+    def nborhood_degree(self):
+        nbor_edges = 0
+        for u in self.nbors:
+            for w in u.nbors:
+                if self.is_nbor(w):
+                    nbor_edges += 1
+        return nbor_edges
+
     def __repr__(self):
         return 'Vertex {0}'.format(self.vnum)
 

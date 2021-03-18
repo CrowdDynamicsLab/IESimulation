@@ -86,13 +86,25 @@ def neighborhood_density(v, G):
     if len(v.nbors) == 0:
         return 0
     if len(v.nbors) == 1:
-        return 1
+        return 0
     nbor_edges = 0
     for u in v.nbors:
         for w in u.nbors:
             if v.is_nbor(w):
                 nbor_edges += 1
     return nbor_edges / (len(v.nbors) * (len(v.nbors) - 1))
+
+def potential_density(v, G):
+    if len(v.nbors) < 2:
+        return 0
+
+    # Actually degree in the end
+    nbor_edges = 0
+    for u in v.nbors:
+        for w in u.nbors:
+            if v.is_nbor(w):
+                nbor_edges += 1
+    return nbor_edges / (G.sim_params['max_clique_size'] * (G.sim_params['max_clique_size'] - 1))
 
 def ball2_size(v, G):
     if len(v.nbors) == 0:
@@ -147,14 +159,8 @@ def calc_cost(u, G):
     direct_cost = G.sim_params['direct_cost']
     indirect_cost = G.sim_params['indirect_cost']
 
-    u_subgraph_degree = 0
-    nbor_set = set(u.nbors)
-    for v in nbor_set:
-        u_subgraph_degree += len(nbor_set.intersection(set(v.nbors)))
-    assert u_subgraph_degree % 2 == 0, 'sum of degrees must be even'
-    edge_count = u_subgraph_degree / 2
-    total_direct_cost = len(nbor_set) * direct_cost
-    total_indirect_cost = edge_count * indirect_cost
+    total_direct_cost = u.degree * direct_cost
+    total_indirect_cost = u.nborhood_degree / 2 * indirect_cost
 
     return total_direct_cost + total_indirect_cost
 
@@ -303,13 +309,17 @@ def iter_drop_max_objective(G, edge_proposals):
             else:
                 steepest_hill_iter(v, G)
 
-def seq_projection_single_selection(G, edge_proposals, log=False):
+def seq_projection_single_selection(G, edge_proposals, log):
+    return seq_projection_edge_edit(G, edge_proposals, substitute=False, log=log)
+
+def seq_projection_edge_edit(G, edge_proposals, substitute=True, log=False):
     # Sequentially (non-random) pick one edge to propose to via projection
     # of multiobjective optimization function
     # Assumes even split of coefficients
 
     if log:
         print('-----------------------------------------')
+        print('proposals:', edge_proposals)
 
     proposed_by = { v : [ u for u, u_props in edge_proposals.items() if v in u_props ] \
             for v in G.vertices }
@@ -347,7 +357,23 @@ def seq_projection_single_selection(G, edge_proposals, log=False):
                 struct_util_deltas.append(v.data['struct_util'](v, G) - cur_struct_util)
                 cost_deltas.append(cur_cost - calc_cost(v, G))
                 candidates.append(u)
+
+            if not substitute:
+                G.remove_edge(v, u)
+                continue
+
             G.remove_edge(v, u)
+            for w in v.nbors:
+                G.remove_edge(v, w)
+                if remaining_budget(v, G) >= 0:
+                    attr_util_deltas.append(v.total_edge_util - cur_attr_util)
+                    struct_util_deltas.append(v.data['struct_util'](v, G) - cur_struct_util)
+
+                    # Ordered so that reduction in cost is positive
+                    cost_deltas.append(cur_cost - calc_cost(v, G))
+
+                    candidates.append((u, w))
+                G.add_edge(v, w)
 
         #TODO: Come up with good way to parametrize normalization method
         attr_util_deltas = [ aud / (G.num_people / 2) for aud in attr_util_deltas ]
@@ -360,19 +386,27 @@ def seq_projection_single_selection(G, edge_proposals, log=False):
         if log:
             print(v, 'degree', v.degree)
             print(candidate_value_points)
-            print([ sum([a, s, c]) for a, s, c in candidate_value_points ])
+            print([ ((a + s) / 2) + c for a, s, c in candidate_value_points ])
+            print(candidates)
             print('chose', max_val_candidate_idx, candidate_value_points[max_val_candidate_idx])
             print('chosen vtx', max_val_candidate)
-            if norm_values[max_val_candidate_idx] < 0:
+            if remaining_budget(v, G) >= 0 and norm_values[max_val_candidate_idx] <= 0:
                 print('chose do nothing')
+            elif type(max_val_candidate) == tuple:
+                u, w = max_val_candidate
+                print('chose substitute', w, ' for ', u)
             elif max_val_candidate in v.nbors:
                 print('chose to drop')
             else:
                 print('chose to add')
             print("###########################")
 
-        if norm_values[max_val_candidate_idx] < 0:
+        if remaining_budget(v, G) >= 0 and norm_values[max_val_candidate_idx] < 0:
             continue
+        elif type(max_val_candidate) == tuple:
+            add_vtx, rem_vtx = max_val_candidate
+            G.add_edge(v, add_vtx)
+            G.remove_edge(v, rem_vtx)
         elif max_val_candidate in v.nbors:
             G.remove_edge(v, max_val_candidate)
         else:

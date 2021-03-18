@@ -66,7 +66,9 @@ def attribute_network(n, params):
 
     vtx_set = []
 
-    cost_polynomial = [ G.sim_params['max_clique_size'], G.sim_params['max_clique_size'], -1 ]
+    max_degree = G.sim_params['max_clique_size'] - 1
+    max_indirect_edges = max_degree * (max_degree - 1) / 2
+    cost_polynomial = [ max_indirect_edges, max_degree, -1 ]
     cost_roots = np.roots(cost_polynomial)
 
     G.sim_params['direct_cost'] = max(cost_roots)
