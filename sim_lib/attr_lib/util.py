@@ -107,12 +107,16 @@ def potential_density(v, G):
 
 def neighborhood_min_cut(v, G):
 
+    #TODO: Make this work
     G_nx = gnx.graph_to_nx(G)
     v_nbors = G_nx.neighbors(v)
 
     # Our t'
     G_nx.add_node(-1)
 
+    G_nx_v = G_nx.subgraph([v, -1] + v_nbors)
+    for e in G.edges:
+        e['capacity'] = v.degree
     for vn in v_nbors:
         G_nx.add_edge(-1, vn, capacity=1.0)
 
@@ -325,7 +329,7 @@ def iter_drop_max_objective(G, edge_proposals):
 def seq_projection_single_selection(G, edge_proposals, log):
     return seq_projection_edge_edit(G, edge_proposals, substitute=False, log=log)
 
-def seq_projection_edge_edit(G, edge_proposals, substitute=True, log=True):
+def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_drop=False, log=True):
     # Sequentially (non-random) pick one edge to propose to via projection
     # of multiobjective optimization function
     # Assumes even split of coefficients
@@ -345,13 +349,16 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, log=True):
         if len(v.nbors) == 0 and len(proposed_by[v]) == 0:
             continue
 
-        candidates = [ u for u in v.nbors ]
+        candidates = []
 
         cur_attr_util = v.total_edge_util
         cur_struct_util = v.data['struct_util'](v, G)
         cur_cost = calc_cost(v, G)
 
         for u in v.nbors:
+            if not allow_early_drop and remaining_budget(v, G) >= 0:
+                continue
+
             G.remove_edge(v, u)
             attr_util_deltas.append(v.total_edge_util - cur_attr_util)
             struct_util_deltas.append(v.data['struct_util'](v, G) - cur_struct_util)
@@ -359,6 +366,8 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, log=True):
             # Ordered so that reduction in cost is positive
             cost_deltas.append(cur_cost - calc_cost(v, G))
             G.add_edge(v, u)
+
+            candidates.append(u)
 
         for u in proposed_by[v]:
             if u in candidates:
@@ -387,6 +396,11 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, log=True):
 
                     candidates.append((u, w))
                 G.add_edge(v, w)
+
+        if len(candidates) == 0:
+            if log:
+                print(v, 'had no options')
+            continue
 
         #TODO: Come up with good way to parametrize normalization method
         attr_util_deltas = [ aud / (G.num_people / 2) for aud in attr_util_deltas ]
