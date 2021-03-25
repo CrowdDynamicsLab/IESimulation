@@ -85,18 +85,15 @@ def neighborhood_density(v, G):
     # Density is already "normalized", clique is density 1
     if len(v.nbors) == 0:
         return 0
-    if len(v.nbors) == 1:
-        return 0
+
     nbor_edges = 0
     for u in v.nbors:
         for w in u.nbors:
             if v.is_nbor(w):
                 nbor_edges += 1
-    return nbor_edges / (len(v.nbors) * (len(v.nbors) - 1))
+    return (nbor_edges + (len(v.nbors) * 2)) / (len(v.nbors) * (len(v.nbors) + 1))
 
 def potential_density(v, G):
-    if len(v.nbors) < 2:
-        return 0
 
     # Actually degree in the end
     nbor_edges = 0
@@ -104,7 +101,23 @@ def potential_density(v, G):
         for w in u.nbors:
             if v.is_nbor(w):
                 nbor_edges += 1
-    return nbor_edges / (G.sim_params['max_clique_size'] * (G.sim_params['max_clique_size'] - 1))
+    max_clique = min(G.sim_params['max_clique_size'], G.num_people)
+    potential_degree = max_clique * (max_clique - 1)
+    return (nbor_edges + (2 * v.degree)) / potential_degree
+
+def neighborhood_min_cut(v, G):
+
+    G_nx = gnx.graph_to_nx(G)
+    v_nbors = G_nx.neighbors(v)
+
+    # Our t'
+    G_nx.add_node(-1)
+
+    for vn in v_nbors:
+        G_nx.add_edge(-1, vn, capacity=1.0)
+
+    return nx.algorithms.minimum_cut_value(G_nx, v, -1) /  (G.sim_params['max_clique_size'] - 1)
+
 
 def ball2_size(v, G):
     if len(v.nbors) == 0:
@@ -312,7 +325,7 @@ def iter_drop_max_objective(G, edge_proposals):
 def seq_projection_single_selection(G, edge_proposals, log):
     return seq_projection_edge_edit(G, edge_proposals, substitute=False, log=log)
 
-def seq_projection_edge_edit(G, edge_proposals, substitute=True, log=False):
+def seq_projection_edge_edit(G, edge_proposals, substitute=True, log=True):
     # Sequentially (non-random) pick one edge to propose to via projection
     # of multiobjective optimization function
     # Assumes even split of coefficients
@@ -379,7 +392,9 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, log=False):
         attr_util_deltas = [ aud / (G.num_people / 2) for aud in attr_util_deltas ]
 
         candidate_value_points = list(zip(attr_util_deltas, struct_util_deltas, cost_deltas))
-        norm_values = [ ((a + s) / 2) + c for a, s, c in candidate_value_points ]
+        #TODO: Change after understanding strucutral utility alone
+        norm_values = [ s + c for a, s, c in candidate_value_points ]
+#        norm_values = [ ((a + s) / 2) + c for a, s, c in candidate_value_points ]
         max_val_candidate_idx = np.argmax(norm_values)
         max_val_candidate = candidates[ max_val_candidate_idx ]
 

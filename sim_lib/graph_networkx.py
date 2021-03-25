@@ -18,7 +18,7 @@ def graph_to_nx(G):
     for vtx in G.vertices:
         for nbor in vtx.nbors:
             util = vtx.edges[nbor].util
-            nx_G.add_edge(vtx, nbor, util=util)
+            nx_G.add_edge(vtx, nbor, capacity=1.0, util=util)
 
     return nx_G
 
