@@ -10,7 +10,7 @@ def draw_graph(G_attr):
     
     colors = [ v.data['color'] if 'color' in v.data else 'b' for v in G_attr.vertices ]
     
-    node_sizes = [100*v.data['struct_util'](v, G_attr)+1 for v in G_attr.vertices ]
+    node_sizes = [300*v.data['struct_util'](v, G_attr)+1 for v in G_attr.vertices ]
     
     # Draw graph
     plt.figure(figsize=(15,15))

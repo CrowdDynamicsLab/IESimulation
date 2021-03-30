@@ -5,6 +5,7 @@ import math
 from collections import defaultdict
 
 import numpy as np
+from scipy.sparse import linalg as scp_sla
 import networkx as nx
 import networkx.algorithms.community as nx_comm
 
@@ -80,7 +81,18 @@ def max_inv_frequency(u, v, G):
 
     return max(inv_freqs)
 
-# Structural (normalized)
+###########################
+# Structural (normalized) #
+###########################
+
+def direct_util_buffer(ut_func):
+    def ut_func_wrapper(v, G):
+        struct_ut = ut_func(v, G)
+        epsilon = 2 ** -10 # Pretty arbitrary choice
+        direct_util = G.sim_params['direct_cost'] + epsilon
+        return struct_ut + (v.degree * direct_util)
+    return ut_func_wrapper
+
 def neighborhood_density(v, G):
     # Density is already "normalized", clique is density 1
     if len(v.nbors) == 0:
@@ -122,6 +134,17 @@ def neighborhood_min_cut(v, G):
 
     return nx.algorithms.minimum_cut_value(G_nx, v, -1) /  (G.sim_params['max_clique_size'] - 1)
 
+@direct_util_buffer
+def average_neighborhood_overlap(v, G):
+    v_nbors = v.nbors
+    nborhoods = []
+    for u in v_nbors:
+        nborhoods.append(set(u.nbors))
+    nbor_intersect = len(set(v_nbors).intersection(*nborhoods))
+    nbor_union = len(set(v_nbors).union(*nborhoods))
+    if nbor_union + nbor_intersect == 0:
+        return 0
+    return nbor_intersect / nbor_union
 
 def ball2_size(v, G):
     if len(v.nbors) == 0:
@@ -188,143 +211,6 @@ def remaining_budget(u, G):
 ####################
 # Edge calculation #
 ####################
-
-def inv_util_edge_calc(G, edge_candidates):
-
-    # Reset graph
-    for v in G.vertices:
-        for u in v.nbors:
-            G.remove_edge(u, v)
-
-    for u, v in edge_candidates:
-        G.add_edge(u, v)
-
-    for v in G.vertices:
-        if remaining_budget(v, G) >= 0:
-            continue
-        inv_util_set = [ 1 / G.potential_utils[v.vnum][u.vnum] for u in v.nbors ]
-        dropped_nbor = np.random.choice(v.nbors,
-                p= [ iut / sum(inv_util_set) for iut in inv_util_set ])
-        G.remove_edge(v, dropped_nbor)
-
-def greedy_simul_set_proposal(G, edge_candidates, dunbar=150):
-
-    # Each vertex greedily selects top edges within budget then keep checking if
-    # all other vertices agree until everyone is satisfied
-    # This assumes that there is no indirect cost
-
-    max_degree = dunbar // max([ G.sim_params['direct_cost'] for u in G.vertices ])
-
-    # Reset graph
-    for v in G.vertices:
-        for u in v.nbors:
-            G.remove_edge(u, v)
-
-    # Put edge candidates into dict
-    candidates = defaultdict(list)
-    for u, v in edge_candidates:
-        candidates[u].append(v)
-        candidates[v].append(u)
-
-    # Gets ordered candidates per vertex
-    util_cands = {}
-    for v in candidates:
-        util_cands[v] = list(zip(candidates[v], \
-                [ G.potential_utils[v.vnum][u.vnum] for u in candidates[v] ]))
-        util_cands[v].sort(key=lambda k : k[1], reverse=True)
-        nbor_candidates, ec_vals = zip(*util_cands[v])
-        util_cands[v] = nbor_candidates
-
-    # Loose upper bound on max number of iters possible
-    for i in range(len(G.vertices) ** 2):
-        proposals = { v : util_cands[v][:max_degree - v.degree] for v in util_cands }
-        had_add_edge = False
-        for v in proposals:
-            for u in proposals:
-                if u != v and v in proposals[u] and u.degree < max_degree:
-                    G.add_edge(u, v)
-                    had_add_edge = True
-        if not had_add_edge:
-            break
-
-def greedy_simul_sequence_proposal(G, edge_candidates):
-    
-    # Each vertex constructs sequence of proposals up until constraints are meant
-    # Sequence is ordered greedily
-
-    # Reset graph
-    for v in G.vertices:
-        for u in v.nbors:
-            G.remove_edge(u, v)
-
-    candidates = defaultdict(list)
-    for u, v in edge_candidates:
-        candidates[u].append(v)
-        candidates[v].append(u)
-
-    sequences = defaultdict(list)
-    for v in G.vertices:
-        sequences[v] = list(zip(candidates[v], \
-                [ G.potential_utils[v.vnum][u.vnum] for u in candidates[v] ]))
-        sequences[v].sort(key=lambda k : k[1], reverse=True)
-        sequences_vtx, vtx_values = zip(*sequences[v])
-        sequences[v] = sequences_vtx
-
-    for i in range(len(G.vertices)):
-        # Check for mutuals up until index i
-        had_addition = False
-        proposals = { v : sequences[v][:i + 1] for v in sequences }
-        for v in proposals:
-            for u in proposals[v]:
-                if not G.are_neighbors(u, v) and v in proposals[u]:
-                    G.add_edge(u, v)
-                    if remaining_budget(u, G) < 0:
-                        G.remove_edge(u, v)
-                    else:
-                        had_addition = True
-        if not had_addition:
-            break
-
-def iter_drop_max_objective(G, edge_proposals):
-    # While over budget, drop edges that result in greatest net objective
-    # After within budget, drop edges until reach local max objective
-
-    obj = lambda v, G : G.sim_params['vtx_util'](v, v.total_edge_util) - calc_cost(v, G)
-
-    def steepest_hill_iter(v, G):
-        max_obj_val = obj(v, G) 
-        max_obj_edge = None
-        for u in v.nbors:
-            G.remove_edge(v, u)
-            current_obj = obj(v, G)
-            G.add_edge(v, u)
-            if current_obj > max_obj_val:
-                max_obj_edge = u
-                max_obj_val = current_obj
-        if max_obj_edge is not None:
-            G.remove_edge(v, max_obj_edge)
-
-    # Assume all proposals are accepted
-    for v in edge_proposals:
-        for u in edge_proposals[v]:
-            G.add_edge(u, v)
-
-    # Resolve budget and do local optimization
-    for _ in range(G.num_people):
-        for v in G.vertices:
-            if remaining_budget(v, G) < 0:
-                max_obj_val = np.NINF
-                max_obj_edge = None
-                for u in v.nbors:
-                    G.remove_edge(v, u)
-                    current_obj = obj(v, G) 
-                    G.add_edge(v, u)
-                    if current_obj >= max_obj_val:
-                        max_obj_val = current_obj
-                        max_obj_edge = u
-                G.remove_edge(v, max_obj_edge)
-            else:
-                steepest_hill_iter(v, G)
 
 def seq_projection_single_selection(G, edge_proposals, log):
     return seq_projection_edge_edit(G, edge_proposals, substitute=False, log=log)
