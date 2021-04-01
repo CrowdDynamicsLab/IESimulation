@@ -86,11 +86,13 @@ def max_inv_frequency(u, v, G):
 ###########################
 
 def direct_util_buffer(ut_func):
+    # TODO: Figure out how to resolve this
+    norm = 1
     def ut_func_wrapper(v, G):
         struct_ut = ut_func(v, G)
         epsilon = 2 ** -10 # Pretty arbitrary choice
         direct_util = G.sim_params['direct_cost'] + epsilon
-        return struct_ut + (v.degree * direct_util)
+        return (struct_ut + (v.degree * direct_util)) / norm
     return ut_func_wrapper
 
 def neighborhood_density(v, G):
@@ -105,6 +107,7 @@ def neighborhood_density(v, G):
                 nbor_edges += 1
     return (nbor_edges + (len(v.nbors) * 2)) / (len(v.nbors) * (len(v.nbors) + 1))
 
+@direct_util_buffer
 def potential_density(v, G):
 
     # Actually degree in the end
@@ -113,9 +116,9 @@ def potential_density(v, G):
         for w in u.nbors:
             if v.is_nbor(w):
                 nbor_edges += 1
-    max_clique = min(G.sim_params['max_clique_size'], G.num_people)
+    max_clique = G.sim_params['max_clique_size']
     potential_degree = max_clique * (max_clique - 1)
-    return (nbor_edges + (2 * v.degree)) / potential_degree
+    return nbor_edges / potential_degree
 
 def neighborhood_min_cut(v, G):
 
