@@ -275,6 +275,9 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
 
             G.remove_edge(v, u)
             for w in v.nbors:
+                if u == w:
+                    continue
+
                 G.remove_edge(v, w)
                 if remaining_budget(v, G) >= 0:
                     attr_util_deltas.append(v.total_edge_util - cur_attr_util)
