@@ -17,8 +17,14 @@ def calc_utils(G):
     G.potential_utils = util_mat
     return G.potential_utils
 
-def calc_edges(G, dunbar=150):
+def calc_edges(G, walk_proposals=False, dunbar=150):
     
+    if not walk_proposals:
+        edge_proposals = { v : [ u for u in G.vertices if u != v ] \
+                for v in G.vertices if attr_util.remaining_budget(v, G) > 0 }
+        G.sim_params['edge_selection'](G, edge_proposals)
+        return
+
     edge_proposals = {}
 
     for u in G.vertices:
@@ -88,6 +94,9 @@ def attribute_network(n, params):
         for v_idx in range(n):
             for u_idx in range(v_idx + 1, n):
                 G.add_edge(G.vertices[v_idx], G.vertices[u_idx])
+        return G
+    elif params['seed_type'] == 'trivial':
+        calc_utils(G)
         return G
 
     # Calculate edge utils

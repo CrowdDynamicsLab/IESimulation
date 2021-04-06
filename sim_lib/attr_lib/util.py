@@ -175,9 +175,13 @@ def ball2_size(v, G):
     return size / max_ball_size
 
 def degree_util(v, G):
+    if v.degree == 0:
+        return 0
     
     # Gives utility based on degree normalized by potential by cost
-    return v.degree / min(( 1 / G.sim_params['direct_cost'] ), G.num_people)
+    max_degree = min(math.floor( 1 / G.sim_params['direct_cost'] ), G.num_people)
+    util_degree = v.degree / max_degree
+    return util_degree + v.degree * (2 ** -10)
 
 ##############################
 # Edge probability functions #
@@ -218,7 +222,7 @@ def remaining_budget(u, G):
 def seq_projection_single_selection(G, edge_proposals, log):
     return seq_projection_edge_edit(G, edge_proposals, substitute=False, log=log)
 
-def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_drop=False, log=True):
+def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_drop=False, log=False):
     # Sequentially (non-random) pick one edge to propose to via projection
     # of multiobjective optimization function
     # Assumes even split of coefficients
@@ -259,7 +263,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
             candidates.append(u)
 
         for u in proposed_by[v]:
-            if u in candidates:
+            if u in v.nbors:
                 continue
 
             G.add_edge(v, u)
@@ -305,11 +309,11 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
         max_val_candidate = candidates[ max_val_candidate_idx ]
 
         if log:
-            print(v, 'degree', v.degree)
+            print(v, 'degree', v.degree, 'budget', calc_cost(v, G))
             print(candidate_value_points)
-            print([ ((a + s) / 2) + c for a, s, c in candidate_value_points ])
+            print([ s + c for a, s, c in candidate_value_points ])
             print(candidates)
-            print('chose', max_val_candidate_idx, candidate_value_points[max_val_candidate_idx])
+            print('chose', max_val_candidate_idx, candidate_value_points[max_val_candidate_idx], norm_values[max_val_candidate_idx])
             print('chosen vtx', max_val_candidate)
             if remaining_budget(v, G) >= 0 and norm_values[max_val_candidate_idx] <= 0:
                 print('chose do nothing')
@@ -322,7 +326,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
                 print('chose to add')
             print("###########################")
 
-        if remaining_budget(v, G) >= 0 and norm_values[max_val_candidate_idx] < 0:
+        if remaining_budget(v, G) >= 0 and norm_values[max_val_candidate_idx] <= 0:
             continue
         elif type(max_val_candidate) == tuple:
             add_vtx, rem_vtx = max_val_candidate
