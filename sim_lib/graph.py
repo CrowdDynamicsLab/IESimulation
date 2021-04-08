@@ -40,6 +40,10 @@ class Vertex:
         return list(self.edges.keys())
 
     @property
+    def nbor_set(self):
+        return set(self.edges.keys())
+
+    @property
     def total_edge_util(self):
         return sum([ e.util for e in self.edges.values() ])
 
