@@ -3,6 +3,7 @@ import copy
 
 import networkx as nx
 import numpy as np
+import math
 
 import sim_lib.graph as graph
 import sim_lib.attr_lib.util as attr_util
@@ -87,20 +88,25 @@ def attribute_network(n, params):
 
     G.vertices = vtx_set
 
+    # Calculate edge utils
+    calc_utils(G)
+
     if params['seed_type'] == 'clique':
 
         # This may give a network that starts as over budget
-        calc_utils(G)
         for v_idx in range(n):
             for u_idx in range(v_idx + 1, n):
                 G.add_edge(G.vertices[v_idx], G.vertices[u_idx])
         return G
     elif params['seed_type'] == 'trivial':
-        calc_utils(G)
         return G
-
-    # Calculate edge utils
-    calc_utils(G)
+    elif params['seed_type'] == 'erdos_renyi':
+        edge_prob = ((1 + (2 ** -10)) * math.log(n)) / n
+        for v_idx in range(n):
+            for u_idx in range(v_idx + 1, n):
+                if np.random.random() <= edge_prob:
+                    G.add_edge(G.vertices[v_idx], G.vertices[u_idx])
+        return G
 
     # Set initial edges
     calc_edges(G)

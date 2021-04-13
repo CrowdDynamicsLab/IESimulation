@@ -169,8 +169,8 @@ def ball2_size(v, G):
     size = len(visited)
 
     #TODO: Check this, currently unused
-    max_ball_size = sum([ math.floor(1 / G.sim_params['direct_cost']) - 1 \
-            for u in v.nbors ]) + len(v.nbors)
+    max_degree = math.floor(1 / G.sim_params['direct_cost'])
+    max_ball_size = min(G.num_people, max_degree * (max_degree - 1) + max_degree)
 
     return size / max_ball_size
 
@@ -222,6 +222,12 @@ def remaining_budget(u, G):
 def seq_projection_single_selection(G, edge_proposals, log):
     return seq_projection_edge_edit(G, edge_proposals, substitute=False, log=log)
 
+def seq_edge_sel_logged(G, edge_proposals, substitute=True, allow_early_drop=False):
+    return seq_projection_edge_edit(G, edge_proposals, substitute, allow_early_drop, True)
+
+def seq_edge_sel_silent(G, edge_proposals, substitute=True, allow_early_drop=False):
+    return seq_projection_edge_edit(G, edge_proposals, substitute, allow_early_drop, False)
+
 def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_drop=False, log=False):
     # Sequentially (non-random) pick one edge to propose to via projection
     # of multiobjective optimization function
@@ -248,9 +254,12 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
         cur_struct_util = v.data['struct_util'](v, G)
         cur_cost = calc_cost(v, G)
 
+        can_add_nbor = remaining_budget(v, G) >= G.sim_params['direct_cost']
         for u in v.nbors:
-            if not allow_early_drop and remaining_budget(v, G) >= 0:
-                continue
+            if not allow_early_drop and can_add_nbor:
+
+                # Disallow early drops
+                break
 
             G.remove_edge(v, u)
             attr_util_deltas.append(v.total_edge_util - cur_attr_util)
@@ -273,17 +282,22 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
                 cost_deltas.append(cur_cost - calc_cost(v, G))
                 candidates.append(u)
 
-            if not substitute:
-                G.remove_edge(v, u)
+            G.remove_edge(v, u)
+
+            if (not allow_early_drop and can_add_nbor) or not substitute:
+
+                # If can still add do not allow a substitution
+                # Edge case when no available vertex at direct cost
                 continue
 
-            G.remove_edge(v, u)
             for w in v.nbors:
                 if u == w:
                     continue
 
                 G.remove_edge(v, w)
                 if remaining_budget(v, G) >= 0:
+
+                    # Disallow substitution if over budget
                     attr_util_deltas.append(v.total_edge_util - cur_attr_util)
                     struct_util_deltas.append(v.data['struct_util'](v, G) - cur_struct_util)
 
@@ -295,7 +309,9 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
 
         if len(candidates) == 0:
             if log:
+                print(v, 'degree', v.degree, 'budget', calc_cost(v, G))
                 print(v, 'had no options')
+            print("###########################")
             continue
 
         #TODO: Come up with good way to parametrize normalization method
