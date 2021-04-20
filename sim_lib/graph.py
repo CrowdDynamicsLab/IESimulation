@@ -4,7 +4,7 @@ Includes methods for generating graphs
 """
 
 import numpy as np
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 
 class Vertex:
     """
@@ -28,8 +28,32 @@ class Vertex:
         # For data about the vertex in model
         self.data = None
 
+        # Context : { Attribute : Set( Vertices with attribute ) }
+        self.attr_obs = {}
+        self.lifetime_visited = set()
+
         # For params relating to the simulation
         self.sim_params = {}
+
+    ##########################
+    # Attribute observations #
+    ##########################
+
+    def init_attr_obs(self, G):
+        self.attr_obs = { ctxt : defaultdict(set) \
+                for ctxt in range(G.sim_params['context_count']) }
+
+    def update_attr_obs(self, G, v):
+        
+        # Updates with attributes observed in vertex v
+        for ctxt in G.data[v]:
+            for attr in G.data[v][ctxt]:
+                self.attr_obs[ctxt][attr].add(v)
+
+    def attr_likelihood(self, ctxt, attr):
+
+        # Estimates likelihood of observing attribute
+        return len(self.attr_obs[ctxt][attr]) / len(self.lifetime_visited)
 
     @property
     def degree(self):

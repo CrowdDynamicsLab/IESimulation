@@ -47,6 +47,7 @@ def initialize_vertex(G, vtx=None):
     if vtx == None:
         vtx = graph.Vertex(G.num_people)
 
+    vtx.init_attr_obs(G)
     vtx_type_dists = { t : td['likelihood'] for t, td in G.sim_params['vtx_types'].items() }
     vtx_types = list(vtx_type_dists.keys())
     vtx_type_likelihoods = [ vtx_type_dists[vt] for vt in vtx_types ]
@@ -101,7 +102,8 @@ def attribute_network(n, params):
     elif params['seed_type'] == 'trivial':
         return G
     elif params['seed_type'] == 'erdos_renyi':
-        edge_prob = ((1 + (2 ** -10)) * math.log(n)) / n
+        #edge_prob = ((1 + (2 ** -10)) * math.log(n)) / n
+        edge_prob = 1 / n
         for v_idx in range(n):
             for u_idx in range(v_idx + 1, n):
                 if np.random.random() <= edge_prob:
@@ -114,7 +116,7 @@ def attribute_network(n, params):
     return G
 
 # For adding to graph
-def add_attr_graph_vtx(G, vtx=None):
+def add_attr_graph_vtx(G, vtx=None, walk=False):
     vtx = initialize_vertex(G, vtx)
 
     # Select initial neighbor candidate
@@ -126,10 +128,13 @@ def add_attr_graph_vtx(G, vtx=None):
     else:
         scaled_likelihoods = [ 1 / G.num_people for _ in range(G.num_people) ]
     candidate = np.random.choice(G.vertices, p=scaled_likelihoods)
-    single_random_walk(G, vtx, candidate)
+
+    if walk:
+        single_random_walk(G, vtx, candidate)
 
     G.vertices.append(vtx)
     calc_utils(G)
+
     return vtx
 
 def simul_random_walk(G):
@@ -199,3 +204,21 @@ def seq_random_walk(G):
 
     for v in np.random.permutation(G.vertices):
         single_random_walk(G, v)
+
+def seq_global_walk(G, constrain_walk=False):
+
+    # Have everyone "walk" the entire graph in sequential order
+    for v in G.vertices:
+        v.data['visited'] = set()
+        can_add = attr_util.remaining_budget(v, G) < G.sim_params['direct_cost']
+        if constrain_walk and can_add:
+            continue
+
+        for u in G.vertices:
+            if u == v:
+                continue
+
+            v.data['visited'].add(u)
+            #G.data[v] = G.sim_params['attr_copy'](v, u, G)
+            v.update_attr_obs(G, u)
+
