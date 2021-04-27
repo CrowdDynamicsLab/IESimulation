@@ -11,9 +11,60 @@ import networkx.algorithms.community as nx_comm
 
 import sim_lib.graph_networkx as gnx
 
+#######################
+# Init attr functions #
+#######################
+
+def init_binary_homophily(v, G):
+    req = G.sim_params['context_count'] == 2 and G.sim_params['k'] == 1
+    msg = "Must have 2 total contexts and 1 allowed context"
+    assert req, msg
+    return { 0 : { 1 } }
+
+def init_binary_heterophily(v, G):
+    req = G.sim_params['context_count'] == 2 and G.sim_params['k'] == 1
+    msg = "Must have 2 total contexts and 1 allowed context"
+    assert req, msg
+    return { 1 : { 1 } }
+
+def init_cont_homophily(v, G):
+    req = G.sim_params['context_count'] == 2 and G.sim_params['k'] == 1
+    msg = "Must have 2 total contexts and 1 allowed context"
+    assert req, msg
+    return { 0 : { np.random.random() } }
+
+def init_cont_heterophily(v, G):
+    req = G.sim_params['context_count'] == 2 and G.sim_params['k'] == 1
+    msg = "Must have 2 total contexts and 1 allowed context"
+    assert req, msg
+    return { 1 : { np.random.random() } }
+
 ##########################
-# Edge utility functions #
+# Attr utility functions #
 ##########################
+
+# Utility directional u => v
+def binary_homophily(u, v, G):
+    assert 0 in G.data[u], 'u must have context 0 (homophily) by assumption'
+    if 0 in G.data[v]:
+        return 1 if G.data[u] == G.data[v] else 0
+    return 0
+
+def binary_heterophily(u, v, G):
+    assert 1 in G.data[u], 'u must have context 1 (heterophily) by assumption'
+    return 1 if 0 in G.data[v] else 0
+
+def cont_homophily(u, v, G):
+    assert 0 in G.data[u], 'u must have context 0 (homophily) by assumption'
+    if 0 in G.data[u] and 0 in G.data[v]:
+        return 1 - abs(G.data[u][0] - G.data[v][1])
+    return 0.0
+
+def cont_heterophily(u, v, G):
+    assert 0 in G.data[u], 'u must have context 1 (heterophily) by assumption'
+    if 1 in G.data[u] and 0 in G.data[v]:
+        return abs(G.data[u][1] - G.data[v][0])
+    return 0.0
 
 def exp_surprise(u, v, G):
     total_surprise = 0
@@ -235,7 +286,8 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
 
     if log:
         print('-----------------------------------------')
-        print('proposals:', edge_proposals)
+        #NOTE: Consider adding back once not global
+        #print('proposals:', edge_proposals)
 
     proposed_by = { v : [ u for u, u_props in edge_proposals.items() if v in u_props ] \
             for v in G.vertices }
@@ -276,6 +328,8 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
                 continue
 
             G.add_edge(v, u)
+
+            # Would have budget to add (remaining_budget assumes add here)
             if remaining_budget(v, G) >= 0:
                 attr_util_deltas.append(v.total_edge_util - cur_attr_util)
                 struct_util_deltas.append(v.data['struct_util'](v, G) - cur_struct_util)
@@ -314,13 +368,12 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
             print("###########################")
             continue
 
-        #TODO: Come up with good way to parametrize normalization method
-        attr_util_deltas = [ aud / (G.num_people / 2) for aud in attr_util_deltas ]
+        #TODO: Attribute normalization! 
 
         candidate_value_points = list(zip(attr_util_deltas, struct_util_deltas, cost_deltas))
-        #TODO: Change after understanding strucutral utility alone
-        norm_values = [ s + c for a, s, c in candidate_value_points ]
-#        norm_values = [ ((a + s) / 2) + c for a, s, c in candidate_value_points ]
+        #TODO: Change after understanding struct/attr utility alone
+        norm_values = [ s for a, s, c in candidate_value_points ]
+#        norm_values = [ s + c for a, s, c in candidate_value_points ]
         max_val_candidate_idx = np.argmax(norm_values)
         max_val_candidate = candidates[ max_val_candidate_idx ]
 

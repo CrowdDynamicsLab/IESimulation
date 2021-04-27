@@ -3,13 +3,15 @@ import networkx as nx
 import numpy as np
 
 import sim_lib.graph_networkx as gnx
+import sim_lib.attr_lib.util as attr_util
 
 def draw_graph(G_attr):
     G_attr_nx = gnx.graph_to_nx(G_attr)
-    G_attr_vtx_pos = nx.drawing.layout.shell_layout(G_attr_nx)
+    G_attr_vtx_pos = nx.drawing.layout.spring_layout(G_attr_nx)
     
     colors = [ v.data['color'] if 'color' in v.data else 'b' for v in G_attr.vertices ]
     
+#    node_sizes = [300*(max(attr_util.remaining_budget(v, G_attr), 0) + 2 ** -10) for v in G_attr.vertices ]
     node_sizes = [300*v.data['struct_util'](v, G_attr)+1 for v in G_attr.vertices ]
     
     # Draw graph

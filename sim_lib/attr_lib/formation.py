@@ -6,15 +6,15 @@ import numpy as np
 import math
 
 import sim_lib.graph as graph
-import sim_lib.attr_lib.util as attr_util
+import sim_lib.attr_lib.util as attr_lib_util
 
 # Edge selection
 def calc_utils(G):
     util_mat = np.zeros((G.num_people, G.num_people))
     for i, u in enumerate(G.vertices):
         for v in G.vertices[i + 1:]:
-            util_mat[u.vnum][v.vnum] = G.sim_params['edge_util_func'](u, v, G)
-            util_mat[v.vnum][u.vnum] = util_mat[u.vnum][v.vnum]
+            util_mat[u.vnum][v.vnum] = u.data['attr_util'](u, v, G)
+            util_mat[v.vnum][u.vnum] = v.data['attr_util'](v, u, G)
     G.potential_utils = util_mat
     return G.potential_utils
 
@@ -22,7 +22,7 @@ def calc_edges(G, walk_proposals=False, dunbar=150):
     
     if not walk_proposals:
         edge_proposals = { v : [ u for u in G.vertices if u != v ] \
-                for v in G.vertices if attr_util.remaining_budget(v, G) > 0 }
+                for v in G.vertices if attr_lib_util.remaining_budget(v, G) > 0 }
         G.sim_params['edge_selection'](G, edge_proposals)
         return
 
@@ -58,9 +58,12 @@ def initialize_vertex(G, vtx=None):
 
     vtx.data['visited'] = set()
 
-    contexts = np.random.choice(list(range(G.sim_params['context_count'])),
-            replace=False, size=G.sim_params['k'])
-    G.data[vtx] = { context : { G.sim_params['attr_func']() } for context in contexts }
+    G.data[vtx] = vtx.data['init_attrs'](vtx, G)
+
+    #NOTE: Keep old code for reference of multi-context pareto attr init
+#    contexts = np.random.choice(list(range(G.sim_params['context_count'])),
+#            replace=False, size=G.sim_params['k'])
+#    G.data[vtx] = { context : { vtx.data['attr_func']() } for context in contexts }
 
     return vtx
 
@@ -120,7 +123,7 @@ def add_attr_graph_vtx(G, vtx=None, walk=False):
     vtx = initialize_vertex(G, vtx)
 
     # Select initial neighbor candidate
-    likelihoods = [ G.sim_params['edge_util_func'](vtx, u, G) for u in G.vertices ]
+    likelihoods = [ vtx.data['attr_util'](vtx, u, G) for u in G.vertices ]
     scaled_likelihoods = []
     total_likelihood = sum(likelihoods)
     if total_likelihood > 0:
@@ -140,7 +143,7 @@ def add_attr_graph_vtx(G, vtx=None, walk=False):
 def simul_random_walk(G):
     # Take a random walk
 
-    walk_lengths = { v : attr_util.random_walk_length(v, G) for v in G.vertices }
+    walk_lengths = { v : attr_lib_util.random_walk_length(v, G) for v in G.vertices }
     pos_tokens = { v : v for v in G.vertices }
 
     # Reset visited vertices
@@ -185,7 +188,7 @@ def single_random_walk(G, v, start=None):
     if cur_vtx.degree == 0:
         return
 
-    for i in range(attr_util.random_walk_length(v, G)):
+    for i in range(attr_lib_util.random_walk_length(v, G)):
         edge_utils = [ e.util for e in cur_vtx.edges.values() ]
         next_vtx = np.random.choice(list(cur_vtx.edges.keys()),
                 p=[ eu / sum(edge_utils) for eu in edge_utils ])
@@ -210,7 +213,7 @@ def seq_global_walk(G, constrain_walk=False):
     # Have everyone "walk" the entire graph in sequential order
     for v in G.vertices:
         v.data['visited'] = set()
-        can_add = attr_util.remaining_budget(v, G) < G.sim_params['direct_cost']
+        can_add = attr_lib_util.remaining_budget(v, G) < G.sim_params['direct_cost']
         if constrain_walk and can_add:
             continue
 
