@@ -57,13 +57,29 @@ def binary_heterophily(u, v, G):
 def cont_homophily(u, v, G):
     assert 0 in G.data[u], 'u must have context 0 (homophily) by assumption'
     if 0 in G.data[u] and 0 in G.data[v]:
-        return 1 - abs(G.data[u][0] - G.data[v][1])
+        u_val = -1
+        v_val = -1
+        for val in G.data[u][0]:
+            u_val = val
+            break
+        for val in G.data[v][0]:
+            v_val = val
+            break
+        return 1 - abs(u_val - v_val)
     return 0.0
 
 def cont_heterophily(u, v, G):
-    assert 0 in G.data[u], 'u must have context 1 (heterophily) by assumption'
+    assert 1 in G.data[u], 'u must have context 1 (heterophily) by assumption'
     if 1 in G.data[u] and 0 in G.data[v]:
-        return abs(G.data[u][1] - G.data[v][0])
+        u_val = -1
+        v_val = -1
+        for val in G.data[u][1]:
+            u_val = val
+            break
+        for val in G.data[v][0]:
+            v_val = val
+            break
+        return 1 - abs(u_val - v_val)
     return 0.0
 
 def exp_surprise(u, v, G):
@@ -372,7 +388,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
 
         candidate_value_points = list(zip(attr_util_deltas, struct_util_deltas, cost_deltas))
         #TODO: Change after understanding struct/attr utility alone
-        norm_values = [ s for a, s, c in candidate_value_points ]
+        norm_values = [ a for a, s, c in candidate_value_points ]
 #        norm_values = [ s + c for a, s, c in candidate_value_points ]
         max_val_candidate_idx = np.argmax(norm_values)
         max_val_candidate = candidates[ max_val_candidate_idx ]
