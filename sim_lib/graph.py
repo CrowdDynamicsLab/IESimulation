@@ -68,7 +68,7 @@ class Vertex:
         return set(self.edges.keys())
 
     @property
-    def total_edge_util(self):
+    def sum_edge_util(self):
         return sum([ e.util for e in self.edges.values() ])
 
     def is_nbor(self, v):
@@ -121,12 +121,10 @@ class Graph:
         """
         Adds edge between u and v
         """
-
         assert (v in u.edges) == (u in v.edges), 'connection must be symmetric'
         if not self.are_neighbors(u, v):
-            edge_util = self.potential_utils[u.vnum][v.vnum]
-            u.edges[v] = Edge(edge_util)
-            v.edges[u] = Edge(edge_util)
+            u.edges[v] = Edge(self.potential_utils[u.vnum][v.vnum])
+            v.edges[u] = Edge(self.potential_utils[v.vnum][u.vnum])
 
     def remove_edge(self, u, v, reflexive=True):
         """

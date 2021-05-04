@@ -15,6 +15,11 @@ import sim_lib.graph_networkx as gnx
 # Init attr functions #
 #######################
 
+def init_indicator_attrs(v, G):
+    total_ctxts = list(range(G.sim_params['context_count']))
+    ctxts = np.random.choice(total_ctxts, size=G.sim_params['k'])
+    return { ctxt : { 0 } for ctxt in ctxts }
+
 def init_binary_homophily(v, G):
     req = G.sim_params['context_count'] == 2 and G.sim_params['k'] == 1
     msg = "Must have 2 total contexts and 1 allowed context"
@@ -82,6 +87,40 @@ def cont_heterophily(u, v, G):
         return 1 - abs(u_val - v_val)
     return 0.0
 
+def gen_similarity_funcs():
+    def similarity_score(u, v, G):
+        similar_ctxts = 0
+        for ctxt in G.data[u]:
+            if ctxt in G.data[v]:
+                similar_ctxts += 1
+        return similar_ctxts / G.sim_params['k']
+
+    def homophily(u, v, G):
+        return similarity_score(u, v, G)
+
+    def heterophily(u, v, G):
+        return 1 - similarity_score(u, v, G)
+
+    return homophily, heterophily
+
+def gen_schelling_seg_funcs(frac):
+    
+    # Generates a homphily function and a heterophily function where homophily
+    # desires `frac` proportion neighbors to be similar
+    def schelling_homophily(u, G):
+        overall_similarity = u.sum_edge_util / u.degree
+        if overall_similarity < frac:
+            return 0.0
+        return overall_similarity
+
+    def schelling_heterophily(u, G):
+        overall_dissimilarity = u.sum_edge_util / u.degree
+        if overall_dissimilarity < frac:
+            return 0.0
+        return overall_dissimilarity
+
+    return schelling_homophily, schelling_heterophily
+
 def exp_surprise(u, v, G):
     total_surprise = 0
     matches = []
@@ -107,46 +146,6 @@ def discrete_pareto_pdf(k, alpha=2, sigma=1):
     k_1 = ( 1 / ( 1 + k / sigma) ) ** alpha
     k_2 = ( 1 / ( 1 + ( (k + 1) / sigma ) ) ) ** alpha
     return k_1 - k_2
-
-def total_inv_likelihood(u, v, G, normalized=False):
-    # Gives utility as the summed inverse likelihood of shared attributes
-    # In discrete choice terms it is 1_u^T theta 1_v where theta is the
-    # diagonal matrix with inverse attribute likelihoods
-
-    sum_likelihood = 0
-    for ctx, u_attrs in G.data[u].items():
-        if ctx in G.data[v]:
-            for attr in u_attrs.intersection(G.data[v][ctx]):
-                sum_likelihood += 1 / discrete_pareto_pdf(attr)
-    return sum_likelihood / G.sim_params['k']
-
-def total_inv_frequency(u, v, G):
-    # Sum of inverse frequency amongst all vertices
-
-    sum_inv_freq = 0
-    for ctx, u_attrs in G.data[u].items():
-        if ctx in G.data[v]:
-            for attr in u_attrs.intersection(G.data[v][ctx]):
-                num_occurences = len([ vtx for vtx in G.vertices \
-                        if ctx in G.data[vtx] and attr in G.data[vtx][ctx] ])
-                sum_inv_freq += len(G.vertices) / num_occurences
-    return sum_inv_freq
-
-def max_inv_frequency(u, v, G):
-    # Maximum inverse frequency amongst all vertices
-
-    inv_freqs = []
-    for ctx, u_attrs in G.data[u].items():
-        if ctx in G.data[v]:
-            for attr in u_attrs.intersection(G.data[v][ctx]):
-                num_occurences = len([ vtx for vtx in G.vertices \
-                        if ctx in G.data[vtx] and attr in G.data[vtx][ctx] ])
-                inv_freqs.append(G.num_people / num_occurences)
-
-    if len(inv_freqs) == 0:
-        return 0
-
-    return max(inv_freqs)
 
 ###########################
 # Structural (normalized) #
@@ -174,7 +173,6 @@ def neighborhood_density(v, G):
                 nbor_edges += 1
     return (nbor_edges + (len(v.nbors) * 2)) / (len(v.nbors) * (len(v.nbors) + 1))
 
-@direct_util_buffer
 def potential_density(v, G):
 
     # Actually degree in the end
@@ -187,24 +185,6 @@ def potential_density(v, G):
     potential_degree = max_clique * (max_clique - 1)
     return nbor_edges / potential_degree
 
-def neighborhood_min_cut(v, G):
-
-    #TODO: Make this work
-    G_nx = gnx.graph_to_nx(G)
-    v_nbors = G_nx.neighbors(v)
-
-    # Our t'
-    G_nx.add_node(-1)
-
-    G_nx_v = G_nx.subgraph([v, -1] + v_nbors)
-    for e in G.edges:
-        e['capacity'] = v.degree
-    for vn in v_nbors:
-        G_nx.add_edge(-1, vn, capacity=1.0)
-
-    return nx.algorithms.minimum_cut_value(G_nx, v, -1) /  (G.sim_params['max_clique_size'] - 1)
-
-@direct_util_buffer
 def average_neighborhood_overlap(v, G):
     v_nbors = v.nbors
     nborhoods = []
@@ -235,7 +215,6 @@ def ball2_size(v, G):
             queue.append((u_prime, depth + 1))
     size = len(visited)
 
-    #TODO: Check this, currently unused
     max_degree = math.floor(1 / G.sim_params['direct_cost'])
     max_ball_size = min(G.num_people, max_degree * (max_degree - 1) + max_degree)
 
@@ -249,21 +228,6 @@ def degree_util(v, G):
     max_degree = min(math.floor( 1 / G.sim_params['direct_cost'] ), G.num_people)
     util_degree = v.degree / max_degree
     return util_degree + v.degree * (2 ** -10)
-
-##############################
-# Edge probability functions #
-##############################
-
-def marginal_logistic(u, util, scale=2 ** -4):
-    log_func = lambda x : (2 / (1 + np.exp(-1 * scale * x))) - 1
-    return (log_func(u.total_edge_util + util) - log_func(u.total_edge_util)) ** 0.5
-
-def logistic(u, util, scale=2 ** -4):
-    log_func = lambda x : (2 / (1 + np.exp(-1 * scale * x))) - 1
-    return (log_func(util)) ** 0.5
-
-def const_one(u, util):
-    return 1.0
 
 ##################
 # Cost functions #
@@ -286,6 +250,34 @@ def remaining_budget(u, G):
 # Edge calculation #
 ####################
 
+def subset_budget_resolution(v, G, util_agg):
+
+    # Brings v under budget by removing subset of edges incident to v
+    cur_attr_util = v.data['total_attr_util'](v, G)
+    cur_struct_util = v.data['struct_util'](v, G)
+    cur_cost = calc_cost(v, G)
+    cur_util = util_agg(cur_attr_util, cur_struct_util, cur_cost)
+    while remaining_budget(v, G) < 0:
+        min_util_loss = np.inf
+        drop_candidate = None
+
+        # Out of place shuffle
+        shuffled_nbors = np.random.sample(v.nbors, v.degree)
+        for nbor in shuffled_nbors:
+            G.remove_edge(v, nbor)
+            pot_attr_util = v.data['total_attr_util'](v, G)
+            pot_struct_util = v.data['struct_util'](v, G)
+            pot_cost = calc_cost(v, G)
+            potential_util = util_agg(pot_attr_util, pot_struct_util, pot_cost)
+            util_loss = cur_util - potential_util
+            G.add_edge(v, nbor)
+            if util_loss < min_util_loss:
+                min_util_loss = util_loss
+                drop_candidate = nbor
+        G.remove_edge(v, drop_candidate)
+        cur_util -= min_util_loss
+
+# Seq selection functions
 def seq_projection_single_selection(G, edge_proposals, log):
     return seq_projection_edge_edit(G, edge_proposals, substitute=False, log=log)
 
@@ -295,7 +287,7 @@ def seq_edge_sel_logged(G, edge_proposals, substitute=True, allow_early_drop=Fal
 def seq_edge_sel_silent(G, edge_proposals, substitute=True, allow_early_drop=False):
     return seq_projection_edge_edit(G, edge_proposals, substitute, allow_early_drop, False)
 
-def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_drop=False, log=False):
+def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_drop=True, log=False):
     # Sequentially (non-random) pick one edge to propose to via projection
     # of multiobjective optimization function
     # Assumes even split of coefficients
@@ -304,6 +296,8 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
         print('-----------------------------------------')
         #NOTE: Consider adding back once not global
         #print('proposals:', edge_proposals)
+
+    util_agg = lambda a, s, c: a 
 
     proposed_by = { v : [ u for u, u_props in edge_proposals.items() if v in u_props ] \
             for v in G.vertices }
@@ -318,7 +312,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
 
         candidates = []
 
-        cur_attr_util = v.total_edge_util
+        cur_attr_util = v.data['total_attr_util'](v, G)
         cur_struct_util = v.data['struct_util'](v, G)
         cur_cost = calc_cost(v, G)
 
@@ -330,7 +324,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
                 break
 
             G.remove_edge(v, u)
-            attr_util_deltas.append(v.total_edge_util - cur_attr_util)
+            attr_util_deltas.append(v.data['total_attr_util'](v, G) - cur_attr_util)
             struct_util_deltas.append(v.data['struct_util'](v, G) - cur_struct_util)
 
             # Ordered so that reduction in cost is positive
@@ -347,7 +341,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
 
             # Would have budget to add (remaining_budget assumes add here)
             if remaining_budget(v, G) >= 0:
-                attr_util_deltas.append(v.total_edge_util - cur_attr_util)
+                attr_util_deltas.append(v.data['total_attr_util'](v, G) - cur_attr_util)
                 struct_util_deltas.append(v.data['struct_util'](v, G) - cur_struct_util)
                 cost_deltas.append(cur_cost - calc_cost(v, G))
                 candidates.append(u)
@@ -368,7 +362,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
                 if remaining_budget(v, G) >= 0:
 
                     # Disallow substitution if over budget
-                    attr_util_deltas.append(v.total_edge_util - cur_attr_util)
+                    attr_util_deltas.append(v.data['total_attr_util'](v, G) - cur_attr_util)
                     struct_util_deltas.append(v.data['struct_util'](v, G) - cur_struct_util)
 
                     # Ordered so that reduction in cost is positive
@@ -388,8 +382,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
 
         candidate_value_points = list(zip(attr_util_deltas, struct_util_deltas, cost_deltas))
         #TODO: Change after understanding struct/attr utility alone
-        norm_values = [ a for a, s, c in candidate_value_points ]
-#        norm_values = [ s + c for a, s, c in candidate_value_points ]
+        norm_values = [ util_agg(a, s, c) for a, s, c in candidate_value_points ]
         max_val_candidate_idx = np.argmax(norm_values)
         max_val_candidate = candidates[ max_val_candidate_idx ]
 
@@ -400,24 +393,28 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
             print(candidates)
             print('chose', max_val_candidate_idx, candidate_value_points[max_val_candidate_idx], norm_values[max_val_candidate_idx])
             print('chosen vtx', max_val_candidate)
-            if remaining_budget(v, G) >= 0 and norm_values[max_val_candidate_idx] <= 0:
+            if remaining_budget(v, G) < 0:
+                print('has to resolve budget via subset drop')
+            elif remaining_budget(v, G) >= 0 and norm_values[max_val_candidate_idx] <= 0:
                 print('chose do nothing')
             elif type(max_val_candidate) == tuple:
                 u, w = max_val_candidate
                 print('chose substitute', w, ' for ', u)
             elif max_val_candidate in v.nbors:
-                print('chose to drop')
+                print('chose to early drop')
             else:
                 print('chose to add')
             print("###########################")
 
-        if remaining_budget(v, G) >= 0 and norm_values[max_val_candidate_idx] <= 0:
+        if remaining_budget(v, G) < 0:
+            subset_budget_resolution(v, G, util_agg)
+        elif remaining_budget(v, G) >= 0 and norm_values[max_val_candidate_idx] <= 0:
             continue
         elif type(max_val_candidate) == tuple:
             add_vtx, rem_vtx = max_val_candidate
             G.add_edge(v, add_vtx)
             G.remove_edge(v, rem_vtx)
-        elif max_val_candidate in v.nbors:
+        elif allow_early_drop and max_val_candidate in v.nbors:
             G.remove_edge(v, max_val_candidate)
         else:
             G.add_edge(v, max_val_candidate)

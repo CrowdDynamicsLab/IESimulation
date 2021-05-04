@@ -13,31 +13,38 @@ def calc_utils(G):
     util_mat = np.zeros((G.num_people, G.num_people))
     for i, u in enumerate(G.vertices):
         for v in G.vertices[i + 1:]:
-            util_mat[u.vnum][v.vnum] = u.data['attr_util'](u, v, G)
-            util_mat[v.vnum][u.vnum] = v.data['attr_util'](v, u, G)
+            util_mat[u.vnum][v.vnum] = u.data['edge_attr_util'](u, v, G)
+            util_mat[v.vnum][u.vnum] = v.data['edge_attr_util'](v, u, G)
     G.potential_utils = util_mat
     return G.potential_utils
 
-def calc_edges(G, walk_proposals=False, dunbar=150):
-    
-    if not walk_proposals:
-        edge_proposals = { v : [ u for u in G.vertices if u != v ] \
-                for v in G.vertices if attr_lib_util.remaining_budget(v, G) > 0 }
-        G.sim_params['edge_selection'](G, edge_proposals)
-        return
-
+def calc_edges(G, walk_proposals='fof', dunbar=150):
+   
     edge_proposals = {}
 
-    for u in G.vertices:
-        edge_proposals[u] = []
-
-        # Only need to check visited edges for proposal
-        for v in u.data['visited']:
-            if G.are_neighbors(u, v) or u == v:
+    # walk_proposals to override 
+    if walk_proposals == 'global':
+        edge_proposals = { v : [ u for u in G.vertices if u != v ] \
+                for v in G.vertices if attr_lib_util.remaining_budget(v, G) > 0 }
+    elif walk_proposals == 'fof':
+        edge_proposals = { } 
+        for v in G.vertices:
+            if attr_lib_util.remaining_budget(v, G) <= 0:
                 continue
-           
-            edge_util = G.potential_utils[u.vnum][v.vnum]
-            if G.sim_params['edge_proposal'](u, edge_util) >= np.random.random():
+            d2_vertices = set()
+            for u in v.nbors:
+                d2_vertices = d2_vertices.union(u.nbor_set)
+            get_vnum = lambda v : v.vnum
+            edge_proposals[v] = sorted(list(d2_vertices), key=get_vnum)
+    else:
+        for u in G.vertices:
+            edge_proposals[u] = []
+
+            # Only need to check visited edges for proposal
+            for v in u.data['visited']:
+                if G.are_neighbors(u, v) or u == v:
+                    continue
+               
                 edge_proposals[u].append(v)
 
     G.sim_params['edge_selection'](G, edge_proposals)
@@ -101,9 +108,8 @@ def attribute_network(n, params):
         for v_idx in range(n):
             for u_idx in range(v_idx + 1, n):
                 G.add_edge(G.vertices[v_idx], G.vertices[u_idx])
-        return G
     elif params['seed_type'] == 'trivial':
-        return G
+        pass
     elif params['seed_type'] == 'erdos_renyi':
         #edge_prob = ((1 + (2 ** -10)) * math.log(n)) / n
         edge_prob = 1 / n
@@ -111,10 +117,26 @@ def attribute_network(n, params):
             for u_idx in range(v_idx + 1, n):
                 if np.random.random() <= edge_prob:
                     G.add_edge(G.vertices[v_idx], G.vertices[u_idx])
-        return G
-
-    # Set initial edges
-    calc_edges(G)
+    elif params['seed_type'] == 'grid':
+        n_sqrt = math.floor(math.sqrt(n))
+        assert n_sqrt ** 2 == n, 'Have not implemented non-square n for grid seed'
+        grid_l = n_sqrt
+        grid_w = n_sqrt
+        coord = lambda i : (i % grid_w, i // grid_l) # gives (x, y) coordinate
+        row_idx = lambda x, y : x + (y * grid_l)
+        in_bound = lambda x, y : x < grid_w and y < grid_l
+        for v_idx in range(n):
+            v_x, v_y = coord(v_idx)
+            right_vtx = (v_x + 1, v_y)
+            down_vtx = (v_x, v_y + 1)
+            if in_bound(*right_vtx):
+                G.add_edge(G.vertices[v_idx], G.vertices[row_idx(*right_vtx)])
+            if in_bound(*down_vtx):
+                G.add_edge(G.vertices[v_idx], G.vertices[row_idx(*down_vtx)])
+        for v in G.vertices:
+            assert v.degree > 1, 'How can degree be < 2'
+    else:
+        calc_edges(G)
 
     return G
 
@@ -123,7 +145,7 @@ def add_attr_graph_vtx(G, vtx=None, walk=False):
     vtx = initialize_vertex(G, vtx)
 
     # Select initial neighbor candidate
-    likelihoods = [ vtx.data['attr_util'](vtx, u, G) for u in G.vertices ]
+    likelihoods = [ vtx.data['edge_attr_util'](vtx, u, G) for u in G.vertices ]
     scaled_likelihoods = []
     total_likelihood = sum(likelihoods)
     if total_likelihood > 0:
