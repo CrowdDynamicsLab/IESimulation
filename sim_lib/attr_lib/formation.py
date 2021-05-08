@@ -35,6 +35,7 @@ def calc_edges(G, walk_proposals='fof', dunbar=150):
             for u in v.nbors:
                 d2_vertices = d2_vertices.union(u.nbor_set)
             get_vnum = lambda v : v.vnum
+            d2_vertices.remove(v)
             edge_proposals[v] = sorted(list(d2_vertices), key=get_vnum)
     else:
         for u in G.vertices:

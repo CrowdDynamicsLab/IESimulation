@@ -108,12 +108,16 @@ def gen_schelling_seg_funcs(frac):
     # Generates a homphily function and a heterophily function where homophily
     # desires `frac` proportion neighbors to be similar
     def schelling_homophily(u, G):
+        if u.degree == 0:
+            return 0.0
         overall_similarity = u.sum_edge_util / u.degree
         if overall_similarity < frac:
             return 0.0
         return overall_similarity
 
     def schelling_heterophily(u, G):
+        if u.degree == 0:
+            return 0.0
         overall_dissimilarity = u.sum_edge_util / u.degree
         if overall_dissimilarity < frac:
             return 0.0
@@ -262,7 +266,7 @@ def subset_budget_resolution(v, G, util_agg):
         drop_candidate = None
 
         # Out of place shuffle
-        shuffled_nbors = np.random.sample(v.nbors, v.degree)
+        shuffled_nbors = np.random.choice(v.nbors, v.degree, replace=False)
         for nbor in shuffled_nbors:
             G.remove_edge(v, nbor)
             pot_attr_util = v.data['total_attr_util'](v, G)
