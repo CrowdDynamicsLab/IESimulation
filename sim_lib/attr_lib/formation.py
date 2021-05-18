@@ -18,25 +18,40 @@ def calc_utils(G):
     G.potential_utils = util_mat
     return G.potential_utils
 
-def calc_edges(G, walk_proposals='fof', dunbar=150):
+def calc_edges(G, walk_proposals='fof_pe', dunbar=150):
    
     edge_proposals = {}
+
+    def get_fof(v):
+        d2_vertices = set()
+        for u in v.nbors:
+            d2_vertices = d2_vertices.union(u.nbor_set)
+        get_vnum = lambda v : v.vnum
+        d2_vertices.remove(v)
+        return sorted(list(d2_vertices), key=get_vnum)
 
     # walk_proposals to override 
     if walk_proposals == 'global':
         edge_proposals = { v : [ u for u in G.vertices if u != v ] \
                 for v in G.vertices if attr_lib_util.remaining_budget(v, G) > 0 }
     elif walk_proposals == 'fof':
-        edge_proposals = { } 
         for v in G.vertices:
-            if attr_lib_util.remaining_budget(v, G) <= 0:
+            if v.degree == 0 or attr_lib_util.remaining_budget(v, G) <= 0:
                 continue
-            d2_vertices = set()
-            for u in v.nbors:
-                d2_vertices = d2_vertices.union(u.nbor_set)
-            get_vnum = lambda v : v.vnum
-            d2_vertices.remove(v)
-            edge_proposals[v] = sorted(list(d2_vertices), key=get_vnum)
+            edge_proposals[v] = get_fof(v) 
+    elif walk_proposals == 'fof_pe':
+        for v in G.vertices:
+            if v.degree == 0 or attr_lib_util.remaining_budget(v, G) <= 0:
+                continue
+            v_fof = get_fof(v)
+            v_fof_pe = []
+            v_attr_util = v.data['total_attr_util'](v, G)
+            for u in v_fof:
+                G.add_edge(v, u)
+                if v.data['total_attr_util'](v, G) - v_attr_util > 0:
+                    v_fof_pe.append(u)
+                G.remove_edge(v, u)
+            edge_proposals[v] = v_fof_pe
     else:
         for u in G.vertices:
             edge_proposals[u] = []
@@ -85,13 +100,14 @@ def attribute_network(n, params):
 
     vtx_set = []
 
-    max_degree = G.sim_params['max_clique_size'] - 1
-    max_indirect_edges = max_degree * (max_degree - 1) / 2
-    cost_polynomial = [ max_indirect_edges, max_degree, -1 ]
+    max_clique_degree = G.sim_params['max_clique_size'] - 1
+    max_indirect_edges = max_clique_degree * (max_clique_degree - 1) / 2
+    cost_polynomial = [ max_indirect_edges, max_clique_degree, -1 ]
     cost_roots = np.roots(cost_polynomial)
 
     G.sim_params['direct_cost'] = max(cost_roots)
     G.sim_params['indirect_cost'] = G.sim_params['direct_cost'] ** 2
+    G.sim_params['max_degree'] = math.floor(1 / G.sim_params['direct_cost'])
 
     for i in range(n):
         vtx = graph.Vertex(i)

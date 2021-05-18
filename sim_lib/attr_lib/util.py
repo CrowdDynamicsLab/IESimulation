@@ -103,27 +103,18 @@ def gen_similarity_funcs():
 
     return homophily, heterophily
 
-def gen_schelling_seg_funcs(frac):
+def gen_schelling_seg_funcs(thresh):
     
     # Generates a homphily function and a heterophily function where homophily
-    # desires `frac` proportion neighbors to be similar
-    def schelling_homophily(u, G):
+    # desires roughly `frac` proportion neighbors to be similar
+
+    def schelling_balance(u, G):
         if u.degree == 0:
             return 0.0
-        overall_similarity = u.sum_edge_util / u.degree
-        if overall_similarity < frac:
-            return 0.0
-        return overall_similarity
+        opt_balance = G.sim_params['max_degree'] * thresh
+        return 1 - (abs(u.sum_edge_util - opt_balance) / G.sim_params['max_degree'])
 
-    def schelling_heterophily(u, G):
-        if u.degree == 0:
-            return 0.0
-        overall_dissimilarity = u.sum_edge_util / u.degree
-        if overall_dissimilarity < frac:
-            return 0.0
-        return overall_dissimilarity
-
-    return schelling_homophily, schelling_heterophily
+    return schelling_balance, schelling_balance
 
 def exp_surprise(u, v, G):
     total_surprise = 0
@@ -283,13 +274,13 @@ def subset_budget_resolution(v, G, util_agg):
 
 # Seq selection functions
 def seq_projection_single_selection(G, edge_proposals, log):
-    return seq_projection_edge_edit(G, edge_proposals, substitute=False, log=log)
+    return seq_projection_edge_edit(G, edge_proposals, substitute=_allow_sub, log=log)
 
-def seq_edge_sel_logged(G, edge_proposals, substitute=True, allow_early_drop=False):
-    return seq_projection_edge_edit(G, edge_proposals, substitute, allow_early_drop, True)
+def seq_edge_sel_logged(G, edge_proposals):
+    return seq_projection_edge_edit(G, edge_proposals, log=True)
 
-def seq_edge_sel_silent(G, edge_proposals, substitute=True, allow_early_drop=False):
-    return seq_projection_edge_edit(G, edge_proposals, substitute, allow_early_drop, False)
+def seq_edge_sel_silent(G, edge_proposals):
+    return seq_projection_edge_edit(G, edge_proposals, log=False)
 
 def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_drop=True, log=False):
     # Sequentially (non-random) pick one edge to propose to via projection
