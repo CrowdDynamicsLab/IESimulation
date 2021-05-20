@@ -111,8 +111,7 @@ def gen_schelling_seg_funcs(thresh):
     def schelling_balance(u, G):
         if u.degree == 0:
             return 0.0
-        opt_balance = G.sim_params['max_degree'] * thresh
-        return 1 - (abs(u.sum_edge_util - opt_balance) / G.sim_params['max_degree'])
+        return 1 - abs((u.sum_edge_util / u.degree) - thresh)
 
     return schelling_balance, schelling_balance
 
@@ -303,6 +302,9 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
         cost_deltas = []
 
         if len(v.nbors) == 0 and len(proposed_by[v]) == 0:
+            if log:
+                print(v, 'had no nbors or props')
+            print("###########################")
             continue
 
         candidates = []
@@ -341,12 +343,11 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
                 cost_deltas.append(cur_cost - calc_cost(v, G))
                 candidates.append(u)
 
-            G.remove_edge(v, u)
-
             if (not allow_early_drop and can_add_nbor) or not substitute:
 
                 # If can still add do not allow a substitution
                 # Edge case when no available vertex at direct cost
+                G.remove_edge(v, u)
                 continue
 
             for w in v.nbors:
@@ -365,6 +366,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
 
                     candidates.append((u, w))
                 G.add_edge(v, w)
+            G.remove_edge(v, u)
 
         if len(candidates) == 0:
             if log:
