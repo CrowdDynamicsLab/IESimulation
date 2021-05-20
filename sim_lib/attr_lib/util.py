@@ -11,6 +11,8 @@ import networkx.algorithms.community as nx_comm
 
 import sim_lib.graph_networkx as gnx
 
+from tabulate import tabulate  
+
 #######################
 # Init attr functions #
 #######################
@@ -286,8 +288,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
     # of multiobjective optimization function
     # Assumes even split of coefficients
 
-    if log:
-        print('-----------------------------------------')
+    #if log:
         #NOTE: Consider adding back once not global
         #print('proposals:', edge_proposals)
 
@@ -303,8 +304,9 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
 
         if len(v.nbors) == 0 and len(proposed_by[v]) == 0:
             if log:
+                print('-----------------------------------------')
                 print(v, 'had no nbors or props')
-            print("###########################")
+                print('-----------------------------------------')
             continue
 
         candidates = []
@@ -370,38 +372,40 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
 
         if len(candidates) == 0:
             if log:
-                print(v, 'degree', v.degree, 'budget', calc_cost(v, G))
+                print('\n-------------------------------------------------------------------')
+                header = np.array([('Vertex', 'Degree','Budget Used'), (str(v.vnum), str(v.degree), str(calc_cost(v,G)))]) 
+                print(tabulate(header))
                 print(v, 'had no options')
-            print("###########################")
             continue
 
         #TODO: Attribute normalization! 
 
         candidate_value_points = list(zip(attr_util_deltas, struct_util_deltas, cost_deltas))
+        candidate_value_rounded = list(zip(np.round(attr_util_deltas,3), np.round(struct_util_deltas,3), np.round(cost_deltas,3)))
         #TODO: Change after understanding struct/attr utility alone
         norm_values = [ util_agg(a, s, c) for a, s, c in candidate_value_points ]
         max_val_candidate_idx = np.argmax(norm_values)
         max_val_candidate = candidates[ max_val_candidate_idx ]
 
         if log:
-            print(v, 'degree', v.degree, 'budget', calc_cost(v, G))
-            print(candidate_value_points)
-            print([ s + c for a, s, c in candidate_value_points ])
-            print(candidates)
-            print('chose', max_val_candidate_idx, candidate_value_points[max_val_candidate_idx], norm_values[max_val_candidate_idx])
-            print('chosen vtx', max_val_candidate)
+            print('\n-------------------------------------------------------------------')
+            header = np.array([('Vertex', 'Degree','Budget Used'), (str(v.vnum), str(v.degree), str(calc_cost(v,G)))]) 
+            print(tabulate(header, headers="firstrow"))
+            data = np.array([candidates, candidate_value_rounded]).T
+            print('\n', tabulate(data, headers=['Candidates', '(Attr Util, Struct Util, Cost)']))
+            #print([ s + c for a, s, c in candidate_value_points ])
+            print('\nmax:', max_val_candidate)
             if remaining_budget(v, G) < 0:
                 print('has to resolve budget via subset drop')
             elif remaining_budget(v, G) >= 0 and norm_values[max_val_candidate_idx] <= 0:
                 print('chose do nothing')
             elif type(max_val_candidate) == tuple:
                 u, w = max_val_candidate
-                print('chose substitute', w, ' for ', u)
+                print('chose to substitute', w, 'for', u)
             elif max_val_candidate in v.nbors:
-                print('chose to early drop')
+                print('chose to early drop', max_val_candidate)
             else:
-                print('chose to add')
-            print("###########################")
+                print('chose to add', max_val_candidate)
 
         if remaining_budget(v, G) < 0:
             subset_budget_resolution(v, G, util_agg)
