@@ -182,15 +182,20 @@ def potential_density(v, G):
     return nbor_edges / potential_degree
 
 def average_neighborhood_overlap(v, G):
-    v_nbors = v.nbors
-    nborhoods = []
+    if v.degree == 0:
+        return 0.0
+
+    v_nbors = v.nbor_set
+    nbor_overlaps = []
     for u in v_nbors:
-        nborhoods.append(set(u.nbors))
-    nbor_intersect = len(set(v_nbors).intersection(*nborhoods))
-    nbor_union = len(set(v_nbors).union(*nborhoods))
-    if nbor_union + nbor_intersect == 0:
-        return 0
-    return nbor_intersect / nbor_union
+        u_nbors = set(u.nbors)
+        shared = len(u_nbors.intersection(v_nbors))
+        total_nbors = len(u_nbors) + len(v_nbors) - shared - 2
+        if shared + total_nbors == 0:
+            nbor_overlaps.append(0.0)
+        else:
+            nbor_overlaps.append(shared / total_nbors)
+    return sum(nbor_overlaps) / len(v_nbors)
 
 def ball2_size(v, G):
     if len(v.nbors) == 0:
@@ -292,7 +297,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
         #NOTE: Consider adding back once not global
         #print('proposals:', edge_proposals)
 
-    util_agg = lambda a, s, c: a 
+    util_agg = G.sim_params['util_agg'] 
 
     proposed_by = { v : [ u for u, u_props in edge_proposals.items() if v in u_props ] \
             for v in G.vertices }

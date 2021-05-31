@@ -18,7 +18,7 @@ def calc_utils(G):
     G.potential_utils = util_mat
     return G.potential_utils
 
-def calc_edges(G, walk_proposals='fof_pe', dunbar=150):
+def calc_edges(G, walk_proposals='fof', pos_eu=True, indep_proposal=True):
    
     edge_proposals = {}
 
@@ -32,26 +32,18 @@ def calc_edges(G, walk_proposals='fof_pe', dunbar=150):
 
     # walk_proposals to override 
     if walk_proposals == 'global':
-        edge_proposals = { v : [ u for u in G.vertices if u != v ] \
-                for v in G.vertices if attr_lib_util.remaining_budget(v, G) > 0 }
+        for v in G.vertices:
+            if attr_lib_util.remaining_budget(v, G) > 0:
+                edge_proposals[v] = [ u for u in G.vertices \
+                        if u != v and not v.is_nbor(u) ]
+            else:
+                edge_proposals[v] = []
     elif walk_proposals == 'fof':
         for v in G.vertices:
             if v.degree == 0 or attr_lib_util.remaining_budget(v, G) <= 0:
-                continue
-            edge_proposals[v] = get_fof(v) 
-    elif walk_proposals == 'fof_pe':
-        for v in G.vertices:
-            if v.degree == 0 or attr_lib_util.remaining_budget(v, G) <= 0:
-                continue
-            v_fof = get_fof(v)
-            v_fof_pe = []
-            v_attr_util = v.data['total_attr_util'](v, G)
-            for u in v_fof:
-                G.add_edge(v, u)
-                if v.data['total_attr_util'](v, G) - v_attr_util > 0:
-                    v_fof_pe.append(u)
-                G.remove_edge(v, u)
-            edge_proposals[v] = v_fof_pe
+                edge_proposals[v] = []
+            else:
+                edge_proposals[v] = get_fof(v) 
     else:
         for u in G.vertices:
             edge_proposals[u] = []
@@ -62,6 +54,39 @@ def calc_edges(G, walk_proposals='fof_pe', dunbar=150):
                     continue
                
                 edge_proposals[u].append(v)
+
+    if indep_proposal:
+
+        # Add a vertex from V \ Ball_2(v) to v's proposals
+        vtx_set = set(G.vertices)
+        for v in vtx_set:
+            ball_2 = v.nbor_set.union(*[ u.nbor_set for u in v.nbors ])
+            ball_2.add(v)
+            indep_choice_set = vtx_set.difference(ball_2)
+            if len(indep_choice_set) == 0:
+                continue
+            chosen_vtx = np.random.choice(list(indep_choice_set))
+            edge_proposals[v].append(chosen_vtx)
+
+    if pos_eu:
+
+        # Only propose to vertices with positive expected utility
+        for v in G.vertices:
+            v_attr_util, v_struct_util = v.utility_values(G)
+            v_cost = attr_lib_util.calc_cost(v, G)
+            v_agg_util = G.sim_params['util_agg'](v_attr_util, v_struct_util, v_cost)
+            v_pos_eu = []
+            for u in edge_proposals[v]:
+                if v.is_nbor(u):
+                    continue
+                G.add_edge(v, u)
+                pattr, pstruct = v.utility_values(G)
+                pcost = attr_lib_util.calc_cost(v, G)
+                pagg_util = G.sim_params['util_agg'](pattr, pstruct, pcost)
+                if pagg_util - v_agg_util > 0:
+                    v_pos_eu.append(u)
+                G.remove_edge(v, u)
+            edge_proposals[v] = v_pos_eu
 
     G.sim_params['edge_selection'](G, edge_proposals)
 

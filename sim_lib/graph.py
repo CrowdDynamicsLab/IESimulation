@@ -83,6 +83,13 @@ class Vertex:
                     nbor_edges += 1
         return nbor_edges
 
+    def utility_values(self, G):
+
+        #Gets attribute, structural utilities
+        attr = self.data['total_attr_util'](self, G)
+        struct = self.data['struct_util'](self, G)
+        return attr, struct
+
     def __repr__(self):
         return 'Vertex {0}'.format(self.vnum)
 
@@ -157,3 +164,4 @@ class Graph:
                 if v.is_nbor(u):
                     adj_mat[v.vnum][u.vnum] = 1
         return adj_matrix
+
