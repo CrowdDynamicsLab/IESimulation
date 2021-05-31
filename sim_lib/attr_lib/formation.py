@@ -26,6 +26,7 @@ def calc_edges(G, walk_proposals='fof', pos_eu=True, indep_proposal=True):
         d2_vertices = set()
         for u in v.nbors:
             d2_vertices = d2_vertices.union(u.nbor_set)
+        d2_vertices = d2_vertices.difference(v.nbor_set)
         get_vnum = lambda v : v.vnum
         d2_vertices.remove(v)
         return sorted(list(d2_vertices), key=get_vnum)
