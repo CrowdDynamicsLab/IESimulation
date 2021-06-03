@@ -105,15 +105,24 @@ def gen_similarity_funcs():
 
     return homophily, heterophily
 
-def gen_schelling_seg_funcs(thresh):
+def gen_schelling_seg_funcs(thresh, prop_only=True):
     
     # Generates a homphily function and a heterophily function where homophily
-    # desires roughly `frac` proportion neighbors to be similar
+    # desires roughly `thresh` proportion neighbors to be similar
 
     def schelling_balance(u, G):
         if u.degree == 0:
             return 0.0
-        return 1 - abs((u.sum_edge_util / u.degree) - thresh)
+        
+        if prop_only:
+            return 1 - abs((u.sum_edge_util / u.degree) - thresh)
+        if thresh == 0.0:
+            return (u.degree - u.sum_edge_util) / (G.sim_params['max_degree'] * (1 - thresh))
+        elif thresh == 1.0:
+            return u.sum_edge_util / (G.sim_params['max_degree'] * thresh)
+        strat_term = u.sum_edge_util / (G.sim_params['max_degree'] * thresh)
+        rem_term = (u.degree - u.sum_edge_util) / (G.sim_params['max_degree'] * (1 - thresh))
+        return strat_term + rem_term
 
     return schelling_balance, schelling_balance
 

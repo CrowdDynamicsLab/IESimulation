@@ -17,7 +17,7 @@ def draw_graph(G_attr):
         v_attr_util, v_struct_util = v.utility_values(G_attr)
         v_cost = attr_util.calc_cost(v, G_attr)
         v_agg_util = G_attr.sim_params['util_agg'](v_attr_util, v_struct_util, v_cost)
-        node_sizes.append(200 * v_agg_util + 50)
+        node_sizes.append(200 * v_agg_util + 25)
     
     # Draw graph
     plt.figure(figsize=(15,15))
