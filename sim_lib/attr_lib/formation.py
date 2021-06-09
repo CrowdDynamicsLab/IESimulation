@@ -57,17 +57,9 @@ def calc_edges(G, walk_proposals='fof', pos_eu=True, indep_proposal=True):
                 edge_proposals[u].append(v)
 
     if indep_proposal:
-
-        # Add a vertex from V \ Ball_2(v) to v's proposals
-        vtx_set = set(G.vertices)
-        for v in vtx_set:
-            ball_2 = v.nbor_set.union(*[ u.nbor_set for u in v.nbors ])
-            ball_2.add(v)
-            indep_choice_set = vtx_set.difference(ball_2)
-            if len(indep_choice_set) == 0:
-                continue
-            chosen_vtx = np.random.choice(list(indep_choice_set))
-            edge_proposals[v].append(chosen_vtx)
+        revelation_proposals = G.sim_params['revelation_proposals'](G)
+        for v in edge_proposals:
+            edge_proposals[v] = list(set(edge_proposals[v]).union(set(revelation_proposals[v])))
 
     if pos_eu:
 

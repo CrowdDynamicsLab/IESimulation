@@ -7,7 +7,6 @@ from collections import defaultdict
 import numpy as np
 from scipy.sparse import linalg as scp_sla
 import networkx as nx
-import networkx.algorithms.community as nx_comm
 
 import sim_lib.graph_networkx as gnx
 
@@ -105,7 +104,7 @@ def gen_similarity_funcs():
 
     return homophily, heterophily
 
-def gen_schelling_seg_funcs(thresh, prop_only=True):
+def gen_schelling_seg_funcs(thresh, calc_method='satisfice'):
     
     # Generates a homphily function and a heterophily function where homophily
     # desires roughly `thresh` proportion neighbors to be similar
@@ -114,15 +113,22 @@ def gen_schelling_seg_funcs(thresh, prop_only=True):
         if u.degree == 0:
             return 0.0
         
-        if prop_only:
+        if calc_method == 'proportion':
             return 1 - abs((u.sum_edge_util / u.degree) - thresh)
-        if thresh == 0.0:
-            return (u.degree - u.sum_edge_util) / (G.sim_params['max_degree'] * (1 - thresh))
-        elif thresh == 1.0:
-            return u.sum_edge_util / (G.sim_params['max_degree'] * thresh)
-        strat_term = u.sum_edge_util / (G.sim_params['max_degree'] * thresh)
-        rem_term = (u.degree - u.sum_edge_util) / (G.sim_params['max_degree'] * (1 - thresh))
-        return strat_term + rem_term
+        elif calc_method == 'buckets':
+            if thresh == 0.0:
+                return (u.degree - u.sum_edge_util) / (G.sim_params['max_degree'] * (1 - thresh))
+            elif thresh == 1.0:
+                return u.sum_edge_util / (G.sim_params['max_degree'] * thresh)
+            strat_term = u.sum_edge_util / (G.sim_params['max_degree'] * thresh)
+            rem_term = (u.degree - u.sum_edge_util) / (G.sim_params['max_degree'] * (1 - thresh))
+            return strat_term + rem_term
+        elif calc_method == 'satisfice':
+            prop = u.sum_edge_util / u.degree
+            if prop >= thresh:
+                return 1.0
+            return prop
+        raise ValueError(f"calc_method '{calc_method}' argument value is invalid, check spelling")
 
     return schelling_balance, schelling_balance
 
@@ -434,28 +440,67 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
         else:
             G.add_edge(v, max_val_candidate)
 
-# Non-neighbor and visited vertex set proposals
+# Revelation proposal sets 
 
-def indep_context_proposal(G, v, copy_attr=True):
-    # Independently select a vertex in G that has a context shared with v
-    # to be proposed to by v. Adds selected vertex to v's visited set
-    # Select in proportion to context count (for trivial will usually be IID)
-    v_context_counts = [ ( ctx, len(G.data[v][ctx]) ) for ctx in G.data[v] ]
-    v_contexts, context_counts = zip(*v_context_counts)
-    context_probs = [ cnt / sum(context_counts) for cnt in context_counts ]
-    search_context = np.random.choice(v_contexts, p=context_probs)
+def non_ball2_revelation(G):
 
-    valid_vertices = [ u for u in G.vertices if \
-            (search_context in G.data[u]) and u.vnum != v.vnum ]
+    # Add a vertex from V \ Ball_2(v) to v's proposals
+    edge_proposals = {}
+    vtx_set = set(G.vertices)
+    for v in vtx_set:
+        edge_proposals[v] = []
+        ball_2 = v.nbor_set.union(*[ u.nbor_set for u in v.nbors ])
+        ball_2.add(v)
+        indep_choice_set = vtx_set.difference(ball_2)
+        if len(indep_choice_set) == 0:
+            continue
+        chosen_vtx = np.random.choice(list(indep_choice_set))
+        edge_proposals[v] = [ chosen_vtx ]
+    return edge_proposals
 
-    if len(valid_vertices) == 0:
-        return
+def resistance_distance_revelation(G, dc_teleport_chance=0.2):
 
-    proposed_vertex = np.random.choice(valid_vertices)
-    v.data['visited'].add(proposed_vertex)
+    # Reveals a vertex from V_v \ Ball_2(v) in component of v based on expected hitting time
+    # dc_teleport_chance is sum likelihood of revealing vertex outside of component of v
+    # except when size of said component is 0. Then this is equivalent to independent selection.
 
-    if copy_attr:
-        G.data[v] = G.sim_params['attr_copy'](v, proposed_vertex, G)
+    edge_proposals = {}
+
+    G_nx = gnx.graph_to_nx(G)
+    G_nx_components = [ G_nx.subgraph(cc).copy() for cc in \
+            nx.algorithms.components.connected_components(G_nx) ]
+    vtx_set = set(G.vertices)
+    for v in vtx_set:
+        edge_proposals[v] = []
+        ball_2 = v.nbor_set.union(*[ u.nbor_set for u in v.nbors ])
+        ball_2.add(v)
+        v_cc = next(cc for cc in G_nx_components if v in cc.nodes)
+
+        if len(v_cc.nodes) == len(ball_2):
+
+            # Case when connected component is contained in Ball2(v)
+            indep_choice_set = vtx_set.difference(ball_2)
+            if len(indep_choice_set) == 0:
+                continue
+            edge_proposals[v] = [ np.random.choice(list(indep_choice_set)) ]
+        else:
+            v_cc_node_set = set(v_cc.nodes)
+
+            if len(G_nx_components) > 1 and np.random.random() <= dc_teleport_chance:
+
+                # Only applicable when multiple components
+                non_comp_choices = vtx_set.difference(v_cc_node_set)
+                edge_proposals[v] = [ np.random.choice(list(non_comp_choices)) ]
+                continue
+
+            comp_non_ball2 = list(v_cc_node_set.difference(ball_2))
+            comp_rd = [ nx.algorithms.distance_measures.resistance_distance(v_cc, v, c_v)
+                    for c_v in comp_non_ball2 ]
+            comp_rd_inv = [ 1 / (rd ** 2) for rd in comp_rd ]
+            comp_rd_inv_sum = sum(comp_rd_inv)
+            comp_rd_inv_prob = [ rdi / comp_rd_inv_sum for rdi in comp_rd_inv ]
+            edge_proposals[v] = [ np.random.choice(comp_non_ball2, p=comp_rd_inv_prob) ]
+    return edge_proposals
 
 #########################
 # Measurement functions #
