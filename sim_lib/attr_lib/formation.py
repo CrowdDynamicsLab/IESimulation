@@ -63,7 +63,7 @@ def calc_edges(G, walk_proposals='fof', pos_eu=True, indep_proposal=True):
 
     if pos_eu:
 
-        # Only propose to vertices with positive expected utility
+        # Only propose to vertices with non-negative expected utility
         for v in G.vertices:
             v_attr_util, v_struct_util = v.utility_values(G)
             v_cost = attr_lib_util.calc_cost(v, G)
@@ -76,7 +76,7 @@ def calc_edges(G, walk_proposals='fof', pos_eu=True, indep_proposal=True):
                 pattr, pstruct = v.utility_values(G)
                 pcost = attr_lib_util.calc_cost(v, G)
                 pagg_util = G.sim_params['util_agg'](pattr, pstruct, pcost)
-                if pagg_util - v_agg_util > 0:
+                if pagg_util - v_agg_util >= 0:
                     v_pos_eu.append(u)
                 G.remove_edge(v, u)
             edge_proposals[v] = v_pos_eu
@@ -90,9 +90,18 @@ def initialize_vertex(G, vtx=None):
 
     vtx.init_attr_obs(G)
     vtx_type_dists = { t : td['likelihood'] for t, td in G.sim_params['vtx_types'].items() }
-    vtx_types = list(vtx_type_dists.keys())
-    vtx_type_likelihoods = [ vtx_type_dists[vt] for vt in vtx_types ]
-    chosen_type = np.random.choice(vtx_types, p=vtx_type_likelihoods)
+
+    chosen_type = None
+    if 'type_assignment' in G.sim_params:
+        if vtx in G.sim_params['type_assignment']:
+            chosen_type = G.sim_params['type_assignment'][vtx]
+        elif vtx.vnum in G.sim_params['type_assignment']:
+            chosen_type = G.sim_params['type_assignment'][vtx.vnum]
+    else:
+        # coin flip type selection
+        vtx_types = list(vtx_type_dists.keys())
+        vtx_type_likelihoods = [ vtx_type_dists[vt] for vt in vtx_types ]
+        chosen_type = np.random.choice(vtx_types, p=vtx_type_likelihoods)
     vtx.data = copy.copy(G.sim_params['vtx_types'][chosen_type])
     vtx.data['type_name'] = chosen_type
     vtx.data.pop('likelihood')
@@ -146,8 +155,8 @@ def attribute_network(n, params):
     elif params['seed_type'] == 'trivial':
         pass
     elif params['seed_type'] == 'erdos_renyi':
-        #edge_prob = ((1 + (2 ** -10)) * math.log(n)) / n
-        edge_prob = 1 / n
+        edge_prob = ((1 + (2 ** -10)) * math.log(n)) / n
+        #edge_prob = 1 / n
         for v_idx in range(n):
             for u_idx in range(v_idx + 1, n):
                 if np.random.random() <= edge_prob:

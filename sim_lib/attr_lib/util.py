@@ -8,8 +8,6 @@ import numpy as np
 from scipy.sparse import linalg as scp_sla
 import networkx as nx
 
-import sim_lib.graph_networkx as gnx
-
 from tabulate import tabulate  
 
 #######################
@@ -417,7 +415,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
             print('\nmax:', max_val_candidate)
             if remaining_budget(v, G) < 0:
                 print('has to resolve budget via subset drop')
-            elif remaining_budget(v, G) >= 0 and norm_values[max_val_candidate_idx] <= 0:
+            elif remaining_budget(v, G) >= 0 and norm_values[max_val_candidate_idx] < 0:
                 print('chose do nothing')
             elif type(max_val_candidate) == tuple:
                 u, w = max_val_candidate
@@ -429,7 +427,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
 
         if remaining_budget(v, G) < 0:
             subset_budget_resolution(v, G, util_agg)
-        elif remaining_budget(v, G) >= 0 and norm_values[max_val_candidate_idx] <= 0:
+        elif remaining_budget(v, G) >= 0 and norm_values[max_val_candidate_idx] < 0:
             continue
         elif type(max_val_candidate) == tuple:
             add_vtx, rem_vtx = max_val_candidate
@@ -466,7 +464,7 @@ def resistance_distance_revelation(G, dc_teleport_chance=0.2):
 
     edge_proposals = {}
 
-    G_nx = gnx.graph_to_nx(G)
+    G_nx = graph_to_nx(G)
     G_nx_components = [ G_nx.subgraph(cc).copy() for cc in \
             nx.algorithms.components.connected_components(G_nx) ]
     vtx_set = set(G.vertices)
@@ -512,135 +510,30 @@ def random_walk_length(u, G):
     walk_budget = remaining_budget(u, G)
     return math.floor(walk_budget / 0.1)
 
-###########################
-# Attribute distributions #
-###########################
+#######################
+# Networkx Conversion #
+#######################
 
-def discrete_pareto_val(alpha=2, sigma=1):
+def graph_to_nx(G):
+    """
+    Converts a graph from sim_lib.graph to a networkx graph (undirected)
+    """
 
-    # From Buddana Kozubowski discrete Pareto
-    # alpha "shape" sigma "size"
-    std_exp_val  = np.random.exponential(scale=1.0)
-    gamma_val = np.random.gamma(alpha, scale=sigma)
-    return np.ceil(std_exp_val / gamma_val) - 1.0
+    nx_G = nx.Graph()
 
-#####################
-# Attribute copying #
-#####################
+    for vtx in G.vertices:
+        attr_util = vtx.data['total_attr_util'](vtx, G)
+        struct_util = vtx.data['struct_util'](vtx, G)
+        cost = calc_cost(vtx, G)
+        color = vtx.data['color']
+        nx_G.add_node(vtx, attr_util=attr_util, struct_util=struct_util, cost=cost, color=color)
+        
 
-def indep_attr_copy(u, v, G):
-    # Copy an attribute from v to u by random selection
+    for vtx in G.vertices:
+        for nbor in vtx.nbors:
+            util = vtx.edges[nbor].util
+            nx_G.add_edge(vtx, nbor, capacity=1.0, util=util)
 
-    v_contexts = list(G.data[v].keys())
-    v_context_sizes = [ len(G.data[v][vctxt]) for vctxt in v_contexts ]
-    v_context = np.random.choice(v_contexts,
-            p=[ csize / sum(v_context_sizes) for csize in v_context_sizes ])
-    v_attr = np.random.choice(list(G.data[v][v_context]))
+    return nx_G
 
-    u_context_map = G.data[u].copy()
-    if v_context in u_context_map:
-        u_context_map[v_context].add(v_attr)
-        return u_context_map
-    else: # Case where context may be switched
-        u_context_map[v_context] = { v_attr }
-        u_contexts = list(u_context_map.keys())
-        u_context_sizes = [ len(u_context_map[uctxt]) for uctxt in u_contexts ]
-        context_count = G.sim_params['k']
-        u_context_set = np.random.choice(u_contexts,
-                size=context_count, replace=False,
-                p=[ csize / sum(u_context_sizes) for csize in u_context_sizes ])
-        u_context_map = { ctxt : u_context_map[ctxt] for ctxt in u_context_set }
-
-    return u_context_map
-
-def freq_attr_copy(u, v, G):
-    # Supposes specific strategy: copy attributes that your neighbors have
-    # Weigh by increase to utility if you take that attribute
-
-    u_context_map = G.data[u]
-
-    def shared_attr_util(u, v, G, ctxt, attr):
-        assert attr not in u_context_map[ctxt], 'Func only used when attr not present'
-
-        pre_add_util = sum([ G.sim_params['edge_util_func'](u, w, G) for w in u.nbors ])
-        u_context_map[ctxt].add(attr)
-        post_add_util = sum([ G.sim_params['edge_util_func'](u, w, G) for w in u.nbors ])
-        u_context_map[ctxt].remove(attr)
-        return post_add_util - pre_add_util
-
-    def diff_attr_util(u, v, G, v_ctxt, v_attr, u_ctxt):
-        assert v_ctxt not in u_context_map, 'Only used when v_ctxt not in u'
-        assert u_ctxt in u_context_map, 'u_ctxt must be in u'
-
-        pre_add_util = sum([ G.sim_params['edge_util_func'](u, w, G) for w in u.nbors ])
-        u_ctxt_attrs = u_context_map.pop(u_ctxt)
-        u_context_map[v_ctxt] = { v_attr }
-        post_add_util = sum([ G.sim_params['edge_util_func'](u, w, G) for w in u.nbors ])
-        u_context_map.pop(v_ctxt)
-        u_context_map[u_ctxt] = u_ctxt_attrs
-        return post_add_util - pre_add_util
-
-    u_contexts = set(u_context_map.keys())
-    v_contexts = set(G.data[v].keys())
-
-    sum_gain = 0
-
-    # Get common context attributes
-    # These are monotonic
-    shared_ctxt_attributes = { ctxt : { attr : 0 for attr in G.data[v][ctxt] } \
-            for ctxt in v_contexts.intersection(u_contexts) }
-    for ctxt, attr_map in shared_ctxt_attributes.items():
-        for attr in attr_map.keys():
-            if attr in u_context_map[ctxt]:
-                continue
-            attr_map[attr] = shared_attr_util(u, v, G, ctxt, attr)
-            sum_gain += attr_map[attr]
-
-    # Get new context attributes
-    # These may not be monotonic so we must drop options here
-    diff_ctxt_attributes = { ctxt : { attr : 0 for attr in G.data[v][ctxt] } \
-            for ctxt in v_contexts.difference(u_contexts) }
-    for v_ctxt, attr_map in diff_ctxt_attributes.items():
-        attr_map_drop = []
-        for v_attr in attr_map.keys():
-            max_gain_u_ctxt = None
-            max_gain = -1
-            for u_ctxt in u_contexts:
-                drop_gain = diff_attr_util(u, v, G, v_ctxt, v_attr, u_ctxt)
-                if max_gain_u_ctxt == None or drop_gain > max_gain:
-                    max_gain_u_ctxt = u_ctxt
-                    max_gain = drop_gain
-            if max_gain < 0:
-                attr_map_drop.append(v_attr)
-            else:
-                attr_map[v_attr] = (max_gain, max_gain_u_ctxt)
-                sum_gain += max_gain
-        for attr in attr_map_drop:
-            attr_map.pop(attr)
-
-    if sum_gain == 0:
-        return u_context_map
-
-    # Select an attribute based on largest gain
-    attribute_candidates = {}
-    for ctxt, attr_map in shared_ctxt_attributes.items():
-        for attr, gain in attr_map.items():
-            attribute_candidates[(ctxt, attr)] = gain / sum_gain
-    for ctxt, attr_map in diff_ctxt_attributes.items():
-        for attr, (gain, u_ctxt) in attr_map.items():
-            attribute_candidates[(ctxt, attr)] = gain / sum_gain
-    ctxt_attr_pairs = list(attribute_candidates.keys())
-    attr_gains = [ attribute_candidates[ca] for ca in ctxt_attr_pairs ]
-    chosen_idx = np.random.choice(len(ctxt_attr_pairs), p=attr_gains)
-    chosen_ctxt, chosen_attr = ctxt_attr_pairs[chosen_idx]
-
-    if chosen_ctxt in diff_ctxt_attributes:
-        _, drop_context = diff_ctxt_attributes[chosen_ctxt][chosen_attr]
-        u_context_map.pop(drop_context)
-        u_context_map[chosen_ctxt] = { chosen_attr }
-    else:
-        assert chosen_ctxt in u_context_map, 'chosen ctxt must be in u_context_map'
-        u_context_map[chosen_ctxt].add(chosen_attr)
-
-    return u_context_map
 
