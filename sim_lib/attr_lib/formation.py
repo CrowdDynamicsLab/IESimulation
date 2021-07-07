@@ -59,6 +59,8 @@ def calc_edges(G, walk_proposals='fof', pos_eu=True, indep_proposal=True):
     if indep_proposal:
         revelation_proposals = G.sim_params['revelation_proposals'](G)
         for v in edge_proposals:
+            if attr_lib_util.remaining_budget(v, G) < 0:
+                continue
             edge_proposals[v] = list(set(edge_proposals[v]).union(set(revelation_proposals[v])))
 
     if pos_eu:
