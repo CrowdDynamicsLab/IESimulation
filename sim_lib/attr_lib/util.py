@@ -252,7 +252,7 @@ def calc_cost(u, G):
     indirect_cost = G.sim_params['indirect_cost']
 
     total_direct_cost = u.degree * direct_cost
-    total_indirect_cost = u.nborhood_degree / 2 * indirect_cost
+    total_indirect_cost = (u.nborhood_degree / 2) * indirect_cost
 
     return total_direct_cost + total_indirect_cost
 
