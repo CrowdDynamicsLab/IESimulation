@@ -83,7 +83,8 @@ def calc_edges(G, walk_proposals='fof', pos_eu=True, indep_proposal=True):
                 G.remove_edge(v, u)
             edge_proposals[v] = v_pos_eu
 
-    G.sim_params['edge_selection'](G, edge_proposals)
+    # Returns metadata
+    return G.sim_params['edge_selection'](G, edge_proposals)
 
 def initialize_vertex(G, vtx=None):
     # If no vertex is passed as arg, creates a vertex. Otherwise uses given.

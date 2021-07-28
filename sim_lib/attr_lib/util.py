@@ -315,7 +315,13 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
     proposed_by = { v : [ u for u, u_props in edge_proposals.items() if v in u_props ] \
             for v in G.vertices }
 
+    # Prepare metadata collection for analysis
+    metadata = { }
+
     for v in G.vertices:
+        metadata[v] = { }
+        metadata[v]['num_proposals'] = 0
+
         attr_util_deltas = []
         struct_util_deltas = []
         cost_deltas = []
@@ -325,16 +331,35 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
                 print('-----------------------------------------')
                 print(v, 'had no nbors or props')
                 print('-----------------------------------------')
+            metadata[v]['action'] = 'none'
+            metadata[v]['attr_delta'] = 0
+            metadata[v]['struct_delta'] = 0
+            metadata[v]['cost_delta'] = 0
             continue
-
-        candidates = []
 
         cur_attr_util = v.data['total_attr_util'](v, G)
         cur_struct_util = v.data['struct_util'](v, G)
         cur_cost = calc_cost(v, G)
 
+        # No point checking proposal/single drop values if over budget anyways
+        if remaining_budget(v, G) < 0:
+
+            # Budget resolution
+            if log: 
+                print('has to resolve budget via subset drop')
+            subset_budget_resolution(v, G, util_agg)
+            metadata[v]['action'] = 'budget_resolve'
+            metadata[v]['attr_delta'] = v.data['total_attr_util'](v, G) - cur_attr_util
+            metadata[v]['struct_delta'] = v.data['struct_util'](v, G) - cur_struct_util
+            metadata[v]['cost_delta'] = calc_cost(v, G) - cur_cost
+            continue
+
+        candidates = []
+
         can_add_nbor = remaining_budget(v, G) >= G.sim_params['direct_cost']
         for u in v.nbors:
+
+            # Consider drop choices
             if not allow_early_drop and can_add_nbor:
 
                 # Disallow early drops
@@ -351,6 +376,8 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
             candidates.append(u)
 
         for u in proposed_by[v]:
+
+            # Consider edge formation choices
             if u in v.nbors:
                 continue
 
@@ -361,6 +388,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
                 attr_util_deltas.append(v.data['total_attr_util'](v, G) - cur_attr_util)
                 struct_util_deltas.append(v.data['struct_util'](v, G) - cur_struct_util)
                 cost_deltas.append(cur_cost - calc_cost(v, G))
+                metadata[v]['num_proposals'] += 1
                 candidates.append(u)
 
             if (not allow_early_drop and can_add_nbor) or not substitute:
@@ -371,6 +399,8 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
                 continue
 
             for w in v.nbors:
+
+                # Check substitution
                 if u == w:
                     continue
 
@@ -394,13 +424,13 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
                 header = np.array([('Vertex', 'Degree','Budget Used'), (str(v.vnum), str(v.degree), str(calc_cost(v,G)))]) 
                 print(tabulate(header))
                 print(v, 'had no options')
+            metadata[v]['action'] = 'none'
+            metadata[v]['attr_delta'] = 0
+            metadata[v]['struct_delta'] = 0
+            metadata[v]['cost_delta'] = 0
             continue
 
-        #TODO: Attribute normalization! 
-
         candidate_value_points = list(zip(attr_util_deltas, struct_util_deltas, cost_deltas))
-        candidate_value_rounded = list(zip(np.round(attr_util_deltas,3), np.round(struct_util_deltas,3), np.round(cost_deltas,3)))
-        #TODO: Change after understanding struct/attr utility alone
         norm_values = [ util_agg(a, s, c) for a, s, c in candidate_value_points ]
         max_val_candidate_idx = np.argmax(norm_values)
         max_val_candidate = candidates[ max_val_candidate_idx ]
@@ -413,9 +443,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
             print('\n', tabulate(data, headers=['Candidates', '(Attr Util, Struct Util, Cost)']))
             #print([ s + c for a, s, c in candidate_value_points ])
             print('\nmax:', max_val_candidate)
-            if remaining_budget(v, G) < 0:
-                print('has to resolve budget via subset drop')
-            elif remaining_budget(v, G) >= 0 and norm_values[max_val_candidate_idx] < 0:
+            if remaining_budget(v, G) >= 0 and norm_values[max_val_candidate_idx] < 0:
                 print('chose do nothing')
             elif type(max_val_candidate) == tuple:
                 u, w = max_val_candidate
@@ -425,18 +453,38 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
             else:
                 print('chose to add', max_val_candidate)
 
-        if remaining_budget(v, G) < 0:
-            subset_budget_resolution(v, G, util_agg)
-        elif remaining_budget(v, G) >= 0 and norm_values[max_val_candidate_idx] < 0:
+        if remaining_budget(v, G) >= 0 and norm_values[max_val_candidate_idx] < 0:
+
+            # No non-negative change candidates
+            metadata[v]['action'] = 'none'
+            metadata[v]['attr_delta'] = 0
+            metadata[v]['struct_delta'] = 0
+            metadata[v]['cost_delta'] = 0
             continue
         elif type(max_val_candidate) == tuple:
+
+            # Substitution
+            metadata[v]['action'] = 'substitution'
             add_vtx, rem_vtx = max_val_candidate
             G.add_edge(v, add_vtx)
             G.remove_edge(v, rem_vtx)
         elif allow_early_drop and max_val_candidate in v.nbors:
+
+            # Early single drop
+            metadata[v]['action'] = 'drop'
             G.remove_edge(v, max_val_candidate)
         else:
+
+            # Edge formation
+            metadata[v]['action'] = 'addition'
             G.add_edge(v, max_val_candidate)
+
+        # Add additional iteration metadata
+        metadata[v]['attr_delta'] = attr_util_deltas[max_val_candidate_idx]
+        metadata[v]['struct_delta'] = struct_util_deltas[max_val_candidate_idx]
+        metadata[v]['cost_delta'] = cost_deltas[max_val_candidate_idx]
+
+    return metadata
 
 # Revelation proposal sets 
 
