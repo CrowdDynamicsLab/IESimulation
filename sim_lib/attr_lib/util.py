@@ -351,7 +351,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
             metadata[v]['action'] = 'budget_resolve'
             metadata[v]['attr_delta'] = v.data['total_attr_util'](v, G) - cur_attr_util
             metadata[v]['struct_delta'] = v.data['struct_util'](v, G) - cur_struct_util
-            metadata[v]['cost_delta'] = calc_cost(v, G) - cur_cost
+            metadata[v]['cost_delta'] = cur_cost - calc_cost(v, G)
             continue
 
         candidates = []

@@ -75,6 +75,10 @@ def get_cost_changes(md):
 def get_proposal_counts(md):
     return [ md[v]['num_proposals'] for v in G.vertices ]
 
+def get_budget_resolution_counts(md):
+    br_ind = lambda a : 1 if a == 'budget_resolve' else 0
+    return [ br_ind(md[v]['action']) for v in G.vertices ]
+
 # Run simulation
 # Parameters
 similarity_funcs = list(alu.gen_similarity_funcs())
@@ -87,11 +91,14 @@ seed_types = ['grid', 'trivial']
 # Set up df
 sim_properties = ['seed', 'theta', 'struct_func', 'attr_func']
 sim_metrics = ['struct_util', 'attr_util', 'cost', 'degree',
-    'struct_delta', 'attr_delta', 'cost_delta', 'num_proposals'
+    'struct_delta', 'attr_delta', 'cost_delta',
+    'num_proposals', 'num_budget_resolve'
 ]
 simulation_df = pd.DataFrame(columns=sim_properties + sim_metrics)
 sim_graph_funcs = [get_struct_utils, get_attribute_utils, get_costs, get_degrees]
-sim_metadata_funcs = [get_struct_changes, get_attr_changes, get_cost_changes, get_proposal_counts]
+sim_metadata_funcs = [get_struct_changes, get_attr_changes, get_cost_changes,
+    get_proposal_counts, get_budget_resolution_counts
+]
 sim_metric_func_tuples = list(zip(sim_metrics, sim_graph_funcs + sim_metadata_funcs))
 
 for theta in theta_values:
