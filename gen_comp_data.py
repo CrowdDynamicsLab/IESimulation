@@ -15,7 +15,7 @@ save_to = 'data/comp_comparisons.json'
 
 _N = 36
 iter_count = 16
-num_runs = 10
+num_runs = 20
 
 params = {
     'context_count' : 2, # Needed for simple utility
@@ -78,7 +78,7 @@ def get_clique_sizes(G_comps):
 # Parameters
 similarity_funcs = list(alu.gen_similarity_funcs())
 attr_func_named = list(zip(similarity_funcs, ['homophily', 'heterophily']))
-theta_values = [0.25, 0.5, 0.75, 1.0][::-1]
+theta_values = [0.0, 0.25, 0.5, 0.75, 1.0][::-1]
 struct_funcs = [alu.average_neighborhood_overlap]
 struct_func_named = list(zip(struct_funcs, ['embedded']))
 seed_types = ['trivial']
