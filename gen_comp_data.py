@@ -11,7 +11,7 @@ from sim_lib.attr_lib.formation import *
 
 # Overall parameters
 
-save_to = 'data/comp_comparisons.json'
+save_to = 'data/simplify_comparisons.json'
 
 _N = 36
 iter_count = 16

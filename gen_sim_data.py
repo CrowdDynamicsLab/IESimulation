@@ -11,7 +11,7 @@ from sim_lib.attr_lib.formation import *
 
 # Overall parameters
 
-save_to = 'data/comparisons.csv'
+save_to = 'data/simplify_comparisons.csv'
 
 _N = 36
 iter_count = 16
@@ -23,7 +23,7 @@ params = {
     'edge_selection' : alu.seq_projection_edge_edit,
     'seed_type' : 'grid', # Type of seed network
     'max_clique_size' : 5,
-    'revelation_proposals' : alu.resistance_distance_revelation,
+    'revelation_proposals' : alu.indep_revelation,
     'util_agg' : lambda a, s, c: a + s, # How to aggregate utility values
     'vtx_types' :
         {
@@ -83,10 +83,10 @@ def get_budget_resolution_counts(md):
 # Parameters
 similarity_funcs = list(alu.gen_similarity_funcs())
 attr_func_named = list(zip(similarity_funcs, ['homophily', 'heterophily']))
-theta_values = [0.25, 0.5, 0.75, 1.0][::-1]
+theta_values = [0.0, 0.25, 0.5, 0.75, 1.0][::-1]
 struct_funcs = [alu.ball2_size, alu.average_neighborhood_overlap]
-struct_func_named = list(zip(struct_funcs, ['social capital', 'embedded']))
-seed_types = ['grid', 'trivial']
+struct_func_named = list(zip(struct_funcs, ['embedded']))
+seed_types = ['trivial']
 
 # Set up df
 sim_properties = ['seed', 'theta', 'struct_func', 'attr_func']

@@ -488,6 +488,15 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
 
 # Revelation proposal sets 
 
+def indep_revelation(G):
+    edge_proposals = {}
+    vtx_set = set(G.vertices)
+    for v in vtx_set:
+        non_nbors = vtx_set.difference(v.nbor_set.union({ v }))
+        chosen_vtx = np.random.choice(list(non_nbors))
+        edge_proposals[v] = [ chosen_vtx ]
+    return edge_proposals
+
 def non_ball2_revelation(G):
 
     # Add a vertex from V \ Ball_2(v) to v's proposals
