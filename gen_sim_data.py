@@ -11,7 +11,7 @@ from sim_lib.attr_lib.formation import *
 
 # Overall parameters
 
-save_to = 'data/simplify_comparisons.csv'
+save_to = 'data/metastrategy_comparisons.csv'
 
 _N = 36
 iter_count = 16
@@ -24,7 +24,7 @@ params = {
     'seed_type' : 'grid', # Type of seed network
     'max_clique_size' : 5,
     'revelation_proposals' : alu.indep_revelation,
-    'util_agg' : lambda a, s, c: a + s, # How to aggregate utility values
+    'util_agg' : None, # How to aggregate utility values
     'vtx_types' :
         {
             'type1' : { 'likelihood' : 0.5,
@@ -81,15 +81,15 @@ def get_budget_resolution_counts(md):
 
 # Run simulation
 # Parameters
-similarity_funcs = list(alu.gen_similarity_funcs())
-attr_func_named = list(zip(similarity_funcs, ['homophily', 'heterophily']))
+attr_homophily, attr_heterophily = alu.gen_similarity_funcs()
 theta_values = [0.0, 0.25, 0.5, 0.75, 1.0][::-1]
-struct_funcs = [alu.ball2_size, alu.average_neighborhood_overlap]
-struct_func_named = list(zip(struct_funcs, ['embedded']))
-seed_types = ['trivial']
+struct_func = alu.average_neighborhood_overlap
+seed_type = 'trivial'
+agg_funcs = [ alu.linear_util_agg, alu.attr_first_agg ]
+agg_func_named = list(zip(agg_funcs, ['linear', 'attr_first']))
 
 # Set up df
-sim_properties = ['seed', 'theta', 'struct_func', 'attr_func']
+sim_properties = ['theta', 'agg_func']
 sim_metrics = ['struct_util', 'attr_util', 'cost', 'degree',
     'struct_delta', 'attr_delta', 'cost_delta',
     'num_proposals', 'num_budget_resolve'
@@ -102,47 +102,47 @@ sim_metadata_funcs = [get_struct_changes, get_attr_changes, get_cost_changes,
 sim_metric_func_tuples = list(zip(sim_metrics, sim_graph_funcs + sim_metadata_funcs))
 
 for theta in theta_values:
-    for idx, (sim_func, af_name) in enumerate(attr_func_named):
+    for idx, (agg_func, af_name) in enumerate(agg_func_named):
         attr_func = alu.gen_schelling_seg_funcs(theta, 'satisfice')[idx]
-        for struct_func, sf_name in struct_func_named:
-            for vtype in ['type0', 'type1']:
-                params['vtx_types'][vtype]['struct_util'] = struct_func
-                params['vtx_types'][vtype]['edge_attr_util'] = sim_func
-                params['vtx_types'][vtype]['total_attr_util'] = attr_func
-                
-            # Run simulations
-            for seed in seed_types:
-                params['seed_type'] = seed
-                
-                sim_run_values = {
-                    'seed' : seed,
-                    'theta' : theta,
-                    'struct_func' : sf_name,
-                    'attr_func' : af_name
-                }
+        for vtype in ['type0', 'type1']:
+            params['vtx_types'][vtype]['struct_util'] = struct_func
+            params['vtx_types'][vtype]['edge_attr_util'] = attr_homophily
+            params['vtx_types'][vtype]['total_attr_util'] = attr_func
+        params['util_agg'] = agg_func
+            
+        # Run simulations
+        params['seed_type'] = 'trivial'
+        
+        sim_run_values = {
+            'seed' : seed_type,
+            'theta' : theta,
+            'struct_func' : 'anl',
+            'attr_func' : 'homophily',
+            'agg_func' : af_name
+        }
 
-                sim_run_metrics = { mt : defaultdict(list) for mt in sim_metrics }
-                for _ in range(num_runs):
-                    G = attribute_network(_N, params)
-                    for it in range(iter_count):
-                        
-                        # Iterate simulation
-                        iteration_metadata = calc_edges(G)
-                        
-                        # Record values
-                        for mname, mfunc in sim_metric_func_tuples:
-                            if mfunc in sim_graph_funcs:
-                                sim_run_metrics[mname][it].append(mfunc(G))
-                            elif mfunc in sim_metadata_funcs:
-                                sim_run_metrics[mname][it].append(mfunc(iteration_metadata))
-                        
-                # Get averages across different runs per iteration
-                def avg_dict(d):
-                    it_avg = lambda d, it : np.mean(np.array(d[it]), axis=0)
-                    return [ np.mean(it_avg(d, it)) for it in range(iter_count) ]
-                for mt in sim_metrics:
-                    sim_run_values[mt] = avg_dict(sim_run_metrics[mt])
-                simulation_df = simulation_df.append(sim_run_values, ignore_index=True)
+        sim_run_metrics = { mt : defaultdict(list) for mt in sim_metrics }
+        for _ in range(num_runs):
+            G = attribute_network(_N, params)
+            for it in range(iter_count):
+                
+                # Iterate simulation
+                iteration_metadata = calc_edges(G)
+                
+                # Record values
+                for mname, mfunc in sim_metric_func_tuples:
+                    if mfunc in sim_graph_funcs:
+                        sim_run_metrics[mname][it].append(mfunc(G))
+                    elif mfunc in sim_metadata_funcs:
+                        sim_run_metrics[mname][it].append(mfunc(iteration_metadata))
+                
+        # Get averages across different runs per iteration
+        def avg_dict(d):
+            it_avg = lambda d, it : np.mean(np.array(d[it]), axis=0)
+            return [ np.mean(it_avg(d, it)) for it in range(iter_count) ]
+        for mt in sim_metrics:
+            sim_run_values[mt] = avg_dict(sim_run_metrics[mt])
+        simulation_df = simulation_df.append(sim_run_values, ignore_index=True)
  
 simulation_df.to_csv(save_to)
 

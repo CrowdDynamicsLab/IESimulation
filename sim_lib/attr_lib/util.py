@@ -439,6 +439,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
             print('\n-------------------------------------------------------------------')
             header = np.array([('Vertex', 'Degree','Budget Used'), (str(v.vnum), str(v.degree), str(calc_cost(v,G)))]) 
             print(tabulate(header, headers="firstrow"))
+            candidate_value_rounded = [ (round(a, 2), round(s, 2), round(c, 2)) for (a, s, c) in candidate_value_points ]
             data = np.array([candidates, candidate_value_rounded]).T
             print('\n', tabulate(data, headers=['Candidates', '(Attr Util, Struct Util, Cost)']))
             #print([ s + c for a, s, c in candidate_value_points ])
@@ -448,7 +449,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
             elif type(max_val_candidate) == tuple:
                 u, w = max_val_candidate
                 print('chose to substitute', w, 'for', u)
-            elif max_val_candidate in v.nbors:
+            elif allow_early_drop and max_val_candidate in v.nbors and norm_values[max_val_candidate_idx] > 0:
                 print('chose to early drop', max_val_candidate)
             else:
                 print('chose to add', max_val_candidate)
@@ -468,7 +469,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
             add_vtx, rem_vtx = max_val_candidate
             G.add_edge(v, add_vtx)
             G.remove_edge(v, rem_vtx)
-        elif allow_early_drop and max_val_candidate in v.nbors:
+        elif allow_early_drop and max_val_candidate in v.nbors and norm_values[max_val_candidate_idx] > 0:
 
             # Early single drop
             metadata[v]['action'] = 'drop'
@@ -485,6 +486,15 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
         metadata[v]['cost_delta'] = cost_deltas[max_val_candidate_idx]
 
     return metadata
+
+# Utility aggregation functions
+def linear_util_agg(a, s, c):
+    return a + s
+
+def attr_first_agg(a, s, c):
+    if a == 1.0:
+        return a + s
+    return a
 
 # Revelation proposal sets 
 
