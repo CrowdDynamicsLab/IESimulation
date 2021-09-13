@@ -11,7 +11,7 @@ from sim_lib.attr_lib.formation import *
 
 # Overall parameters
 
-save_to = 'data/metastrategy_comparisons.csv'
+save_to = 'data/satiation_removal_comparisons.csv'
 
 _N = 36
 iter_count = 16
@@ -85,8 +85,8 @@ attr_homophily, attr_heterophily = alu.gen_similarity_funcs()
 theta_values = [0.0, 0.25, 0.5, 0.75, 1.0][::-1]
 struct_func = alu.average_neighborhood_overlap
 seed_type = 'trivial'
-agg_funcs = [ alu.linear_util_agg, alu.attr_first_agg ]
-agg_func_named = list(zip(agg_funcs, ['linear', 'attr_first']))
+agg_funcs = [ alu.linear_util_agg, alu.attr_first_agg, alu.struct_first_agg ]
+agg_func_named = list(zip(agg_funcs, ['linear', 'attr_first', 'struct_first']))
 
 # Set up df
 sim_properties = ['theta', 'agg_func']
@@ -103,7 +103,7 @@ sim_metric_func_tuples = list(zip(sim_metrics, sim_graph_funcs + sim_metadata_fu
 
 for theta in theta_values:
     for idx, (agg_func, af_name) in enumerate(agg_func_named):
-        attr_func = alu.gen_schelling_seg_funcs(theta, 'satisfice')[idx]
+        attr_func = alu.gen_schelling_seg_funcs(theta, 'satisfice')[0]
         for vtype in ['type0', 'type1']:
             params['vtx_types'][vtype]['struct_util'] = struct_func
             params['vtx_types'][vtype]['edge_attr_util'] = attr_homophily

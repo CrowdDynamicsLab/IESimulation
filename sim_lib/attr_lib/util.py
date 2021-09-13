@@ -270,7 +270,7 @@ def subset_budget_resolution(v, G, util_agg):
     cur_attr_util = v.data['total_attr_util'](v, G)
     cur_struct_util = v.data['struct_util'](v, G)
     cur_cost = calc_cost(v, G)
-    cur_util = util_agg(cur_attr_util, cur_struct_util, cur_cost)
+    cur_util = util_agg(cur_attr_util, cur_struct_util, cur_cost, v, G)
     while remaining_budget(v, G) < 0:
         min_util_loss = np.inf
         drop_candidate = None
@@ -282,7 +282,7 @@ def subset_budget_resolution(v, G, util_agg):
             pot_attr_util = v.data['total_attr_util'](v, G)
             pot_struct_util = v.data['struct_util'](v, G)
             pot_cost = calc_cost(v, G)
-            potential_util = util_agg(pot_attr_util, pot_struct_util, pot_cost)
+            potential_util = util_agg(pot_attr_util, pot_struct_util, pot_cost, v, G)
             util_loss = cur_util - potential_util
             G.add_edge(v, nbor)
             if util_loss < min_util_loss:
@@ -431,7 +431,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
             continue
 
         candidate_value_points = list(zip(attr_util_deltas, struct_util_deltas, cost_deltas))
-        norm_values = [ util_agg(a, s, c) for a, s, c in candidate_value_points ]
+        norm_values = [ util_agg(a, s, c, v, G) for a, s, c in candidate_value_points ]
         max_val_candidate_idx = np.argmax(norm_values)
         max_val_candidate = candidates[ max_val_candidate_idx ]
 
@@ -488,13 +488,18 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
     return metadata
 
 # Utility aggregation functions
-def linear_util_agg(a, s, c):
+def linear_util_agg(a, s, c, v, G):
     return a + s
 
-def attr_first_agg(a, s, c):
-    if a == 1.0:
+def attr_first_agg(a, s, c, v, G):
+    if v.data['total_attr_util'](v, G) == 1.0:
         return a + s
     return a
+
+def struct_first_agg(a, s, c, v, G):
+    if v.data['struct_util'](v, G) == 1.0:
+        return a + s
+    return s
 
 # Revelation proposal sets 
 
