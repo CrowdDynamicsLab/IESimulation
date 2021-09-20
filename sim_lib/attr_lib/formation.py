@@ -89,7 +89,8 @@ def calc_edges(G, walk_proposals='fof', pos_eu=True, indep_proposal=True):
                 pagg_util = G.sim_params['util_agg'](pattr, pstruct, pcost, v, G)
 
                 # Optimism from >= as opposed to >
-                if pagg_util - v_agg_util >= 0:
+                util_del = pagg_util - v_agg_util
+                if (util_del > 0) or (v.data['optimistic'] and util_del == 0):
                     v_pos_eu.append(u)
                 G.remove_edge(v, u)
             edge_proposals[v] = v_pos_eu

@@ -444,24 +444,36 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
             print('\n', tabulate(data, headers=['Candidates', '(Attr Util, Struct Util, Cost)']))
             #print([ s + c for a, s, c in candidate_value_points ])
             print('\nmax:', max_val_candidate)
-            if remaining_budget(v, G) >= 0 and norm_values[max_val_candidate_idx] < 0:
+            if not v.data['optimistic'] and norm_values[max_val_candidate_idx] <= 0:
                 print('chose do nothing')
+            elif type(max_val_candidate) != tuple and max_val_candidate not in v.nbors:
+                print('chose to add', max_val_candidate)
             elif type(max_val_candidate) == tuple:
                 u, w = max_val_candidate
                 print('chose to substitute', w, 'for', u)
             elif allow_early_drop and max_val_candidate in v.nbors and norm_values[max_val_candidate_idx] > 0:
                 print('chose to early drop', max_val_candidate)
             else:
-                print('chose to add', max_val_candidate)
+                print('chose do nothing')
 
-        if remaining_budget(v, G) >= 0 and norm_values[max_val_candidate_idx] < 0:
+        if remaining_budget(v, G) < 0:
+            raise(ValueError, "Reached end of edge selection when budget resolution should have been enforced")
 
+        # Either optimistic or max val move is stirctly positive
+        max_val = norm_values[max_val_candidate_idx]
+        if (max_val < 0) or (not v.data['optimistic'] and max_val == 0):
+            
             # No non-negative change candidates
             metadata[v]['action'] = 'none'
             metadata[v]['attr_delta'] = 0
             metadata[v]['struct_delta'] = 0
             metadata[v]['cost_delta'] = 0
             continue
+        elif type(max_val_candidate) != tuple and max_val_candidate not in v.nbors:
+
+            # Edge formation
+            metadata[v]['action'] = 'addition'
+            G.add_edge(v, max_val_candidate)
         elif type(max_val_candidate) == tuple:
 
             # Substitution
@@ -469,16 +481,19 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
             add_vtx, rem_vtx = max_val_candidate
             G.add_edge(v, add_vtx)
             G.remove_edge(v, rem_vtx)
-        elif allow_early_drop and max_val_candidate in v.nbors and norm_values[max_val_candidate_idx] > 0:
+        elif allow_early_drop and max_val_candidate in v.nbors and max_val > 0:
 
             # Early single drop
             metadata[v]['action'] = 'drop'
             G.remove_edge(v, max_val_candidate)
         else:
-
-            # Edge formation
-            metadata[v]['action'] = 'addition'
-            G.add_edge(v, max_val_candidate)
+           
+            # When dropping gives 0 utility change
+            metadata[v]['action'] = 'none'
+            metadata[v]['attr_delta'] = 0
+            metadata[v]['struct_delta'] = 0
+            metadata[v]['cost_delta'] = 0
+            continue
 
         # Add additional iteration metadata
         metadata[v]['attr_delta'] = attr_util_deltas[max_val_candidate_idx]
@@ -607,5 +622,4 @@ def graph_to_nx(G):
             nx_G.add_edge(vtx, nbor, capacity=1.0, util=util)
 
     return nx_G
-
 
