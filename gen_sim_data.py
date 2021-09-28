@@ -28,11 +28,11 @@ log_last = 0
 log_every = 0
 
 similarity_homophily, similarity_heterophily = alu.gen_similarity_funcs()
-schelling_homophily, schelling_heterophily = alu.gen_schelling_seg_funcs(0.5, 'satisfice')
+schelling_homophily, schelling_heterophily = alu.gen_schelling_seg_funcs(0.5, 'sat_count')
 
 attr_edge_func = similarity_homophily
 attr_total_func = schelling_homophily
-struct_func = alu.average_neighborhood_overlap
+struct_func = alu.triangle_count
 
 # Create types
 def type_dict(context, color):

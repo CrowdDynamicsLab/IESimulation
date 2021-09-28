@@ -113,14 +113,15 @@ def gen_schelling_seg_funcs(thresh, calc_method='satisfice'):
         
         if calc_method == 'proportion':
             return 1 - abs((u.sum_edge_util / u.degree) - thresh)
-        elif calc_method == 'buckets':
+        elif calc_method == 'sat_count':
+
+            # Vertices satisified when thresh * max_degree neighbors are similar
             if thresh == 0.0:
-                return (u.degree - u.sum_edge_util) / (G.sim_params['max_degree'] * (1 - thresh))
-            elif thresh == 1.0:
-                return u.sum_edge_util / (G.sim_params['max_degree'] * thresh)
-            strat_term = u.sum_edge_util / (G.sim_params['max_degree'] * thresh)
-            rem_term = (u.degree - u.sum_edge_util) / (G.sim_params['max_degree'] * (1 - thresh))
-            return strat_term + rem_term
+                return 1.0 if u.sum_edge_util > 0 else 0.0
+            thresh_count = math.ceil(G.sim_params['max_degree'] * thresh)
+            if u.sum_edge_util >= thresh_count:
+                return 1.0
+            return u.sum_edge_util / thresh_count
         elif calc_method == 'satisfice':
             prop = u.sum_edge_util / u.degree
             if prop >= thresh:
@@ -130,69 +131,21 @@ def gen_schelling_seg_funcs(thresh, calc_method='satisfice'):
 
     return schelling_balance, schelling_balance
 
-def exp_surprise(u, v, G):
-    total_surprise = 0
-    matches = []
-    for ctx in G.data[u]:
-        if ctx in G.data[v]:
-            total_surprise += np.log2(u.data[ctx] * v.data[ctx])
-            matches.append(ctx)
-    return 1 - 2 ** (total_surprise)
-
-def simple_sigmoid(u, v, G, scale=1.0):
-
-    # Simple sigmoid, |X| / (1 + |X|) where X is intersecting
-    # contexts. Does not account for rarity of context
-    match_count = 0
-    for ctx, attrs in G.data[u].items():
-        if ctx in G.data[v]:
-            match_count += len(attrs.intersection(G.data[v][ctx]))
-    return match_count / (scale + match_count)
-
-def discrete_pareto_pdf(k, alpha=2, sigma=1):
-    
-    # PDF of discrete Pareto distribution (Pareto II)
-    k_1 = ( 1 / ( 1 + k / sigma) ) ** alpha
-    k_2 = ( 1 / ( 1 + ( (k + 1) / sigma ) ) ) ** alpha
-    return k_1 - k_2
-
 ###########################
 # Structural (normalized) #
 ###########################
 
-def direct_util_buffer(ut_func):
-    # TODO: Figure out how to resolve this
-    norm = 1
-    def ut_func_wrapper(v, G):
-        struct_ut = ut_func(v, G)
-        epsilon = 2 ** -10 # Pretty arbitrary choice
-        direct_util = G.sim_params['direct_cost'] + epsilon
-        return (struct_ut + (v.degree * direct_util)) / norm
-    return ut_func_wrapper
-
-def neighborhood_density(v, G):
-    # Density is already "normalized", clique is density 1
-    if len(v.nbors) == 0:
-        return 0
-
-    nbor_edges = 0
-    for u in v.nbors:
-        for w in u.nbors:
-            if v.is_nbor(w):
-                nbor_edges += 1
-    return (nbor_edges + (len(v.nbors) * 2)) / (len(v.nbors) * (len(v.nbors) + 1))
-
-def potential_density(v, G):
+def triangle_count(v, G):
 
     # Actually degree in the end
-    nbor_edges = 0
-    for u in v.nbors:
-        for w in u.nbors:
-            if v.is_nbor(w):
-                nbor_edges += 1
-    max_clique = G.sim_params['max_clique_size']
-    potential_degree = max_clique * (max_clique - 1)
-    return nbor_edges / potential_degree
+    clique_deg = G.sim_params['max_clique_size'] - 1
+    max_triangles = clique_deg * (clique_deg - 1) / 2
+    triangle_cnt = 0
+    for idx, u in enumerate(v.nbors):
+        for w in v.nbors[idx:]:
+            if G.are_neighbors(u, w):
+                triangle_cnt += 1
+    return triangle_cnt / max_triangles
 
 def average_neighborhood_overlap(v, G):
     if v.degree == 0:
