@@ -18,7 +18,7 @@ def calc_utils(G):
     G.potential_utils = util_mat
     return G.potential_utils
 
-def calc_edges(G, walk_proposals='fof', pos_eu=True, indep_proposal=True):
+def calc_edges(G, walk_proposals='fof', prop_limit=2):
    
     edge_proposals = {}
 
@@ -65,35 +65,40 @@ def calc_edges(G, walk_proposals='fof', pos_eu=True, indep_proposal=True):
         else:
             unsatiated.append(v)
 
-    if indep_proposal:
-        revelation_proposals = G.sim_params['revelation_proposals'](G)
-        for v in unsatiated:
-            if attr_lib_util.remaining_budget(v, G) < 0:
+    revelation_proposals = G.sim_params['revelation_proposals'](G)
+    for v in unsatiated:
+        if attr_lib_util.remaining_budget(v, G) < 0:
+            continue
+        edge_proposals[v] = list(set(edge_proposals[v]).union(set(revelation_proposals[v])))
+
+    # Only propose to vertices with non-negative expected utility
+    for v in unsatiated:
+        v_attr_util, v_struct_util = v.utility_values(G)
+        v_cost = attr_lib_util.calc_cost(v, G)
+        v_agg_util = G.sim_params['util_agg'](v_attr_util, v_struct_util, v_cost, v, G)
+        v_pos_eu = []
+        v_prop_vals = []
+        for u in edge_proposals[v]:
+            if v.is_nbor(u):
                 continue
-            edge_proposals[v] = list(set(edge_proposals[v]).union(set(revelation_proposals[v])))
+            G.add_edge(v, u)
+            pattr, pstruct = v.utility_values(G)
+            pcost = attr_lib_util.calc_cost(v, G)
+            pagg_util = G.sim_params['util_agg'](pattr, pstruct, pcost, v, G)
 
-    if pos_eu:
+            # Optimism from >= as opposed to >
+            util_del = pagg_util - v_agg_util
+            if (util_del > 0) or (v.data['optimistic'] and util_del == 0):
+                v_pos_eu.append(u)
+                v_prop_vals.append(util_del)
+            G.remove_edge(v, u)
+        v_pos_sorted = [ u for _, u in
+            sorted(zip(v_prop_vals, v_pos_eu), key=lambda p : p[0]) ][::-1]
+        edge_proposals[v] = v_pos_sorted
 
-        # Only propose to vertices with non-negative expected utility
-        for v in unsatiated:
-            v_attr_util, v_struct_util = v.utility_values(G)
-            v_cost = attr_lib_util.calc_cost(v, G)
-            v_agg_util = G.sim_params['util_agg'](v_attr_util, v_struct_util, v_cost, v, G)
-            v_pos_eu = []
-            for u in edge_proposals[v]:
-                if v.is_nbor(u):
-                    continue
-                G.add_edge(v, u)
-                pattr, pstruct = v.utility_values(G)
-                pcost = attr_lib_util.calc_cost(v, G)
-                pagg_util = G.sim_params['util_agg'](pattr, pstruct, pcost, v, G)
-
-                # Optimism from >= as opposed to >
-                util_del = pagg_util - v_agg_util
-                if (util_del > 0) or (v.data['optimistic'] and util_del == 0):
-                    v_pos_eu.append(u)
-                G.remove_edge(v, u)
-            edge_proposals[v] = v_pos_eu
+    if prop_limit > 0:
+        for v in edge_proposals:
+            edge_proposals[v] = edge_proposals[v][:prop_limit]
 
     # Returns metadata
     return G.sim_params['edge_selection'](G, edge_proposals)

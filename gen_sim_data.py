@@ -11,7 +11,7 @@ from sim_lib.attr_lib.formation import *
 
 # Overall parameters
 
-save_to = 'data/opt_mix_comparisons.csv'
+save_to = 'data/sc_sub_comparisons.csv'
 
 _N = 36
 iter_count = 16
@@ -32,7 +32,7 @@ schelling_homophily, schelling_heterophily = alu.gen_schelling_seg_funcs(0.5, 's
 
 attr_edge_func = similarity_homophily
 attr_total_func = schelling_homophily
-struct_func = alu.triangle_count
+struct_func = alu.ball2_size
 
 # Create types
 def type_dict(context, color):
@@ -67,7 +67,7 @@ params = {
     'seed_type' : 'trivial', # Type of seed network
     'max_clique_size' : 5,
     'revelation_proposals' : alu.indep_revelation,
-    'util_agg' : alu.struct_first_agg, # How to aggregate utility values
+    'util_agg' : alu.attr_first_agg, # How to aggregate utility values
     'vtx_types' : vtx_types
 }
 
@@ -101,6 +101,10 @@ def get_budget_resolution_counts(md):
     br_ind = lambda a : 1 if a == 'budget_resolve' else 0
     return [ br_ind(md[v]['action']) for v in G.vertices ]
 
+def get_sub_counts(md):
+    sub_ind = lambda a : 1 if a == 'substitution' else 0
+    return [ sub_ind(md[v]['action']) for v in G.vertices ]
+
 # Run simulation
 # Parameters
 attr_homophily, attr_heterophily = alu.gen_similarity_funcs()
@@ -115,12 +119,12 @@ agg_func_named = list(zip(agg_funcs, ['linear', 'attr_first', 'struct_first']))
 sim_properties = ['theta', 'p_optim', 'agg_func']
 sim_metrics = ['struct_util', 'attr_util', 'cost', 'degree',
     'struct_delta', 'attr_delta', 'cost_delta',
-    'num_proposals', 'num_budget_resolve'
+    'num_proposals', 'num_budget_resolve', 'num_subs'
 ]
 simulation_df = pd.DataFrame(columns=sim_properties + sim_metrics)
 sim_graph_funcs = [get_struct_utils, get_attribute_utils, get_costs, get_degrees]
 sim_metadata_funcs = [get_struct_changes, get_attr_changes, get_cost_changes,
-    get_proposal_counts, get_budget_resolution_counts
+    get_proposal_counts, get_budget_resolution_counts, get_sub_counts
 ]
 sim_metric_func_tuples = list(zip(sim_metrics, sim_graph_funcs + sim_metadata_funcs))
 
