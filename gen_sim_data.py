@@ -13,11 +13,9 @@ from sim_lib.attr_lib.formation import *
 
 save_to = 'data/sc_sub_comparisons.csv'
 
-_N = 36
+_N = 40
 iter_count = 16
 num_runs = 10
-
-_N = 32
 
 # Simul + some vis parameters
 num_iters = 32
@@ -109,14 +107,14 @@ def get_sub_counts(md):
 # Parameters
 attr_homophily, attr_heterophily = alu.gen_similarity_funcs()
 theta_values = [0.0, 0.32, 0.65, 1.0][::-1]
-optimism_values = [0.0, 0.25, 0.5, 0.75, 1.0][::-1]
-struct_func = alu.average_neighborhood_overlap
+prop_limit_values = [1, 2, 5, -1]
+struct_func = alu.ball2_size
 seed_type = 'trivial'
 agg_funcs = [ alu.linear_util_agg, alu.attr_first_agg, alu.struct_first_agg ]
 agg_func_named = list(zip(agg_funcs, ['linear', 'attr_first', 'struct_first']))
 
 # Set up df
-sim_properties = ['theta', 'p_optim', 'agg_func']
+sim_properties = ['theta', 'pr_limit', 'agg_func']
 sim_metrics = ['struct_util', 'attr_util', 'cost', 'degree',
     'struct_delta', 'attr_delta', 'cost_delta',
     'num_proposals', 'num_budget_resolve', 'num_subs'
@@ -131,14 +129,15 @@ sim_metric_func_tuples = list(zip(sim_metrics, sim_graph_funcs + sim_metadata_fu
 for theta in theta_values:
     for idx, (agg_func, af_name) in enumerate(agg_func_named):
         attr_func = alu.gen_schelling_seg_funcs(theta, 'satisfice')[0]
-        for popt in optimism_values:
+        for pr_limit in prop_limit_values:
 
             # Set vtx types by optimism proportion
+            # Set to 1 for other tests
             for tl in type_lists_flat:
                 if tl['optimistic']:
-                    tl['likelihood'] = popt * (2 / len(type_lists_flat))
+                    tl['likelihood'] = 1.0 * (2 / len(type_lists_flat))
                 else:
-                    tl['likelihood'] = (1 - popt) * (2 / len(type_lists_flat))
+                    tl['likelihood'] = 0 
 
             assert sum([ t['likelihood'] for t in params['vtx_types'].values() ]) == 1.0
 
@@ -155,6 +154,10 @@ for theta in theta_values:
             np.random.shuffle(vtx_types_list)
             params['type_assignment'] = { i : vtx_types_list[i] for i in range(_N) }
 
+            ####################
+            # End type setting #
+            ####################
+
             # Set aggregate utility function
             params['util_agg'] = agg_func
                 
@@ -163,7 +166,7 @@ for theta in theta_values:
             
             sim_run_values = {
                 'theta' : theta,
-                'p_optim' : popt,
+                'pr_limit' : pr_limit,
                 'agg_func' : af_name
             }
 
@@ -173,7 +176,7 @@ for theta in theta_values:
                 for it in range(iter_count):
                     
                     # Iterate simulation
-                    iteration_metadata = calc_edges(G)
+                    iteration_metadata = calc_edges(G, prop_limit=pr_limit)
                     
                     # Record values
                     for mname, mfunc in sim_metric_func_tuples:

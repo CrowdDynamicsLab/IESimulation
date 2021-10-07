@@ -243,6 +243,7 @@ def subset_budget_resolution(v, G, util_agg):
                 drop_candidate = nbor
         G.remove_edge(v, drop_candidate)
         cur_util -= min_util_loss
+    assert remaining_budget(v, G) >= 0, 'did not resolve budget'
 
 # Seq selection functions
 def seq_projection_single_selection(G, edge_proposals, log):
