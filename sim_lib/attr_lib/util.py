@@ -135,6 +135,16 @@ def gen_schelling_seg_funcs(thresh, calc_method='satisfice'):
 # Structural (normalized) #
 ###########################
 
+def satisfice(theta):
+    def struct(sfunc):
+        def swrapper(*args, **kwargs):
+            sutil = sfunc(*args, **kwargs)
+            if sutil > theta:
+                return 1.0
+            return sutil
+        return swrapper
+    return struct
+
 def triangle_count(v, G):
 
     # Actually degree in the end
@@ -186,6 +196,14 @@ def ball2_size(v, G):
     max_ball_size = min(G.num_people, max_degree * (max_degree - 1) + max_degree)
 
     return size / max_ball_size
+
+def degree_indep_size(v, G):
+    indep_deg = 0
+    v_nbor_set = v.nbor_set
+    for u in v.nbors:
+        if len(v_nbor_set.intersection(u.nbor_set)) == 0:
+            indep_deg += 1
+    return indep_deg / G.sim_params['max_degree']
 
 def degree_util(v, G):
     if v.degree == 0:
@@ -555,7 +573,7 @@ def random_walk_length(u, G):
 # Networkx Conversion #
 #######################
 
-def graph_to_nx(G):
+def graph_to_nx(G, with_labels=True):
     """
     Converts a graph from sim_lib.graph to a networkx graph (undirected)
     """
@@ -563,11 +581,18 @@ def graph_to_nx(G):
     nx_G = nx.Graph()
 
     for vtx in G.vertices:
-        attr_util = vtx.data['total_attr_util'](vtx, G)
-        struct_util = vtx.data['struct_util'](vtx, G)
-        cost = calc_cost(vtx, G)
-        color = vtx.data['color']
-        nx_G.add_node(vtx, attr_util=attr_util, struct_util=struct_util, cost=cost, color=color)
+        if with_labels:
+            attr_util = vtx.data['total_attr_util'](vtx, G)
+            struct_util = vtx.data['struct_util'](vtx, G)
+            cost = calc_cost(vtx, G)
+            color = vtx.data['color']
+            nx_G.add_node(vtx,
+                attr_util=attr_util,
+                struct_util=struct_util,
+                cost=cost,
+                color=color)
+        else:
+            nx_G.add_node(vtx)
         
 
     for vtx in G.vertices:

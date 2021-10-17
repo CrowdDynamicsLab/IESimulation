@@ -56,6 +56,7 @@ def calc_edges(G, walk_proposals='fof', prop_limit=2):
                
                 edge_proposals[u].append(v)
 
+    # Satiated vertices don't propose
     unsatiated = []
     for v in G.vertices:
         v_attr_util, v_struct_util = v.utility_values(G)
@@ -65,9 +66,11 @@ def calc_edges(G, walk_proposals='fof', prop_limit=2):
         else:
             unsatiated.append(v)
 
+    # Add revalation and check budget
     revelation_proposals = G.sim_params['revelation_proposals'](G)
     for v in unsatiated:
-        if attr_lib_util.remaining_budget(v, G) < 0:
+        # If proposal is accepted it will increase cost, this is minimum check
+        if attr_lib_util.remaining_budget(v, G) < G.sim_params['direct_cost']:
             continue
         edge_proposals[v] = list(set(edge_proposals[v]).union(set(revelation_proposals[v])))
 

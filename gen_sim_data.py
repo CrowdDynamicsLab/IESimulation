@@ -11,9 +11,9 @@ from sim_lib.attr_lib.formation import *
 
 # Overall parameters
 
-save_to = 'data/sc_sub_comparisons.csv'
+save_to = 'data/sc_cc_test_comparisons.csv'
 
-_N = 40
+_N = 32
 iter_count = 16
 num_runs = 10
 
@@ -30,7 +30,7 @@ schelling_homophily, schelling_heterophily = alu.gen_schelling_seg_funcs(0.5, 's
 
 attr_edge_func = similarity_homophily
 attr_total_func = schelling_homophily
-struct_func = alu.ball2_size
+struct_func = alu.community_count
 
 # Create types
 def type_dict(context, color):
@@ -106,8 +106,8 @@ def get_sub_counts(md):
 # Run simulation
 # Parameters
 attr_homophily, attr_heterophily = alu.gen_similarity_funcs()
-theta_values = [0.0, 0.32, 0.65, 1.0][::-1]
-prop_limit_values = [1, 2, 5, -1]
+theta_values = [0.0, 0.65, 1.0][::-1]
+prop_limit_values = [1, 2, -1]
 struct_func = alu.ball2_size
 seed_type = 'trivial'
 agg_funcs = [ alu.linear_util_agg, alu.attr_first_agg, alu.struct_first_agg ]
