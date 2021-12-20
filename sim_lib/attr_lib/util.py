@@ -102,7 +102,7 @@ def gen_similarity_funcs():
 
     return homophily, heterophily
 
-def gen_schelling_seg_funcs(thresh, calc_method='satisfice'):
+def gen_schelling_seg_funcs(thresh, calc_method='sat_count'):
     
     # Generates a homphily function and a heterophily function where homophily
     # desires roughly `thresh` proportion neighbors to be similar
@@ -117,7 +117,8 @@ def gen_schelling_seg_funcs(thresh, calc_method='satisfice'):
 
             # Vertices satisified when thresh * max_degree neighbors are similar
             if thresh == 0.0:
-                return 1.0 if u.sum_edge_util > 0 else 0.0
+                return 1.0
+                # return 1.0 if u.sum_edge_util > 0 else 0.0
             thresh_count = math.ceil(G.sim_params['max_degree'] * thresh)
             if u.sum_edge_util >= thresh_count:
                 return 1.0
@@ -139,7 +140,7 @@ def satisfice(theta):
     def struct(sfunc):
         def swrapper(*args, **kwargs):
             sutil = sfunc(*args, **kwargs)
-            if sutil > theta:
+            if sutil >= theta:
                 return 1.0
             return sutil
         return swrapper
@@ -198,6 +199,7 @@ def ball2_size(v, G):
     return size / max_ball_size
 
 def degree_indep_size(v, G):
+
     indep_deg = 0
     v_nbor_set = v.nbor_set
     for u in v.nbors:
@@ -298,6 +300,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
         struct_util_deltas = []
         cost_deltas = []
 
+        # No options
         if len(v.nbors) == 0 and len(proposed_by[v]) == 0:
             if log:
                 print('-----------------------------------------')
@@ -312,6 +315,24 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
         cur_attr_util = v.data['total_attr_util'](v, G)
         cur_struct_util = v.data['struct_util'](v, G)
         cur_cost = calc_cost(v, G)
+
+        # Satiated
+        cur_util_agg = G.sim_params['util_agg'](
+            cur_attr_util,
+            cur_struct_util,
+            cur_cost, v, G
+        )
+
+        if cur_util_agg == 2.0:
+            if log:
+                print('-----------------------------------------')
+                print(v, 'satiated, doing nothing')
+                print('-----------------------------------------')
+            metadata[v]['action'] = 'satiated'
+            metadata[v]['attr_delta'] = 0
+            metadata[v]['struct_delta'] = 0
+            metadata[v]['cost_delta'] = 0
+            continue
 
         # No point checking proposal/single drop values if over budget anyways
         if remaining_budget(v, G) < 0:
@@ -337,7 +358,23 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
                 # Disallow early drops
                 break
 
+            u_cur_au = u.data['total_attr_util'](u, G)
+            u_cur_su = u.data['struct_util'](u, G)
+            u_cur_agg_util = util_agg(u_cur_au, u_cur_su, calc_cost(u, G), u, G)
+
             G.remove_edge(v, u)
+
+            # Check dropped vtx util change
+            u_drop_au = u.data['total_attr_util'](u, G) - u_cur_au 
+            u_drop_su = u.data['struct_util'](u, G) - u_cur_su
+            u_drop_cost = calc_cost(u, G)
+            u_drop_agg_util = util_agg(u_drop_au, u_drop_su, u_drop_cost, u, G) 
+
+            # Require that drops be mutually beneficial
+            if u_drop_agg_util - u_cur_agg_util < 0:
+                G.add_edge(v, u)
+                continue
+
             attr_util_deltas.append(v.data['total_attr_util'](v, G) - cur_attr_util)
             struct_util_deltas.append(v.data['struct_util'](v, G) - cur_struct_util)
 
@@ -376,7 +413,23 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
                 if u == w:
                     continue
 
+                w_cur_au = u.data['total_attr_util'](u, G)
+                w_cur_su = u.data['struct_util'](u, G)
+                w_cur_agg_util = util_agg(w_cur_au, w_cur_su, calc_cost(w, G), w, G) 
+
                 G.remove_edge(v, w)
+
+                # Check dropped vtx util change
+                w_drop_au = w.data['total_attr_util'](u, G) - w_cur_au 
+                w_drop_su = w.data['struct_util'](u, G) - w_cur_su
+                w_drop_cost = calc_cost(w, G)
+                w_drop_agg_util = util_agg(w_drop_au, w_drop_su, w_drop_cost, w, G) 
+
+                # Require that drops be mutually beneficial
+                if w_drop_agg_util - w_cur_agg_util < 0:
+                    G.add_edge(v, w)
+                    continue
+
                 if remaining_budget(v, G) >= 0:
 
                     # Disallow substitution if over budget

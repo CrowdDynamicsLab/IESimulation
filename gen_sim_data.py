@@ -11,7 +11,7 @@ from sim_lib.attr_lib.formation import *
 
 # Overall parameters
 
-save_to = 'data/sc_cc_test_comparisons.csv'
+save_to = 'data/sc_degind_theta_comparisons.csv'
 
 _N = 32
 iter_count = 16
@@ -30,7 +30,7 @@ schelling_homophily, schelling_heterophily = alu.gen_schelling_seg_funcs(0.5, 's
 
 attr_edge_func = similarity_homophily
 attr_total_func = schelling_homophily
-struct_func = alu.community_count
+struct_func = alu.ball2_size
 
 # Create types
 def type_dict(context, color):
@@ -106,9 +106,9 @@ def get_sub_counts(md):
 # Run simulation
 # Parameters
 attr_homophily, attr_heterophily = alu.gen_similarity_funcs()
-theta_values = [0.0, 0.65, 1.0][::-1]
+theta_values = [0.0, 0.32, 0.65, 1.0][::-1]
 prop_limit_values = [1, 2, -1]
-struct_func = alu.ball2_size
+struct_func = alu.degree_indep_size
 seed_type = 'trivial'
 agg_funcs = [ alu.linear_util_agg, alu.attr_first_agg, alu.struct_first_agg ]
 agg_func_named = list(zip(agg_funcs, ['linear', 'attr_first', 'struct_first']))
@@ -137,7 +137,8 @@ for theta in theta_values:
                 if tl['optimistic']:
                     tl['likelihood'] = 1.0 * (2 / len(type_lists_flat))
                 else:
-                    tl['likelihood'] = 0 
+                    tl['likelihood'] = 0
+                tl['struct_util'] = alu.satisfice(theta)(struct_func)
 
             assert sum([ t['likelihood'] for t in params['vtx_types'].values() ]) == 1.0
 
