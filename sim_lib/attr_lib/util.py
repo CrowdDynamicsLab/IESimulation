@@ -8,7 +8,7 @@ import numpy as np
 from scipy.sparse import linalg as scp_sla
 import networkx as nx
 
-from tabulate import tabulate  
+from tabulate import tabulate
 
 #######################
 # Init attr functions #
@@ -103,14 +103,14 @@ def gen_similarity_funcs():
     return homophily, heterophily
 
 def gen_schelling_seg_funcs(thresh, calc_method='sat_count'):
-    
+
     # Generates a homphily function and a heterophily function where homophily
     # desires roughly `thresh` proportion neighbors to be similar
 
     def schelling_balance(u, G):
         if u.degree == 0:
             return 0.0
-        
+
         if calc_method == 'proportion':
             return 1 - abs((u.sum_edge_util / u.degree) - thresh)
         elif calc_method == 'sat_count':
@@ -210,7 +210,7 @@ def degree_indep_size(v, G):
 def degree_util(v, G):
     if v.degree == 0:
         return 0
-    
+
     # Gives utility based on degree normalized by potential by cost
     max_degree = min(math.floor( 1 / G.sim_params['direct_cost'] ), G.num_people)
     util_degree = v.degree / max_degree
@@ -275,7 +275,7 @@ def seq_edge_sel_logged(G, edge_proposals):
 def seq_edge_sel_silent(G, edge_proposals):
     return seq_projection_edge_edit(G, edge_proposals, log=False)
 
-def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_drop=True, log=False):
+def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_drop=True, log=True):
     # Sequentially (non-random) pick one edge to propose to via projection
     # of multiobjective optimization function
     # Assumes even split of coefficients
@@ -284,7 +284,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
         #NOTE: Consider adding back once not global
         #print('proposals:', edge_proposals)
 
-    util_agg = G.sim_params['util_agg'] 
+    util_agg = G.sim_params['util_agg']
 
     proposed_by = { v : [ u for u, u_props in edge_proposals.items() if v in u_props ] \
             for v in G.vertices }
@@ -323,6 +323,19 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
             cur_cost, v, G
         )
 
+        # No point checking proposal/single drop values if over budget anyways
+        if remaining_budget(v, G) < 0:
+
+            # Budget resolution
+            if log:
+                print('has to resolve budget via subset drop')
+            subset_budget_resolution(v, G, util_agg)
+            metadata[v]['action'] = 'budget_resolve'
+            metadata[v]['attr_delta'] = v.data['total_attr_util'](v, G) - cur_attr_util
+            metadata[v]['struct_delta'] = v.data['struct_util'](v, G) - cur_struct_util
+            metadata[v]['cost_delta'] = cur_cost - calc_cost(v, G)
+            continue
+
         if cur_util_agg == 2.0:
             if log:
                 print('-----------------------------------------')
@@ -332,19 +345,6 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
             metadata[v]['attr_delta'] = 0
             metadata[v]['struct_delta'] = 0
             metadata[v]['cost_delta'] = 0
-            continue
-
-        # No point checking proposal/single drop values if over budget anyways
-        if remaining_budget(v, G) < 0:
-
-            # Budget resolution
-            if log: 
-                print('has to resolve budget via subset drop')
-            subset_budget_resolution(v, G, util_agg)
-            metadata[v]['action'] = 'budget_resolve'
-            metadata[v]['attr_delta'] = v.data['total_attr_util'](v, G) - cur_attr_util
-            metadata[v]['struct_delta'] = v.data['struct_util'](v, G) - cur_struct_util
-            metadata[v]['cost_delta'] = cur_cost - calc_cost(v, G)
             continue
 
         candidates = []
@@ -365,15 +365,15 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
             G.remove_edge(v, u)
 
             # Check dropped vtx util change
-            u_drop_au = u.data['total_attr_util'](u, G) - u_cur_au 
+            u_drop_au = u.data['total_attr_util'](u, G) - u_cur_au
             u_drop_su = u.data['struct_util'](u, G) - u_cur_su
             u_drop_cost = calc_cost(u, G)
-            u_drop_agg_util = util_agg(u_drop_au, u_drop_su, u_drop_cost, u, G) 
+            u_drop_agg_util = util_agg(u_drop_au, u_drop_su, u_drop_cost, u, G)
 
             # Require that drops be mutually beneficial
-            if u_drop_agg_util - u_cur_agg_util < 0:
-                G.add_edge(v, u)
-                continue
+            #if u_drop_agg_util - u_cur_agg_util < 0:
+                #G.add_edge(v, u)
+                #continue
 
             attr_util_deltas.append(v.data['total_attr_util'](v, G) - cur_attr_util)
             struct_util_deltas.append(v.data['struct_util'](v, G) - cur_struct_util)
@@ -415,20 +415,20 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
 
                 w_cur_au = u.data['total_attr_util'](u, G)
                 w_cur_su = u.data['struct_util'](u, G)
-                w_cur_agg_util = util_agg(w_cur_au, w_cur_su, calc_cost(w, G), w, G) 
+                w_cur_agg_util = util_agg(w_cur_au, w_cur_su, calc_cost(w, G), w, G)
 
                 G.remove_edge(v, w)
 
                 # Check dropped vtx util change
-                w_drop_au = w.data['total_attr_util'](u, G) - w_cur_au 
+                w_drop_au = w.data['total_attr_util'](u, G) - w_cur_au
                 w_drop_su = w.data['struct_util'](u, G) - w_cur_su
                 w_drop_cost = calc_cost(w, G)
-                w_drop_agg_util = util_agg(w_drop_au, w_drop_su, w_drop_cost, w, G) 
+                w_drop_agg_util = util_agg(w_drop_au, w_drop_su, w_drop_cost, w, G)
 
                 # Require that drops be mutually beneficial
-                if w_drop_agg_util - w_cur_agg_util < 0:
-                    G.add_edge(v, w)
-                    continue
+                #if w_drop_agg_util - w_cur_agg_util < 0:
+                    #G.add_edge(v, w)
+                    #continue
 
                 if remaining_budget(v, G) >= 0:
 
@@ -446,7 +446,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
         if len(candidates) == 0:
             if log:
                 print('\n-------------------------------------------------------------------')
-                header = np.array([('Vertex', 'Degree','Budget Used'), (str(v.vnum), str(v.degree), str(calc_cost(v,G)))]) 
+                header = np.array([('Vertex', 'Degree','Budget Used'), (str(v.vnum), str(v.degree), str(calc_cost(v,G)))])
                 print(tabulate(header))
                 print(v, 'had no options')
             metadata[v]['action'] = 'none'
@@ -462,7 +462,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
 
         if log:
             print('\n-------------------------------------------------------------------')
-            header = np.array([('Vertex', 'Degree','Budget Used'), (str(v.vnum), str(v.degree), str(calc_cost(v,G)))]) 
+            header = np.array([('Vertex', 'Degree','Budget Used'), (str(v.vnum), str(v.degree), str(calc_cost(v,G)))])
             print(tabulate(header, headers="firstrow"))
             candidate_value_rounded = [ (round(a, 2), round(s, 2), round(c, 2)) for (a, s, c) in candidate_value_points ]
             data = np.array([candidates, candidate_value_rounded]).T
@@ -487,7 +487,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
         # Either optimistic or max val move is stirctly positive
         max_val = norm_values[max_val_candidate_idx]
         if (max_val < 0) or (not v.data['optimistic'] and max_val == 0):
-            
+
             # No non-negative change candidates
             metadata[v]['action'] = 'none'
             metadata[v]['attr_delta'] = 0
@@ -512,7 +512,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
             metadata[v]['action'] = 'drop'
             G.remove_edge(v, max_val_candidate)
         else:
-           
+
             # When dropping gives 0 utility change
             metadata[v]['action'] = 'none'
             metadata[v]['attr_delta'] = 0
@@ -541,7 +541,7 @@ def struct_first_agg(a, s, c, v, G):
         return a + s
     return s
 
-# Revelation proposal sets 
+# Revelation proposal sets
 
 def indep_revelation(G):
     edge_proposals = {}
@@ -646,7 +646,7 @@ def graph_to_nx(G, with_labels=True):
                 color=color)
         else:
             nx_G.add_node(vtx)
-        
+
 
     for vtx in G.vertices:
         for nbor in vtx.nbors:
@@ -654,4 +654,3 @@ def graph_to_nx(G, with_labels=True):
             nx_G.add_edge(vtx, nbor, capacity=1.0, util=util)
 
     return nx_G
-
