@@ -146,10 +146,10 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters):
 
     assert isclose(sum([ t['likelihood'] for t in params['vtx_types'].values() ]), 1.0)
 
+    degree_dist = []
+    util_dist = []
+    cost_dist = []
     for k in range(sim_iters):
-        degree_dist = []
-        util_dist = []
-        cost_dist = []
         G = attribute_network(_N, params)
         G_nx = alu.graph_to_nx(G)
         max_degree = math.floor(1 / G.sim_params['direct_cost'])
@@ -202,6 +202,6 @@ for i in sc:
         degree_array[int((1-sc_likelihood)/float(sc[1])), int(ho_likelihood/float(ho[1]))] = summary_stats[0]
         util_array[int((1-sc_likelihood)/float(sc[1])), int(ho_likelihood/float(ho[1]))] = summary_stats[1]
         cost_array[int((1-sc_likelihood)/float(sc[1])), int(ho_likelihood/float(ho[1]))] = summary_stats[2]
-plot_heat_map(degree_array/sim_iters, 'Avg Degree', 0, sc, ho)
-plot_heat_map(util_array/sim_iters, 'Avg Utility', 0, sc, ho)
-plot_heat_map(cost_array/sim_iters, 'Avg Cost', 0, sc, ho)
+plot_heat_map(degree_array, 'Avg Degree', 0, sc, ho)
+plot_heat_map(util_array, 'Avg Utility', 0, sc, ho)
+plot_heat_map(cost_array, 'Avg Cost', 0, sc, ho)
