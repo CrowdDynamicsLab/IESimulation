@@ -1,10 +1,10 @@
 #!/bin/bash
 #SBATCH --time=60:00:00
-#SBATCH --nodes=2
+#SBATCH --nodes=1
 #SBATCH --ntasks-per-node=16
-#SBATCH --job-name="testing"
+#SBATCH --job-name="max_40"
 #SBATCH --partition=cs
-#SBATCH --output=testing.o%j
+#SBATCH --output=max_40.o%j
 #SBATCH --mail-user=nainab2@illinois.edu
 #SBATCH --mail-type=ALL
 

@@ -17,8 +17,8 @@ import sys
 
 _N = 100
 satisfice = 1
-num_iters = 10
-max_clique_size = 10
+num_iters = 100
+max_clique_size = 40
 ctxt_likelihood = .5
 sc = [0, .25, .5, .75, 1]
 ho = [0, .25, .5, .75, 1]
