@@ -17,7 +17,7 @@ import sys
 
 _N = 100
 satisfice = 1
-num_iters = 100
+num_iters = 10
 max_clique_size = 10
 ctxt_likelihood = .5
 sc = [0, .25, .5, .75, 1]
@@ -179,11 +179,10 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters):
 
         image_name = 'N' + str(_N) +  '_iter' + str(num_iters) + '_theta' + str(satisfice) + '_max' + str(max_clique_size) +\
                     '_ctx' + str(ctxt_likelihood) + '_sc' + str(sc_likelihood) + '_ho' + str(ho_likelihood)
-        vis.graph_vis(G, image_name, info_string)
-
         degree_dist = degree_dist + ([ v.degree for v in G.vertices ])
         util_dist = util_dist + ([v.data['struct_util'](v, G) + v.data['total_attr_util'](v,G) for v in G.vertices ])
         cost_dist = cost_dist + ([alu.calc_cost(v, G) for v in G.vertices ])
+    vis.graph_vis(G, image_name, info_string)
     plot_dist(G, degree_dist, util_dist, cost_dist, max_degree, image_name)
     summary_stats = [sum(degree_dist)/len(degree_dist), sum(util_dist)/len(util_dist), sum(cost_dist)/len(cost_dist)]
     return summary_stats
