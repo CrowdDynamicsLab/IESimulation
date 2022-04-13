@@ -2,9 +2,9 @@
 #SBATCH --time=100:00:00
 #SBATCH --nodes=2
 #SBATCH --ntasks-per-node=16
-#SBATCH --job-name="max_40"
+#SBATCH --job-name="max_30"
 #SBATCH --partition=cs
-#SBATCH --output=max_40.o%j
+#SBATCH --output=max_30.o%j
 #SBATCH --mail-user=nainab2@illinois.edu
 #SBATCH --mail-type=ALL
 
