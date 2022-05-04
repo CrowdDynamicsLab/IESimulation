@@ -16,15 +16,16 @@ import sys
 
 ############### initializing params ###############
 
-_N = 50
+_N = 100
 satisfice = 1
 num_iters = 1000
-max_clique_size = 5
+min_iters = 10
+max_clique_size = 10
 ctxt_likelihood = .5
 sc = [0, .25, .5, .75, 1]
 ho = [0, .25, .5, .75, 1]
-sim_iters = 3
-kl_tolerance = .05
+sim_iters = 5
+kl_tolerance = .04
 
 similarity_homophily, similarity_heterophily = alu.gen_similarity_funcs()
 schelling_homophily, schelling_heterophily = alu.gen_schelling_seg_funcs(satisfice, 'sat_count')
@@ -114,8 +115,7 @@ def to_pdf(data):
     for util in data:
         counts[int(util*10)] = counts[int(util*10)] + 1
     # adding 1 so none of the probs = 0
-    counts = [x + 1 for x in counts]
-    pdf = [x / sum(counts) for x in counts]
+    pdf = [(x / sum(counts)) + .001 for x in counts]
     return pdf
 
 ################ run simulation ################
@@ -195,6 +195,8 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters):
             #print(kl_divergence)
             if (kl_divergence <= kl_tolerance):
                 #print('kl divergence small at iter ', it)
+                if it <= min_iters:
+                    continue
                 exit_iter[k] = it
                 break
         num_components = len(get_component_sizes(G))
