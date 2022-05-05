@@ -24,7 +24,7 @@ max_clique_size = 10
 ctxt_likelihood = .5
 sc = [0, .25, .5, .75, 1]
 ho = [0, .25, .5, .75, 1]
-sim_iters = 5
+sim_iters = 10
 kl_tolerance = .04
 
 similarity_homophily, similarity_heterophily = alu.gen_similarity_funcs()
@@ -211,7 +211,7 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters):
         util_dist = util_dist + ([v.data['struct_util'](v, G) + v.data['total_attr_util'](v,G) for v in G.vertices ])
         cost_dist = cost_dist + ([alu.calc_cost(v, G) for v in G.vertices ])
 
-    print('ho: ', ho_likelihood, 'sc: ', sc_likelihood, 'exited in ', np.round(np.mean(exit_iter),2))
+    print('ho: ', ho_likelihood, 'sc: ', sc_likelihood, 'exited in ', np.round(np.mean(exit_iter),2), ', std: ', np.round(np.std(exit_iter),2))
     #print(exit_iter)
     vis.graph_vis(G, image_name, info_string)
     plot_dist(G, degree_dist, util_dist, cost_dist, max_degree, image_name)
