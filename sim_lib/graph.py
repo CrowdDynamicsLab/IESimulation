@@ -29,31 +29,14 @@ class Vertex:
         self.data = None
 
         # Context : { Attribute : Set( Vertices with attribute ) }
-        self.attr_obs = {}
-        self.lifetime_visited = set()
-
+        self.attr_type = None
+        
         # For params relating to the simulation
         self.sim_params = {}
 
     ##########################
     # Attribute observations #
     ##########################
-
-    def init_attr_obs(self, G):
-        self.attr_obs = { ctxt : defaultdict(set) \
-                for ctxt in range(G.sim_params['context_count']) }
-
-    def update_attr_obs(self, G, v):
-        
-        # Updates with attributes observed in vertex v
-        for ctxt in G.data[v]:
-            for attr in G.data[v][ctxt]:
-                self.attr_obs[ctxt][attr].add(v)
-
-    def attr_likelihood(self, ctxt, attr):
-
-        # Estimates likelihood of observing attribute
-        return len(self.attr_obs[ctxt][attr]) / len(self.lifetime_visited)
 
     @property
     def degree(self):
@@ -62,6 +45,10 @@ class Vertex:
     @property
     def nbors(self):
         return list(self.edges.keys())
+    
+    @property
+    def nbor_num_list(self):
+        return [ v.vnum for v in self.nbors ]
 
     @property
     def nbor_set(self):
@@ -158,10 +145,20 @@ class Graph:
     def adj_matrix(self):
 
         # Returns numpy matrix indexed by vnum
-        adj_mat = np.zeros((G.num_people, G.num_people))
-        for idx, v in enumerate(G.vertices):
-            for u in G.vertices[idx + 1:]:
+        adj_mat = np.zeros((self.num_people, self.num_people))
+        for idx, v in enumerate(self.vertices):
+            for u in self.vertices[idx + 1:]:
                 if v.is_nbor(u):
                     adj_mat[v.vnum][u.vnum] = 1
-        return adj_matrix
+                    adj_mat[u.vnum][v.vnum] = 1
+        return adj_mat
+    
+    @property
+    def vertex_type_vec(self):
+        return np.array([ v.attr_type for v in self.vertices ])
 
+    def nborhood_adj_mat(self, v):
+        # https://stackoverflow.com/questions/17740081/given-an-nxn-adjacency-matrix-how-can-one-compute-the-number-of-triangles-in-th
+        adj_mat = self.adj_matrix
+        nbor_submat = adj_mat[np.ix_(v.nbor_num_list, v.nbor_num_list)]
+        return nbor_submat

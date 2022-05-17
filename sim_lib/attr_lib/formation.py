@@ -10,6 +10,8 @@ import sim_lib.attr_lib.util as attr_lib_util
 
 # Edge selection
 def calc_utils(G):
+
+    # Calculates attribute utility over each edge (homophily or heterophily)
     util_mat = np.zeros((G.num_people, G.num_people))
     for i, u in enumerate(G.vertices):
         for v in G.vertices[i + 1:]:
@@ -18,72 +20,37 @@ def calc_utils(G):
     G.potential_utils = util_mat
     return G.potential_utils
 
-def calc_edges(G, walk_proposals='fof', prop_limit=2):
+def calc_edges(G, walk_proposals='fof'):
    
-    edge_proposals = {}
+    adj_mat = G.adj_matrix
+    d2_mat = adj_mat @ adj_mat
+    nbor_mask = -1 * (adj_mat - 1)
+    np.fill_diagonal(nbor_mask, 0)
+    edge_proposals = nbor_mask * d2_mat
+    edge_proposals[edge_proposals > 0] = 1
 
-    def get_fof(v):
-        d2_vertices = set()
-        for u in v.nbors:
-            d2_vertices = d2_vertices.union(u.nbor_set)
-        d2_vertices = d2_vertices.difference(v.nbor_set)
-        get_vnum = lambda v : v.vnum
-        d2_vertices.remove(v)
-        return sorted(list(d2_vertices), key=get_vnum)
-
-    # walk_proposals to override 
-    if walk_proposals == 'global':
-        for v in G.vertices:
-            if attr_lib_util.remaining_budget(v, G) > 0:
-                edge_proposals[v] = [ u for u in G.vertices \
-                        if u != v and not v.is_nbor(u) ]
-            else:
-                edge_proposals[v] = []
-    elif walk_proposals == 'fof':
-        for v in G.vertices:
-            if v.degree == 0 or attr_lib_util.remaining_budget(v, G) <= 0:
-                edge_proposals[v] = []
-            else:
-                edge_proposals[v] = get_fof(v) 
-    else:
-        for u in G.vertices:
-            edge_proposals[u] = []
-
-            # Only need to check visited edges for proposal
-            for v in u.data['visited']:
-                if G.are_neighbors(u, v) or u == v:
-                    continue
-               
-                edge_proposals[u].append(v)
-
-    # Satiated vertices don't propose
-    unsatiated = []
-    for v in G.vertices:
-        v_attr_util, v_struct_util = v.utility_values(G)
-        v_cost = attr_lib_util.calc_cost(v, G)
-        if G.sim_params['util_agg'](v_attr_util, v_struct_util, v_cost, v, G) == 2.0:
-            edge_proposals[v] = []
-        else:
-            unsatiated.append(v)
+    #TODO: Revelation, optimism, util calc improvements
 
     # Add revalation and check budget
-    revelation_proposals = G.sim_params['revelation_proposals'](G)
-    for v in unsatiated:
-        # If proposal is accepted it will increase cost, this is minimum check
-        if attr_lib_util.remaining_budget(v, G) < G.sim_params['direct_cost']:
-            continue
-        edge_proposals[v] = list(set(edge_proposals[v]).union(set(revelation_proposals[v])))
+    revelations = G.sim_params['revelation_proposals'](G)
 
     # Only propose to vertices with non-negative expected utility
-    for v in unsatiated:
+    all_costs = attr_lib_util.calc_all_costs(G)
+    edge_prop_dict = {}
+    for v in G.vertices:
         v_attr_util, v_struct_util = v.utility_values(G)
-        v_cost = attr_lib_util.calc_cost(v, G)
+        v_cost = all_costs[v.vnum]
         v_agg_util = G.sim_params['util_agg'](v_attr_util, v_struct_util, v_cost, v, G)
-        v_pos_eu = []
-        v_prop_vals = []
-        for u in edge_proposals[v]:
-            if v.is_nbor(u):
-                continue
+
+        # Skip satiated
+        if v_agg_util >= 2.0:
+            continue
+
+        # Only propose to max value candidate
+        max_val = -1
+        max_cand = None
+        candidates = [ G.vertices[i] for i in np.nonzero(edge_proposals[v.vnum])[0]] + [G.vertices[revelations[v.vnum]]]
+        for u in candidates:
             G.add_edge(v, u)
             pattr, pstruct = v.utility_values(G)
             pcost = attr_lib_util.calc_cost(v, G)
@@ -92,26 +59,20 @@ def calc_edges(G, walk_proposals='fof', prop_limit=2):
             # Optimism from >= as opposed to >
             util_del = pagg_util - v_agg_util
             if (util_del > 0) or (v.data['optimistic'] and util_del == 0):
-                v_pos_eu.append(u)
-                v_prop_vals.append(util_del)
+                if pagg_util > max_val:
+                    max_val = pagg_util
+                    max_cand = u
             G.remove_edge(v, u)
-        v_pos_sorted = [ u for _, u in
-            sorted(zip(v_prop_vals, v_pos_eu), key=lambda p : p[0]) ][::-1]
-        edge_proposals[v] = v_pos_sorted
-
-    if prop_limit > 0:
-        for v in edge_proposals:
-            edge_proposals[v] = edge_proposals[v][:prop_limit]
+        edge_prop_dict[v] = max_cand
 
     # Returns metadata
-    return G.sim_params['edge_selection'](G, edge_proposals)
+    return G.sim_params['edge_selection'](G, edge_prop_dict)
 
 def initialize_vertex(G, vtx=None):
     # If no vertex is passed as arg, creates a vertex. Otherwise uses given.
     if vtx == None:
         vtx = graph.Vertex(G.num_people)
 
-    vtx.init_attr_obs(G)
     vtx_type_dists = { t : td['likelihood'] for t, td in G.sim_params['vtx_types'].items() }
 
     chosen_type = None
@@ -125,13 +86,11 @@ def initialize_vertex(G, vtx=None):
         vtx_types = list(vtx_type_dists.keys())
         vtx_type_likelihoods = [ vtx_type_dists[vt] for vt in vtx_types ]
         chosen_type = np.random.choice(vtx_types, p=vtx_type_likelihoods)
+
     vtx.data = copy.copy(G.sim_params['vtx_types'][chosen_type])
     vtx.data['type_name'] = chosen_type
     vtx.data.pop('likelihood')
-
-    vtx.data['visited'] = set()
-
-    G.data[vtx] = vtx.data['init_attrs'](vtx, G)
+    vtx.attr_type = vtx.data['init_attrs']
 
     #NOTE: Keep old code for reference of multi-context pareto attr init
 #    contexts = np.random.choice(list(range(G.sim_params['context_count'])),
@@ -157,7 +116,10 @@ def attribute_network(n, params):
 
     G.sim_params['direct_cost'] = max(cost_roots)
     G.sim_params['indirect_cost'] = G.sim_params['direct_cost'] ** 2
-    G.sim_params['max_degree'] = math.floor(1 / G.sim_params['direct_cost'])
+    
+    # Ignore indirect cost
+    #G.sim_params['max_degree'] = math.floor(1 / G.sim_params['direct_cost'])
+    G.sim_params['max_degree'] = max_clique_degree
 
     for i in range(n):
         vtx = graph.Vertex(i)
@@ -202,115 +164,6 @@ def attribute_network(n, params):
                 G.add_edge(G.vertices[v_idx], G.vertices[row_idx(*down_vtx)])
         for v in G.vertices:
             assert v.degree > 1, 'How can degree be < 2'
-    else:
-        calc_edges(G)
 
     return G
-
-# For adding to graph
-def add_attr_graph_vtx(G, vtx=None, walk=False):
-    vtx = initialize_vertex(G, vtx)
-
-    # Select initial neighbor candidate
-    likelihoods = [ vtx.data['edge_attr_util'](vtx, u, G) for u in G.vertices ]
-    scaled_likelihoods = []
-    total_likelihood = sum(likelihoods)
-    if total_likelihood > 0:
-        scaled_likelihoods = [ lk / sum(likelihoods) for lk in likelihoods ]
-    else:
-        scaled_likelihoods = [ 1 / G.num_people for _ in range(G.num_people) ]
-    candidate = np.random.choice(G.vertices, p=scaled_likelihoods)
-
-    if walk:
-        single_random_walk(G, vtx, candidate)
-
-    G.vertices.append(vtx)
-    calc_utils(G)
-
-    return vtx
-
-def simul_random_walk(G):
-    # Take a random walk
-
-    walk_lengths = { v : attr_lib_util.random_walk_length(v, G) for v in G.vertices }
-    pos_tokens = { v : v for v in G.vertices }
-
-    # Reset visited vertices
-    for v in G.vertices:
-        v.data['visited'] = set()
-
-    max_iters = max(walk_lengths.values())
-    for _ in range(max_iters):
-        if len(walk_lengths) == 0:
-            break
-        pop_list = []
-        context_updates = {}
-        for v in walk_lengths:
-            if walk_lengths[v] == 0 or v.degree == 0:
-                pop_list.append(v)
-                continue
-            cur_vtx = pos_tokens[v]
-            edge_utils = [ e.util for e in cur_vtx.edges.values() ]
-            next_vtx = np.random.choice(list(cur_vtx.edges.keys()),
-                    p=[ eu / sum(edge_utils) for eu in edge_utils ])
-            pos_tokens[v] = next_vtx
-            if cur_vtx == v or cur_vtx in v.data['visited']:
-                continue
-            v.data['visited'].add(cur_vtx)
-            context_updates[v] = G.sim_params['attr_copy'](v, next_vtx, G)
-        for v in pop_list:
-            walk_lengths.pop(v)
-        for v, ctxts in context_updates.items():
-            G.data[v] = ctxts
-
-def single_random_walk(G, v, start=None):
-
-    # Random walk of a single vertex
-    v.data['visited'] = set()
-    if start is not None:
-        cur_vtx = start
-        v.data['visited'].add(cur_vtx)
-        G.data[v] = G.sim_params['attr_copy'](v, cur_vtx, G)
-    else:
-        cur_vtx = v
-
-    if cur_vtx.degree == 0:
-        return
-
-    for i in range(attr_lib_util.random_walk_length(v, G)):
-        edge_utils = [ e.util for e in cur_vtx.edges.values() ]
-        next_vtx = np.random.choice(list(cur_vtx.edges.keys()),
-                p=[ eu / sum(edge_utils) for eu in edge_utils ])
-        if cur_vtx in v.data['visited'] or cur_vtx == v or (i == 0 and start is not None):
-            cur_vtx = next_vtx
-        else:
-            v.data['visited'].add(cur_vtx)
-            G.data[v] = G.sim_params['attr_copy'](v, cur_vtx, G)
-            cur_vtx = next_vtx
-
-def seq_random_walk(G):
-
-    # Reset visited vertices
-    for v in G.vertices:
-        v.data['visited'] = set()
-
-    for v in np.random.permutation(G.vertices):
-        single_random_walk(G, v)
-
-def seq_global_walk(G, constrain_walk=False):
-
-    # Have everyone "walk" the entire graph in sequential order
-    for v in G.vertices:
-        v.data['visited'] = set()
-        can_add = attr_lib_util.remaining_budget(v, G) < G.sim_params['direct_cost']
-        if constrain_walk and can_add:
-            continue
-
-        for u in G.vertices:
-            if u == v:
-                continue
-
-            v.data['visited'].add(u)
-            #G.data[v] = G.sim_params['attr_copy'](v, u, G)
-            v.update_attr_obs(G, u)
 
