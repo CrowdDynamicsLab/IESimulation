@@ -3,6 +3,7 @@ from math import isclose
 
 import networkx as nx
 from scipy.sparse import linalg as scp_sla
+from scipy.special import rel_entr
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -17,12 +18,14 @@ import sys
 
 _N = 100
 satisfice = 1
-num_iters = 100
-max_clique_size = 30
+num_iters = 1000
+min_iters = 10
+max_clique_size = 10
 ctxt_likelihood = .5
 sc = [0, .25, .5, .75, 1]
 ho = [0, .25, .5, .75, 1]
-sim_iters = 5
+sim_iters = 10
+kl_tolerance = .04
 
 similarity_homophily, similarity_heterophily = alu.gen_similarity_funcs()
 schelling_homophily, schelling_heterophily = alu.gen_schelling_seg_funcs(satisfice, 'sat_count')
@@ -105,6 +108,16 @@ def plot_heat_map(data, title, min, sc, ho):
     plt.savefig(title_save, dpi = 300)
     plt.close('all')
 
+# constructing basic pdf from util list
+def to_pdf(data):
+    pdf = [0]*25
+    counts = [0]*25
+    for util in data:
+        counts[int(util*10)] = counts[int(util*10)] + 1
+    # adding 1 so none of the probs = 0
+    pdf = [(x / sum(counts)) + .001 for x in counts]
+    return pdf
+
 ################ run simulation ################
 
 def run_sim(sc_likelihood, ho_likeliood, sim_iters):
@@ -149,7 +162,11 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters):
     degree_dist = []
     util_dist = []
     cost_dist = []
+    exit_iter = [num_iters]*sim_iters
+    kl_divergence = np.inf
     for k in range(sim_iters):
+        prev_iter_util_dist = [0]*_N
+        curr_iter_util_dist = [0]*_N
         G = attribute_network(_N, params)
         G_nx = alu.graph_to_nx(G)
         max_degree = math.floor(1 / G.sim_params['direct_cost'])
@@ -161,7 +178,7 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters):
             attr_util_vals = [ u.data['total_attr_util'](u, G) for u in G.vertices ]
             struct_util_vals = [ u.data['struct_util'](u, G) for u in G.vertices ]
             costs = [ alu.calc_cost(u, G) for u in G.vertices ]
-            values = [attr_util_vals, struct_util_vals, costs]
+            values = [ attr_util_vals, struct_util_vals, costs ]
 
             ind_ob = lambda v : 1 if alu.remaining_budget(v, G) < 0 else 0
             sat_ob = lambda v : 1 if G.sim_params['util_agg'](
@@ -170,7 +187,18 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters):
                 alu.calc_cost(v, G),
                 v, G
             ) == 2.0 else 0
-
+            prev_iter_util_dist = curr_iter_util_dist
+            curr_iter_util_dist = ([v.data['struct_util'](v, G) + v.data['total_attr_util'](v,G) for v in G.vertices ])
+            prev_util_pdf = to_pdf(prev_iter_util_dist)
+            curr_util_pdf = to_pdf(curr_iter_util_dist)
+            kl_divergence = sum(rel_entr(prev_util_pdf, curr_util_pdf))
+            #print(kl_divergence)
+            if (kl_divergence <= kl_tolerance):
+                #print('kl divergence small at iter ', it)
+                if it <= min_iters:
+                    continue
+                exit_iter[k] = it
+                break
         num_components = len(get_component_sizes(G))
         over_budget = sum([ind_ob(v) for v in G.vertices])
         num_sat = sum([sat_ob(v) for v in G.vertices])
@@ -182,9 +210,12 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters):
         degree_dist = degree_dist + ([ v.degree for v in G.vertices ])
         util_dist = util_dist + ([v.data['struct_util'](v, G) + v.data['total_attr_util'](v,G) for v in G.vertices ])
         cost_dist = cost_dist + ([alu.calc_cost(v, G) for v in G.vertices ])
+
+    print('ho: ', ho_likelihood, 'sc: ', sc_likelihood, 'exited in ', np.round(np.mean(exit_iter),2), ', std: ', np.round(np.std(exit_iter),2))
+    #print(exit_iter)
     vis.graph_vis(G, image_name, info_string)
     plot_dist(G, degree_dist, util_dist, cost_dist, max_degree, image_name)
-    summary_stats = [sum(degree_dist)/len(degree_dist), sum(util_dist)/len(util_dist), sum(cost_dist)/len(cost_dist)]
+    summary_stats = [np.mean(degree_dist), np.mean(util_dist), np.mean(cost_dist), np.mean(exit_iter)]
     return summary_stats
 
 ################ run simulation with various params ################
@@ -192,6 +223,7 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters):
 degree_array = np.zeros((len(sc), len(ho)))
 util_array = np.zeros((len(sc), len(ho)))
 cost_array = np.zeros((len(sc), len(ho)))
+iter_array = np.zeros((len(sc), len(ho)))
 
 for i in sc:
     sc_likelihood = float(i)
@@ -201,6 +233,8 @@ for i in sc:
         degree_array[int((1-sc_likelihood)/float(sc[1])), int(ho_likelihood/float(ho[1]))] = summary_stats[0]
         util_array[int((1-sc_likelihood)/float(sc[1])), int(ho_likelihood/float(ho[1]))] = summary_stats[1]
         cost_array[int((1-sc_likelihood)/float(sc[1])), int(ho_likelihood/float(ho[1]))] = summary_stats[2]
+        iter_array[int((1-sc_likelihood)/float(sc[1])), int(ho_likelihood/float(ho[1]))] = summary_stats[3]
 plot_heat_map(degree_array, 'Avg Degree', 0, sc, ho)
 plot_heat_map(util_array, 'Avg Utility', 0, sc, ho)
 plot_heat_map(cost_array, 'Avg Cost', 0, sc, ho)
+plot_heat_map(iter_array, 'Avg Iterations', 0, sc, ho)
