@@ -2,6 +2,7 @@ from collections import defaultdict
 from math import isclose
 
 import networkx as nx
+import community as community_louvain
 from scipy.sparse import linalg as scp_sla
 from scipy.special import rel_entr
 import numpy as np
@@ -22,10 +23,12 @@ num_iters = 1000
 min_iters = 10
 max_clique_size = 10
 ctxt_likelihood = .5
-sc = [0, .25, .5, .75, 1]
-ho = [0, .25, .5, .75, 1]
-sim_iters = 10
-kl_tolerance = .04
+sc = [0, .125, .25, .375, .5, .625, .75, .875, 1]
+ho = [0, .125, .25, .375, .5, .625, .75, .875, 1]
+#sc = [0,1]
+#ho = [0,1]
+sim_iters = 1
+kl_tolerance = .065
 
 similarity_homophily, similarity_heterophily = alu.gen_similarity_funcs()
 schelling_homophily, schelling_heterophily = alu.gen_schelling_seg_funcs(satisfice, 'sat_count')
@@ -162,6 +165,7 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters):
     degree_dist = []
     util_dist = []
     cost_dist = []
+    ind_cost_dist = []
     exit_iter = [num_iters]*sim_iters
     kl_divergence = np.inf
     for k in range(sim_iters):
@@ -199,6 +203,7 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters):
                     continue
                 exit_iter[k] = it
                 break
+
         num_components = len(get_component_sizes(G))
         over_budget = sum([ind_ob(v) for v in G.vertices])
         num_sat = sum([sat_ob(v) for v in G.vertices])
@@ -211,11 +216,17 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters):
         util_dist = util_dist + ([v.data['struct_util'](v, G) + v.data['total_attr_util'](v,G) for v in G.vertices ])
         cost_dist = cost_dist + ([alu.calc_cost(v, G) for v in G.vertices ])
 
+    ind_cost_dist = np.array(cost_dist) - np.array(degree_dist)*G.sim_params['direct_cost']
     print('ho: ', ho_likelihood, 'sc: ', sc_likelihood, 'exited in ', np.round(np.mean(exit_iter),2), ', std: ', np.round(np.std(exit_iter),2))
     #print(exit_iter)
+    partition = {}
+    partition = community_louvain.best_partition(alu.graph_to_nx(G))
+    #print(partition)
     vis.graph_vis(G, image_name, info_string)
+    vis.draw_graph(G, partition, image_name)
+
     plot_dist(G, degree_dist, util_dist, cost_dist, max_degree, image_name)
-    summary_stats = [np.mean(degree_dist), np.mean(util_dist), np.mean(cost_dist), np.mean(exit_iter)]
+    summary_stats = [np.mean(degree_dist), np.mean(util_dist), np.mean(cost_dist), np.mean(exit_iter), np.mean(ind_cost_dist)]
     return summary_stats
 
 ################ run simulation with various params ################
@@ -224,6 +235,7 @@ degree_array = np.zeros((len(sc), len(ho)))
 util_array = np.zeros((len(sc), len(ho)))
 cost_array = np.zeros((len(sc), len(ho)))
 iter_array = np.zeros((len(sc), len(ho)))
+ind_cost_array = np.zeros((len(sc), len(ho)))
 
 for i in sc:
     sc_likelihood = float(i)
@@ -234,7 +246,9 @@ for i in sc:
         util_array[int((1-sc_likelihood)/float(sc[1])), int(ho_likelihood/float(ho[1]))] = summary_stats[1]
         cost_array[int((1-sc_likelihood)/float(sc[1])), int(ho_likelihood/float(ho[1]))] = summary_stats[2]
         iter_array[int((1-sc_likelihood)/float(sc[1])), int(ho_likelihood/float(ho[1]))] = summary_stats[3]
+        ind_cost_array[int((1-sc_likelihood)/float(sc[1])), int(ho_likelihood/float(ho[1]))] = summary_stats[4]
 plot_heat_map(degree_array, 'Avg Degree', 0, sc, ho)
 plot_heat_map(util_array, 'Avg Utility', 0, sc, ho)
 plot_heat_map(cost_array, 'Avg Cost', 0, sc, ho)
 plot_heat_map(iter_array, 'Avg Iterations', 0, sc, ho)
+plot_heat_map(ind_cost_array, 'Avg Ind Cost', 0, sc, ho)
