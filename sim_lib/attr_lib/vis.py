@@ -1,29 +1,31 @@
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 import networkx as nx
 import numpy as np
 import plotly.graph_objects as go
 
 import sim_lib.attr_lib.util as attr_util
 
-def draw_graph(G_attr):
-    G_attr_nx = attr_util.graph_to_nx(G_attr)
-    G_attr_vtx_pos = nx.drawing.layout.spring_layout(G_attr_nx)
+def draw_graph(G_attr, partition, info_string):
+    G = attr_util.graph_to_nx(G_attr)
+    pos = nx.spring_layout(G)
 
-    colors = [ v.data['color'] if 'color' in v.data else 'b' for v in G_attr.vertices ]
+    cmap = cm.get_cmap('viridis', max(partition.values()) + 1)
+
+    #nodes = nx.draw_networkx_nodes(G, pos, partition.keys(), node_size=40, cmap=cmap, node_color=list(partition.values()))
+    #edges = nx.draw_networkx_edges(G, pos, alpha=0.5)
+
     node_sizes = []
+    labels_array = []
 
-#    node_sizes = [300*(max(attr_util.remaining_budget(v, G_attr), 0) + 2 ** -10) for v in G_attr.vertices ]
     for v in G_attr.vertices:
         v_attr_util, v_struct_util = v.utility_values(G_attr)
-        v_cost = attr_util.calc_cost(v, G_attr)
-        v_agg_util = G_attr.sim_params['util_agg'](v_attr_util, v_struct_util, v_cost)
-        node_sizes.append(200 * v_agg_util + 25)
+        node_sizes.append(20 * (v_attr_util + v_struct_util))
 
-    # Draw graph
-    plt.figure(figsize=(15,15))
-    nx.draw_networkx(G_attr_nx, pos=G_attr_vtx_pos, node_color=colors,
-            node_size=node_sizes, width=0.6, with_labels=True)
-    plt.show()
+    nx.draw(G, pos, with_labels = False, nodelist = partition.keys(), node_size=node_sizes, cmap=cmap, node_color=list(partition.values()), font_size = 5)
+    save_string = 'figures/networks/community_' + info_string + '.png'
+    plt.savefig(save_string, dpi = 1000)
+    plt.close('all')
 
 def make_edge(x, y):
     return  go.Scatter(x         = x,
