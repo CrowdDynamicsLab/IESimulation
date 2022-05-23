@@ -20,7 +20,7 @@ def draw_graph(G_attr, partition, info_string):
 
     for v in G_attr.vertices:
         v_attr_util, v_struct_util = v.utility_values(G_attr)
-        node_sizes.append(20 * (v_attr_util + v_struct_util))
+        node_sizes.append((v_attr_util + v_struct_util) + 20)
 
     nx.draw(G, pos, with_labels = False, nodelist = partition.keys(), node_size=node_sizes, cmap=cmap, node_color=list(partition.values()), font_size = 5)
     save_string = 'figures/networks/community_' + info_string + '.png'
@@ -33,7 +33,7 @@ def make_edge(x, y):
                        line = dict(color = 'black', width = 1),
                        mode      = 'lines')
 
-def graph_vis(G, name, string):
+def graph_vis(G, name, string, partition):
     G_nx = attr_util.graph_to_nx(G)
     pos = nx.spring_layout(G_nx)
     edge_trace = []
@@ -57,8 +57,9 @@ def graph_vis(G, name, string):
                             hovertext = [],
                             text      = [],
                             mode      = 'markers+text',
-                            marker    = dict(color = [],
+                            marker    = dict(color = list(partition.values()),
                                              size  = [],
+                                             symbol = [],
                                              line  = None))
     for node in G_nx.nodes():
         x, y = pos[node]
@@ -68,7 +69,8 @@ def graph_vis(G, name, string):
         node_info = str(node) + '\n Structural utility: ' + str(np.round(G_nx.nodes()[node]['struct_util'],2)) + '\n Attribute utility: ' + str(np.round(G_nx.nodes()[node]['attr_util'],2)) + '\n Cost: ' + str(np.round(G_nx.nodes()[node]['cost'],2))
         node_trace['hovertext'] += tuple([node_info])
         node_trace['text'] += tuple([node])
-        node_trace['marker']['color'] += tuple([G_nx.nodes()[node]['color']])
+        #node_trace['marker']['color'] += 
+        node_trace['marker']['symbol'] += tuple([G_nx.nodes()[node]['shape']])
 
 
     layout = go.Layout(xaxis = {'showgrid': False, 'zeroline': False, 'title': string},

@@ -638,12 +638,14 @@ def graph_to_nx(G, with_labels=True):
             attr_util = vtx.data['total_attr_util'](vtx, G)
             struct_util = vtx.data['struct_util'](vtx, G)
             cost = calc_cost(vtx, G)
-            color = vtx.data['color']
+            #color = vtx.data['color']
+            shape = vtx.data['shape']
             nx_G.add_node(vtx,
                 attr_util=attr_util,
                 struct_util=struct_util,
                 cost=cost,
-                color=color)
+                #color=color,
+                shape=shape)
         else:
             nx_G.add_node(vtx)
 
