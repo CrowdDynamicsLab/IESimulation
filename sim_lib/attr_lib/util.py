@@ -3,6 +3,7 @@ Util functions used in attribute search network
 """
 import math
 from collections import defaultdict
+import time
 
 import numpy as np
 from scipy.sparse import linalg as scp_sla
@@ -147,6 +148,8 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
     # Prepare metadata collection for analysis
     metadata = { }
 
+    times = []
+    
     for v in G.vertices:
         metadata[v] = { }
         metadata[v]['num_proposals'] = 0
@@ -202,20 +205,10 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
             metadata[v]['cost_delta'] = 0
             continue
 
-        if cur_util_agg == 2.0:
-            if log:
-                print('-----------------------------------------')
-                print(v, 'satiated, doing nothing')
-                print('-----------------------------------------')
-            metadata[v]['action'] = 'satiated'
-            metadata[v]['attr_delta'] = 0
-            metadata[v]['struct_delta'] = 0
-            metadata[v]['cost_delta'] = 0
-            continue
-
         candidates = []
 
-        can_add_nbor = remaining_budget(v, G) >= G.sim_params['direct_cost']
+        #can_add_nbor = remaining_budget(v, G) >= G.sim_params['direct_cost']
+        can_add_nbor = remaining_budget(v, G) > 0
         for u in v.nbors:
 
             # Consider drop choices
@@ -224,12 +217,18 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
                 # Disallow early drops
                 break
 
-            u_cur_au = u.data['total_attr_util'](u, G)
-            u_cur_su = u.data['struct_util'](u, G)
-            u_cur_agg_util = util_agg(u_cur_au, u_cur_su, calc_cost(u, G), u, G)
+            #u_cur_au = u.data['total_attr_util'](u, G)
+            #u_cur_su = u.data['struct_util'](u, G)
+            #u_cur_agg_util = util_agg(u_cur_au, u_cur_su, calc_cost(u, G), u, G)
 
             G.remove_edge(v, u)
+            attr_change = -1 * G.potential_utils[v.vnum][u.vnum] / G.sim_params['max_degree']
+            struct_change = v.data['struct_util'](v, G) - cur_struct_util
+            attr_util_deltas.append(attr_change)
+            struct_util_deltas.append(struct_change)
+            cost_deltas.append(1 / G.sim_params['max_degree'])
 
+            """
             # Check dropped vtx util change
             u_drop_au = u.data['total_attr_util'](u, G) - u_cur_au
             u_drop_su = u.data['struct_util'](u, G) - u_cur_su
@@ -246,6 +245,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
 
             # Ordered so that reduction in cost is positive
             cost_deltas.append(cur_cost - calc_cost(v, G))
+            """
             G.add_edge(v, u)
 
             candidates.append(u)
@@ -260,9 +260,10 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
 
             # Would have budget to add (remaining_budget assumes add here)
             if remaining_budget(v, G) >= 0:
-                attr_util_deltas.append(v.data['total_attr_util'](v, G) - cur_attr_util)
+                attr_change = G.potential_utils[v.vnum][u.vnum] / G.sim_params['max_degree']
+                attr_util_deltas.append(attr_change)
                 struct_util_deltas.append(v.data['struct_util'](v, G) - cur_struct_util)
-                cost_deltas.append(cur_cost - calc_cost(v, G))
+                cost_deltas.append(-1  / G.sim_params['max_degree'])
                 metadata[v]['num_proposals'] += 1
                 candidates.append(u)
 
@@ -279,12 +280,13 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
                 if u == w:
                     continue
 
-                w_cur_au = u.data['total_attr_util'](u, G)
-                w_cur_su = u.data['struct_util'](u, G)
-                w_cur_agg_util = util_agg(w_cur_au, w_cur_su, calc_cost(w, G), w, G)
+                #w_cur_au = u.data['total_attr_util'](u, G)
+                #w_cur_su = u.data['struct_util'](u, G)
+                #w_cur_agg_util = util_agg(w_cur_au, w_cur_su, calc_cost(w, G), w, G)
 
                 G.remove_edge(v, w)
 
+                """
                 # Check dropped vtx util change
                 w_drop_au = w.data['total_attr_util'](u, G) - w_cur_au
                 w_drop_su = w.data['struct_util'](u, G) - w_cur_su
@@ -295,6 +297,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
                 #if w_drop_agg_util - w_cur_agg_util < 0:
                     #G.add_edge(v, w)
                     #continue
+                """
 
                 if remaining_budget(v, G) >= 0:
 

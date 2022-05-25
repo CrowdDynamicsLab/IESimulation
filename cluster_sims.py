@@ -31,7 +31,7 @@ sim_iters = 1
 kl_tolerance = .065
 
 similarity_homophily, similarity_heterophily = alu.gen_similarity_funcs()
-schelling_homophily, schelling_heterophily = alu.gen_schelling_seg_funcs(satisfice, 'sat_count')
+total_attr_util = alu.gen_attr_util_func(satisfice)
 
 # Create types
 def type_dict(context, color, context_p, attr, struct):
@@ -40,16 +40,16 @@ def type_dict(context, color, context_p, attr, struct):
         struct_func = alu.satisfice(satisfice)(alu.triangle_count)
         likelihood = likelihood * (1 - sc_likelihood)
     else:
-        struct_func = alu.satisfice(satisfice)(alu.degree_indep_size)
+        struct_func = alu.satisfice(satisfice)(alu.num_disc_nbors)
         likelihood = likelihood * sc_likelihood
     if attr == 'ho':
         attr_edge_func = similarity_homophily
-        attr_total_func = schelling_homophily
         likelihood = likelihood * ho_likelihood
     else:
         attr_edge_func = similarity_heterophily
-        attr_total_func = schelling_heterophily
         likelihood = likelihood * (1 - ho_likelihood)
+
+    attr_total_func = total_attr_util
 
     #Base color is a rgb list
     base_dict = {'likelihood' : likelihood,
@@ -124,7 +124,7 @@ def to_pdf(data):
 ################ run simulation ################
 
 def run_sim(sc_likelihood, ho_likeliood, sim_iters):
-    ctxt_types = [alu.init_cont_homophily, alu.init_cont_heterophily]
+    ctxt_types = [-1, 1]
     ctxt_base_colors = [[43, 98, 166], [161, 39, 45]]
     ctxt_p = [ctxt_likelihood, 1-ctxt_likelihood]
     struct_types = ['em', 'sc']
