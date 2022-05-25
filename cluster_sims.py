@@ -34,7 +34,7 @@ similarity_homophily, similarity_heterophily = alu.gen_similarity_funcs()
 total_attr_util = alu.gen_attr_util_func(satisfice)
 
 # Create types
-def type_dict(context, color, context_p, attr, struct):
+def type_dict(context, shape, context_p, attr, struct):
     likelihood = context_p
     if struct == 'em':
         struct_func = alu.satisfice(satisfice)(alu.triangle_count)
@@ -58,7 +58,10 @@ def type_dict(context, color, context_p, attr, struct):
               'edge_attr_util' : attr_edge_func,
               'total_attr_util' : attr_total_func,
               'optimistic' : False,
-              'color' : 'rgb({rgb})'.format(rgb=', '.join([ str(c) for c in color ])) }
+              #'color' : 'rgb({rgb})'.format(rgb=', '.join([ str(c) for c in color ])),
+              'shape' :  shape
+              #'{shape}'.format(shape=', '.join([str(s) for s in shape]))
+              }
 
     return base_dict
 
@@ -125,11 +128,12 @@ def to_pdf(data):
 
 def run_sim(sc_likelihood, ho_likeliood, sim_iters):
     ctxt_types = [-1, 1]
-    ctxt_base_colors = [[43, 98, 166], [161, 39, 45]]
+    #ctxt_base_colors = [[43, 98, 166], [161, 39, 45]]
+    ctxt_base_shapes = [0 , 2]
     ctxt_p = [ctxt_likelihood, 1-ctxt_likelihood]
     struct_types = ['em', 'sc']
     attr_types = ['ho', 'he']
-    type_itr = [ (ctxt, col, ct_p, at, st) for (ctxt, col, ct_p) in zip(ctxt_types, ctxt_base_colors, ctxt_p)
+    type_itr = [ (ctxt, shape, ct_p, at, st) for (ctxt, shape, ct_p) in zip(ctxt_types, ctxt_base_shapes, ctxt_p)
                 for (at, st) in [(a, s) for a in attr_types for s in struct_types] ]
     type_list = [ type_dict(*t_args) for t_args \
                   in type_itr ]
@@ -222,8 +226,8 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters):
     partition = {}
     partition = community_louvain.best_partition(alu.graph_to_nx(G))
     #print(partition)
-    vis.graph_vis(G, image_name, info_string)
-    vis.draw_graph(G, partition, image_name)
+    vis.graph_vis(G, image_name, info_string, partition)
+    #vis.draw_graph(G, partition, image_name)
 
     plot_dist(G, degree_dist, util_dist, cost_dist, max_degree, image_name)
     summary_stats = [np.mean(degree_dist), np.mean(util_dist), np.mean(cost_dist), np.mean(exit_iter), np.mean(ind_cost_dist)]
