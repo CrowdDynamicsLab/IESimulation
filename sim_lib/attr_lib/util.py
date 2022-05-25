@@ -53,7 +53,7 @@ def triangle_count(v, G):
 
     # Number of triangles that v is a part of
     clique_deg = G.sim_params['max_clique_size'] - 1
-    max_triangles = math.comb(clique_deg, 2)
+    max_triangles = (clique_deg * (clique_deg - 1)) / 2
     triangle_cnt = np.sum(G.nborhood_adj_mat(v)) / 2
 
     return min(1.0, triangle_cnt / max_triangles)
@@ -62,7 +62,8 @@ def num_disc_nbors(v, G):
 
     nbor_mat = G.nborhood_adj_mat(v)
     nbor_deg = np.sum(nbor_mat, axis=0)
-    num_disc = len(nbor_deg) - len(np.nonzero(nbor_deg)[0])
+    num_con = np.count_nonzero(nbor_deg)
+    num_disc = v.degree - num_con
     return min(1.0, num_disc / G.sim_params['max_degree'])
 
 ##################
@@ -148,8 +149,6 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
     # Prepare metadata collection for analysis
     metadata = { }
 
-    times = []
-    
     for v in G.vertices:
         metadata[v] = { }
         metadata[v]['num_proposals'] = 0

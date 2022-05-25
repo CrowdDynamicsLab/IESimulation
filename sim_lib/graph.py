@@ -3,8 +3,10 @@ Implementation for a graph
 Includes methods for generating graphs
 """
 
-import numpy as np
 from collections import OrderedDict, defaultdict
+from functools import cached_property
+
+import numpy as np
 
 class Vertex:
     """
@@ -106,11 +108,16 @@ class Graph:
 
         # Potential utility matrix
         self.potential_utils = []
+        
+        self.adj_matrix = None
 
     @property
     def num_people(self):
         return len(self.vertices)
 
+    def _clear_cache(self):
+        self.__dict__.pop('adj_matrix', None)
+    
     def add_edge(self, u, v):
         """
         Adds edge between u and v
@@ -119,6 +126,8 @@ class Graph:
         if not self.are_neighbors(u, v):
             u.edges[v] = Edge(self.potential_utils[u.vnum][v.vnum])
             v.edges[u] = Edge(self.potential_utils[v.vnum][u.vnum])
+            self.adj_matrix[u.vnum][v.vnum] = 1
+            self.adj_matrix[v.vnum][u.vnum] = 1 
 
     def remove_edge(self, u, v, reflexive=True):
         """
@@ -130,9 +139,13 @@ class Graph:
         if v in u.edges:
             u.edges[v].data = None
             u.edges.pop(v)
+            self.adj_matrix[u.vnum][v.vnum] = 0
+            self.adj_matrix[v.vnum][u.vnum] = 0
         if reflexive and u in v.edges:
             v.edges[u].data = None
             v.edges.pop(u)
+            self.adj_matrix[u.vnum][v.vnum] = 0
+            self.adj_matrix[v.vnum][u.vnum] = 0
 
     @property
     def edge_count(self):
@@ -141,8 +154,7 @@ class Graph:
     def are_neighbors(self, u, v):
         return (u in v.nbors) and (v in u.nbors)
 
-    @property
-    def adj_matrix(self):
+    def init_adj_matrix(self):
 
         # Returns numpy matrix indexed by vnum
         adj_mat = np.zeros((self.num_people, self.num_people))
@@ -151,6 +163,7 @@ class Graph:
                 if v.is_nbor(u):
                     adj_mat[v.vnum][u.vnum] = 1
                     adj_mat[u.vnum][v.vnum] = 1
+        self.adj_matrix = adj_mat
         return adj_mat
     
     @property

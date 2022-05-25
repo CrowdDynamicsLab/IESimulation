@@ -23,8 +23,6 @@ def calc_utils(G):
 
 def calc_edges(G, walk_proposals='fof'):
    
-    start_time = time.time()
-    
     adj_mat = G.adj_matrix
     d2_mat = adj_mat @ adj_mat
     nbor_mask = -1 * (adj_mat - 1)
@@ -41,9 +39,6 @@ def calc_edges(G, walk_proposals='fof'):
     all_costs = attr_lib_util.calc_all_costs(G)
     edge_prop_dict = {}
     
-    adj_mat_time = time.time()
-    #print('ce adj mat time', adj_mat_time - start_time)
-    
     for v in G.vertices:
         v_attr_util, v_struct_util = v.utility_values(G)
         v_cost = all_costs[v.vnum]
@@ -56,7 +51,8 @@ def calc_edges(G, walk_proposals='fof'):
         # Only propose to max value candidate
         max_val = -1
         max_cand = None
-        candidates = [ G.vertices[i] for i in np.nonzero(edge_proposals[v.vnum])[0]] + [G.vertices[revelations[v.vnum]]]
+        candidates = [ G.vertices[i] for i in np.nonzero(edge_proposals[v.vnum])[0]]
+        candidates.append(G.vertices[revelations[v.vnum]])
         for u in candidates:
             G.add_edge(v, u)
             pattr, pstruct = v.utility_values(G)
@@ -71,9 +67,6 @@ def calc_edges(G, walk_proposals='fof'):
                     max_cand = u
             G.remove_edge(v, u)
         edge_prop_dict[v] = max_cand
-        
-    cand_sel_time = time.time()
-    #print('cand sel time', cand_sel_time - adj_mat_time)
 
     # Returns metadata
     return G.sim_params['edge_selection'](G, edge_prop_dict)
@@ -175,5 +168,6 @@ def attribute_network(n, params):
         for v in G.vertices:
             assert v.degree > 1, 'How can degree be < 2'
 
+    G.init_adj_matrix()
     return G
 
