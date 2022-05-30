@@ -152,7 +152,7 @@ class Graph:
         return sum([ v.degree for v in self.vertices ]) // 2
 
     def are_neighbors(self, u, v):
-        return (u in v.nbors) and (v in u.nbors)
+        return self.adj_matrix[v.vnum][u.vnum] == 1
 
     def init_adj_matrix(self):
 

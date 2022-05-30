@@ -137,36 +137,24 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
     # of multiobjective optimization function
     # Assumes even split of coefficients
 
-    #if log:
-        #NOTE: Consider adding back once not global
-        #print('proposals:', edge_proposals)
-
     util_agg = G.sim_params['util_agg']
 
     proposed_by = { v : [ u for u, u_prop in edge_proposals.items() if v == u_prop ] \
             for v in G.vertices }
 
-    # Prepare metadata collection for analysis
-    metadata = { }
+    # For each candidate store its max cost inc action and its cost non-inc action
+    v_move = { }
 
     for v in G.vertices:
-        metadata[v] = { }
-        metadata[v]['num_proposals'] = 0
 
-        attr_util_deltas = []
-        struct_util_deltas = []
-        cost_deltas = []
+        #NOTE: the init max val would be negative for an optimistic agent
+        max_inc_cand = None
+        max_inc_val = 0
+        max_ninc_cand = None
+        max_ninc_val = 0
 
         # No options
         if len(v.nbors) == 0 and len(proposed_by[v]) == 0:
-            if log:
-                print('-----------------------------------------')
-                print(v, 'had no nbors or props')
-                print('-----------------------------------------')
-            metadata[v]['action'] = 'none'
-            metadata[v]['attr_delta'] = 0
-            metadata[v]['struct_delta'] = 0
-            metadata[v]['cost_delta'] = 0
             continue
             
         cur_attr_util = v.data['total_attr_util'](v, G)
@@ -174,7 +162,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
         cur_cost = calc_cost(v, G)
 
         # Satiated
-        cur_util_agg = G.sim_params['util_agg'](
+        cur_agg_util = util_agg( 
             cur_attr_util,
             cur_struct_util,
             cur_cost, v, G
@@ -182,29 +170,11 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
 
         # No point checking proposal/single drop values if over budget anyways
         if remaining_budget(v, G) < 0:
-
-            # Budget resolution
-            if log:
-                print('has to resolve budget via subset drop')
             subset_budget_resolution(v, G, util_agg)
-            metadata[v]['action'] = 'budget_resolve'
-            metadata[v]['attr_delta'] = v.data['total_attr_util'](v, G) - cur_attr_util
-            metadata[v]['struct_delta'] = v.data['struct_util'](v, G) - cur_struct_util
-            metadata[v]['cost_delta'] = cur_cost - calc_cost(v, G)
             continue
             
-        if cur_util_agg == 2.0:
-            if log:
-                print('-----------------------------------------')
-                print(v, 'satiated, doing nothing')
-                print('-----------------------------------------')
-            metadata[v]['action'] = 'satiated'
-            metadata[v]['attr_delta'] = 0
-            metadata[v]['struct_delta'] = 0
-            metadata[v]['cost_delta'] = 0
+        if cur_agg_util == 2.0:
             continue
-
-        candidates = []
 
         #can_add_nbor = remaining_budget(v, G) >= G.sim_params['direct_cost']
         can_add_nbor = remaining_budget(v, G) > 0
@@ -216,38 +186,22 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
                 # Disallow early drops
                 break
 
-            #u_cur_au = u.data['total_attr_util'](u, G)
-            #u_cur_su = u.data['struct_util'](u, G)
-            #u_cur_agg_util = util_agg(u_cur_au, u_cur_su, calc_cost(u, G), u, G)
-
             G.remove_edge(v, u)
             attr_change = -1 * G.potential_utils[v.vnum][u.vnum] / G.sim_params['max_degree']
-            struct_change = v.data['struct_util'](v, G) - cur_struct_util
-            attr_util_deltas.append(attr_change)
-            struct_util_deltas.append(struct_change)
-            cost_deltas.append(1 / G.sim_params['max_degree'])
+            cost_change = 1 / G.sim_params['max_degree']
+            agg_util = util_agg(
+                cur_attr_util + attr_change,
+                v.data['struct_util'](v, G),
+                cur_cost + cost_change,
+                v, G
+            )
+            agg_change = agg_util - cur_agg_util
 
-            """
-            # Check dropped vtx util change
-            u_drop_au = u.data['total_attr_util'](u, G) - u_cur_au
-            u_drop_su = u.data['struct_util'](u, G) - u_cur_su
-            u_drop_cost = calc_cost(u, G)
-            u_drop_agg_util = util_agg(u_drop_au, u_drop_su, u_drop_cost, u, G)
+            if agg_change > max_ninc_val:
+                max_ninc_val = agg_change
+                max_ninc_cand = u
 
-            # Require that drops be mutually beneficial
-            #if u_drop_agg_util - u_cur_agg_util < 0:
-            #   G.add_edge(v, u)
-            #   continue
-
-            attr_util_deltas.append(v.data['total_attr_util'](v, G) - cur_attr_util)
-            struct_util_deltas.append(v.data['struct_util'](v, G) - cur_struct_util)
-
-            # Ordered so that reduction in cost is positive
-            cost_deltas.append(cur_cost - calc_cost(v, G))
-            """
             G.add_edge(v, u)
-
-            candidates.append(u)
 
         for u in proposed_by[v]:
 
@@ -260,11 +214,18 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
             # Would have budget to add (remaining_budget assumes add here)
             if remaining_budget(v, G) >= 0:
                 attr_change = G.potential_utils[v.vnum][u.vnum] / G.sim_params['max_degree']
-                attr_util_deltas.append(attr_change)
                 struct_util_deltas.append(v.data['struct_util'](v, G) - cur_struct_util)
-                cost_deltas.append(-1  / G.sim_params['max_degree'])
-                metadata[v]['num_proposals'] += 1
-                candidates.append(u)
+                cost_change = -1  / G.sim_params['max_degree']
+                agg_util = util_agg(
+                    cur_attr_util + attr_change,
+                    v.data['struct_util'](v, G),
+                    cur_cost + cost_change,
+                    v, G
+                )
+                agg_change = agg_util - cur_agg_util
+                if agg_change > max_inc_val:
+                    max_inc_val = agg_change
+                    max_inc_cand = u
 
             if (not allow_early_drop and can_add_nbor) or not substitute:
 
@@ -279,121 +240,48 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
                 if u == w:
                     continue
 
-                #w_cur_au = u.data['total_attr_util'](u, G)
-                #w_cur_su = u.data['struct_util'](u, G)
-                #w_cur_agg_util = util_agg(w_cur_au, w_cur_su, calc_cost(w, G), w, G)
-
                 G.remove_edge(v, w)
-
-                """
-                # Check dropped vtx util change
-                w_drop_au = w.data['total_attr_util'](u, G) - w_cur_au
-                w_drop_su = w.data['struct_util'](u, G) - w_cur_su
-                w_drop_cost = calc_cost(w, G)
-                w_drop_agg_util = util_agg(w_drop_au, w_drop_su, w_drop_cost, w, G)
-
-                # Require that drops be mutually beneficial
-                #if w_drop_agg_util - w_cur_agg_util < 0:
-                    #G.add_edge(v, w)
-                    #continue
-                """
 
                 if remaining_budget(v, G) >= 0:
 
                     # Disallow substitution if over budget
-                    attr_util_deltas.append(v.data['total_attr_util'](v, G) - cur_attr_util)
+                    attr_change = (G.potential_utils[v.vnum][u.vnum] - G.potential_utils[v.vnum][w.vnum])
+                        / G.sim_params['max_degree']
                     struct_util_deltas.append(v.data['struct_util'](v, G) - cur_struct_util)
 
-                    # Ordered so that reduction in cost is positive
-                    cost_deltas.append(cur_cost - calc_cost(v, G))
+                    agg_util = util_agg(
+                        cur_attr_util + attr_change,
+                        v.data['struct_util'](v, G),
+                        cur_cost,
+                        v, G
+                    )
+                    agg_change = agg_util - cur_agg_util
+                    if agg_change > max_ninc_val:
+                        max_ninc_val = agg_change
+                        max_ninc_cand = (u, w)
 
-                    candidates.append((u, w))
                 G.add_edge(v, w)
             G.remove_edge(v, u)
 
-        if len(candidates) == 0:
-            if log:
-                print('\n-------------------------------------------------------------------')
-                header = np.array([('Vertex', 'Degree','Budget Used'), (str(v.vnum), str(v.degree), str(calc_cost(v,G)))])
-                print(tabulate(header))
-                print(v, 'had no options')
-            metadata[v]['action'] = 'none'
-            metadata[v]['attr_delta'] = 0
-            metadata[v]['struct_delta'] = 0
-            metadata[v]['cost_delta'] = 0
-            continue
-
-        candidate_value_points = list(zip(attr_util_deltas, struct_util_deltas, cost_deltas))
-        norm_values = [ util_agg(a, s, c, v, G) for a, s, c in candidate_value_points ]
-        max_val_candidate_idx = np.argmax(norm_values)
-        max_val_candidate = candidates[ max_val_candidate_idx ]
-
-        if log:
-            print('\n-------------------------------------------------------------------')
-            header = np.array([('Vertex', 'Degree','Budget Used'), (str(v.vnum), str(v.degree), str(calc_cost(v,G)))])
-            print(tabulate(header, headers="firstrow"))
-            candidate_value_rounded = [ (round(a, 2), round(s, 2), round(c, 2)) for (a, s, c) in candidate_value_points ]
-            data = np.array([candidates, candidate_value_rounded]).T
-            print('\n', tabulate(data, headers=['Candidates', '(Attr Util, Struct Util, Cost)']))
-            #print([ s + c for a, s, c in candidate_value_points ])
-            print('\nmax:', max_val_candidate)
-            if not v.data['optimistic'] and norm_values[max_val_candidate_idx] <= 0:
-                print('chose do nothing')
-            elif type(max_val_candidate) != tuple and max_val_candidate not in v.nbors:
-                print('chose to add', max_val_candidate)
-            elif type(max_val_candidate) == tuple:
-                u, w = max_val_candidate
-                print('chose to substitute', w, 'for', u)
-            elif allow_early_drop and max_val_candidate in v.nbors and norm_values[max_val_candidate_idx] > 0:
-                print('chose to early drop', max_val_candidate)
-            else:
-                print('chose do nothing')
-
-        if remaining_budget(v, G) < 0:
-            raise(ValueError, "Reached end of edge selection when budget resolution should have been enforced")
-
-        # Either optimistic or max val move is stirctly positive
-        max_val = norm_values[max_val_candidate_idx]
-        if (max_val < 0) or (not v.data['optimistic'] and max_val == 0):
-
-            # No non-negative change candidates
-            metadata[v]['action'] = 'none'
-            metadata[v]['attr_delta'] = 0
-            metadata[v]['struct_delta'] = 0
-            metadata[v]['cost_delta'] = 0
-            continue
-        elif type(max_val_candidate) != tuple and max_val_candidate not in v.nbors:
-
-            # Edge formation
-            metadata[v]['action'] = 'addition'
-            G.add_edge(v, max_val_candidate)
-        elif type(max_val_candidate) == tuple:
-
-            # Substitution
-            metadata[v]['action'] = 'substitution'
-            add_vtx, rem_vtx = max_val_candidate
-            G.add_edge(v, add_vtx)
-            G.remove_edge(v, rem_vtx)
-        elif allow_early_drop and max_val_candidate in v.nbors and max_val > 0:
-
-            # Early single drop
-            metadata[v]['action'] = 'drop'
-            G.remove_edge(v, max_val_candidate)
+        if remaining_budget(v, G) < (1 / G.sim_params['max_degree']) and len(edge_proposals[v]) > 0:
+            v_move[v] = max_ninc_cand
+        elif max_inc_val >= max_ninc_val:
+            v_move[v] = max_inc_cand
         else:
+            v_move[v] = max_ninc_cand
 
-            # When dropping gives 0 utility change
-            metadata[v]['action'] = 'none'
-            metadata[v]['attr_delta'] = 0
-            metadata[v]['struct_delta'] = 0
-            metadata[v]['cost_delta'] = 0
+    for v, cand in v_move.items():
+        if cand is None:
             continue
+        if type(cand) == tuple:
+            G.add_edge(v, cand[0])
+            G.remove_edge(v, cand[1])
+        elif G.are_neighbors(v, cand):
+            G.remove_edge(v, cand)
+        else:
+            G.add_edge(v, cand)
 
-        # Add additional iteration metadata
-        metadata[v]['attr_delta'] = attr_util_deltas[max_val_candidate_idx]
-        metadata[v]['struct_delta'] = struct_util_deltas[max_val_candidate_idx]
-        metadata[v]['cost_delta'] = cost_deltas[max_val_candidate_idx]
-
-    return metadata
+    return v_move
 
 # Utility aggregation functions
 def linear_util_agg(a, s, c, v, G):
