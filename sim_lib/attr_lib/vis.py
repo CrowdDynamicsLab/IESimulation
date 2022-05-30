@@ -33,7 +33,7 @@ def make_edge(x, y):
                        line = dict(color = 'black', width = 1),
                        mode      = 'lines')
 
-def graph_vis(G, name, string, partition):
+def graph_vis(G, name, string, partition, save=True):
     G_nx = attr_util.graph_to_nx(G)
     pos = nx.spring_layout(G_nx)
     edge_trace = []
@@ -88,6 +88,9 @@ def graph_vis(G, name, string, partition):
     fig.update_layout(title = name)
     fig.update_xaxes(showticklabels = False)
     fig.update_yaxes(showticklabels = False)
-    #fig.show()
-    plot_name = 'figures/networks/' + name + '.png'
-    fig.write_image(plot_name)
+    if save:
+        plot_name = 'figures/networks/' + name + '.png'
+        fig.write_image(plot_name)
+    else:
+        fig.show()
+        

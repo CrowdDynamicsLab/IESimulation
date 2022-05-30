@@ -46,6 +46,7 @@ def calc_edges(G, walk_proposals='fof'):
 
         # Skip satiated
         if v_agg_util >= 2.0:
+            edge_prop_dict[v] = None
             continue
 
         # Only propose to max value candidate

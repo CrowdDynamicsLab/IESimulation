@@ -188,7 +188,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
 
             G.remove_edge(v, u)
             attr_change = -1 * G.potential_utils[v.vnum][u.vnum] / G.sim_params['max_degree']
-            cost_change = 1 / G.sim_params['max_degree']
+            cost_change = -1 / G.sim_params['max_degree']
             agg_util = util_agg(
                 cur_attr_util + attr_change,
                 v.data['struct_util'](v, G),
@@ -214,8 +214,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
             # Would have budget to add (remaining_budget assumes add here)
             if remaining_budget(v, G) >= 0:
                 attr_change = G.potential_utils[v.vnum][u.vnum] / G.sim_params['max_degree']
-                struct_util_deltas.append(v.data['struct_util'](v, G) - cur_struct_util)
-                cost_change = -1  / G.sim_params['max_degree']
+                cost_change = 1  / G.sim_params['max_degree']
                 agg_util = util_agg(
                     cur_attr_util + attr_change,
                     v.data['struct_util'](v, G),
@@ -245,9 +244,8 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
                 if remaining_budget(v, G) >= 0:
 
                     # Disallow substitution if over budget
-                    attr_change = (G.potential_utils[v.vnum][u.vnum] - G.potential_utils[v.vnum][w.vnum])
-                        / G.sim_params['max_degree']
-                    struct_util_deltas.append(v.data['struct_util'](v, G) - cur_struct_util)
+                    attr_cnt_del = G.potential_utils[v.vnum][u.vnum] - G.potential_utils[v.vnum][w.vnum] 
+                    attr_change = attr_cnt_del / G.sim_params['max_degree']
 
                     agg_util = util_agg(
                         cur_attr_util + attr_change,
@@ -263,7 +261,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
                 G.add_edge(v, w)
             G.remove_edge(v, u)
 
-        if remaining_budget(v, G) < (1 / G.sim_params['max_degree']) and len(edge_proposals[v]) > 0:
+        if remaining_budget(v, G) < (1 / G.sim_params['max_degree']) and edge_proposals[v] is not None:
             v_move[v] = max_ninc_cand
         elif max_inc_val >= max_ninc_val:
             v_move[v] = max_inc_cand
@@ -275,7 +273,8 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
             continue
         if type(cand) == tuple:
             G.add_edge(v, cand[0])
-            G.remove_edge(v, cand[1])
+            if G.are_neighbors(v, cand[1]):
+                G.remove_edge(v, cand[1])
         elif G.are_neighbors(v, cand):
             G.remove_edge(v, cand)
         else:

@@ -27,7 +27,7 @@ sc = [0, .125, .25, .375, .5, .625, .75, .875, 1]
 ho = [0, .125, .25, .375, .5, .625, .75, .875, 1]
 #sc = [0,1]
 #ho = [0,1]
-sim_iters = 1 
+sim_iters = 5 
 kl_tolerance = .065
 
 similarity_homophily, similarity_heterophily = alu.gen_similarity_funcs()
