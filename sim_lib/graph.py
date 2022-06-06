@@ -134,8 +134,6 @@ class Graph:
         Removes edge between u and v if exists
         If reflexive deletes uv and vu, else just deletes edge uv
         """
-        edge_util = u.edges[v].util
-
         if v in u.edges:
             u.edges[v].data = None
             u.edges.pop(v)

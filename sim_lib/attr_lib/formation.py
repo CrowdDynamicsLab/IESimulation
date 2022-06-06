@@ -45,12 +45,13 @@ def calc_edges(G, walk_proposals='fof'):
         v_agg_util = G.sim_params['util_agg'](v_attr_util, v_struct_util, v_cost, v, G)
 
         # Skip satiated
-        if v_agg_util >= 2.0:
+        if v_agg_util >= 2.0 or v_cost >= 1.0:
             edge_prop_dict[v] = None
             continue
 
         # Only propose to max value candidate
-        max_val = -1
+        #NOTE: max_val = 0 implies non-optimism
+        max_val = 0
         max_cand = None
         candidates = [ G.vertices[i] for i in np.nonzero(edge_proposals[v.vnum])[0]]
         candidates.append(G.vertices[revelations[v.vnum]])
@@ -62,10 +63,9 @@ def calc_edges(G, walk_proposals='fof'):
 
             # Optimism from >= as opposed to >
             util_del = pagg_util - v_agg_util
-            if (util_del > 0) or (v.data['optimistic'] and util_del == 0):
-                if pagg_util > max_val:
-                    max_val = pagg_util
-                    max_cand = u
+            if util_del > 0 and pagg_util > max_val:
+                max_val = pagg_util
+                max_cand = u
             G.remove_edge(v, u)
         edge_prop_dict[v] = max_cand
 

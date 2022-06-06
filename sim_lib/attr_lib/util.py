@@ -173,7 +173,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
             subset_budget_resolution(v, G, util_agg)
             continue
             
-        if cur_agg_util == 2.0:
+        if cur_agg_util >= 2.0:
             continue
 
         #can_add_nbor = remaining_budget(v, G) >= G.sim_params['direct_cost']
@@ -199,7 +199,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
 
             if agg_change > max_ninc_val:
                 max_ninc_val = agg_change
-                max_ninc_cand = u
+                max_ninc_cand = ('d', u)
 
             G.add_edge(v, u)
 
@@ -224,7 +224,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
                 agg_change = agg_util - cur_agg_util
                 if agg_change > max_inc_val:
                     max_inc_val = agg_change
-                    max_inc_cand = u
+                    max_inc_cand = ('a', u)
 
             if (not allow_early_drop and can_add_nbor) or not substitute:
 
@@ -256,11 +256,13 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
                     agg_change = agg_util - cur_agg_util
                     if agg_change > max_ninc_val:
                         max_ninc_val = agg_change
-                        max_ninc_cand = (u, w)
+                        max_ninc_cand = ('s', (u, w))
 
                 G.add_edge(v, w)
             G.remove_edge(v, u)
 
+        v_ninc_move = max_ninc_cand
+        v_inc_move = max_inc_cand
         if remaining_budget(v, G) < (1 / G.sim_params['max_degree']) and edge_proposals[v] is not None:
             v_move[v] = max_ninc_cand
         elif max_inc_val >= max_ninc_val:
@@ -268,14 +270,15 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
         else:
             v_move[v] = max_ninc_cand
 
-    for v, cand in v_move.items():
-        if cand is None:
+    for v, cand_tuple in v_move.items():
+        if cand_tuple is None:
             continue
-        if type(cand) == tuple:
+        action = cand_tuple[0]
+        cand = cand_tuple[1]
+        if action == 's':
             G.add_edge(v, cand[0])
-            if G.are_neighbors(v, cand[1]):
-                G.remove_edge(v, cand[1])
-        elif G.are_neighbors(v, cand):
+            G.remove_edge(v, cand[1])
+        elif action == 'd':
             G.remove_edge(v, cand)
         else:
             G.add_edge(v, cand)
