@@ -27,7 +27,7 @@ sc = [0, .125, .25, .375, .5, .625, .75, .875, 1]
 ho = [0, .125, .25, .375, .5, .625, .75, .875, 1]
 #sc = [0,1]
 #ho = [0,1]
-sim_iters = 5 
+sim_iters = 1
 kl_tolerance = .05
 
 similarity_homophily, similarity_heterophily = alu.gen_similarity_funcs()
@@ -65,7 +65,7 @@ def type_dict(context, shape, context_p, attr, struct):
 
     return base_dict
 
-################ logging/plotting ################
+################ graph functions ################
 
 # size of components
 def get_component_sizes(G):
@@ -75,6 +75,33 @@ def get_component_sizes(G):
     G_nx_comps = [ G_nx.subgraph(G_nxc_nodes) for G_nxc_nodes in G_nx_comp_nodes ]
     component_sizes = [ len(G_nxc) for G_nxc in G_nx_comps ]
     return component_sizes
+
+# stricter hole definition
+def find_holes_bridges(G):
+    bridges = nx.bridges(alu.graph_to_nx(G))
+    # flatten tuple list
+    bridge_nodes = list(sum(bridges,()))
+    holes = [hole for hole in bridge_nodes if bridge_nodes.count(hole) > 1]
+    #remove dups
+    holes = list(set(holes))
+    print('holes based on bridges:', holes)
+
+# looser hole definition
+def find_holes_components(G):
+    holes = []
+    curr_num_components = len(get_component_sizes(G))
+    for v in G.vertices:
+        nbors = v.nbors
+        for u in nbors:
+            G.remove_edge(u,v)
+        new_num_components = len(get_component_sizes(G)) - 1
+        if new_num_components > curr_num_components:
+            holes.append(v)
+        for u in nbors:
+            G.add_edge(u,v)
+    print('holes based on components:', holes)
+
+################ plotting functions ################
 
 def plot_dist(G, degree_dist, util_dist, cost_dist, max_degree, title):
 
@@ -114,6 +141,9 @@ def plot_heat_map(data, title, min, sc, ho):
     plt.savefig(title_save, dpi = 300)
     plt.close('all')
 
+
+################ other functions ################
+
 # constructing basic pdf from util list
 def to_pdf(data):
     pdf = [0]*25
@@ -123,6 +153,7 @@ def to_pdf(data):
     # adding 1 so none of the probs = 0
     pdf = [(x / sum(counts)) + .001 for x in counts]
     return pdf
+
 
 ################ run simulation ################
 
@@ -226,6 +257,8 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters):
     partition = {}
     partition = community_louvain.best_partition(alu.graph_to_nx(G))
     #print(partition)
+    find_holes_bridges(G)
+    find_holes_components(G)
     vis.graph_vis(G, image_name, info_string, partition)
     #vis.draw_graph(G, partition, image_name)
 
