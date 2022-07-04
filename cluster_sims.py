@@ -203,6 +203,7 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters):
     ind_cost_dist = []
     num_comm = []
     modularity = []
+    num_comp = []
 
     exit_iter = [num_iters]*sim_iters
     kl_divergence = np.inf
@@ -260,6 +261,8 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters):
         num_comm = num_comm + [max(partition.values())]
         modularity = modularity + [community_louvain.modularity(partition, alu.graph_to_nx(G))]
 
+        num_comp = num_comp + [num_components]
+
     ind_cost_dist = np.array(cost_dist) - np.array(degree_dist)*G.sim_params['direct_cost']
     print('ho: ', ho_likelihood, 'sc: ', sc_likelihood)
     vis.graph_vis(G, image_name, info_string, partition)
@@ -267,7 +270,7 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters):
     #vis.draw_graph(G, partition, image_name)
 
     plot_dist(G, degree_dist, util_dist, cost_dist, max_degree, image_name)
-    summary_stats = [np.mean(degree_dist), np.mean(util_dist), np.mean(cost_dist), np.mean(exit_iter), np.mean(ind_cost_dist), np.mean(num_comm), np.mean(modularity)]
+    summary_stats = [np.mean(degree_dist), np.mean(util_dist), np.mean(cost_dist), np.mean(exit_iter), np.mean(ind_cost_dist), np.mean(num_comm), np.mean(modularity), np.mean(num_comp)]
     return summary_stats
 
 ################ run simulation with various params ################
@@ -279,6 +282,7 @@ iter_array = np.zeros((len(sc), len(ho)))
 ind_cost_array = np.zeros((len(sc), len(ho)))
 num_comm_array = np.zeros((len(sc), len(ho)))
 mod_array = np.zeros((len(sc), len(ho)))
+num_comp_array = np.zeros((len(sc), len(ho)))
 
 for i in sc:
     sc_likelihood = float(i)
@@ -292,10 +296,12 @@ for i in sc:
         ind_cost_array[int((1-sc_likelihood)/float(sc[1])), int(ho_likelihood/float(ho[1]))] = summary_stats[4]
         num_comm_array[int((1-sc_likelihood)/float(sc[1])), int(ho_likelihood/float(ho[1]))] = summary_stats[5]
         mod_array[int((1-sc_likelihood)/float(sc[1])), int(ho_likelihood/float(ho[1]))] = summary_stats[6]
+        num_comp_array[int((1-sc_likelihood)/float(sc[1])), int(ho_likelihood/float(ho[1]))] = summary_stats[7]
 plot_heat_map(degree_array, 'Avg Degree', 0, sc, ho)
 plot_heat_map(util_array, 'Avg Utility', 0, sc, ho)
 plot_heat_map(cost_array, 'Avg Cost', 0, sc, ho)
 plot_heat_map(iter_array, 'Avg Iterations', 0, sc, ho)
 plot_heat_map(ind_cost_array, 'Avg Ind Cost', 0, sc, ho)
-plot_heat_map(num_comm_array, 'Num Communities', 0, sc, ho)
-plot_heat_map(mod_array, 'Modularity', 0, sc, ho)
+plot_heat_map(num_comm_array, 'Avg Num Communities', 0, sc, ho)
+plot_heat_map(mod_array, 'Avg Modularity', 0, sc, ho)
+plot_heat_map(num_comp_array, 'Avg Num Components', 0, sc, ho)
