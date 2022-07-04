@@ -25,8 +25,8 @@ max_clique_size = 10
 ctxt_likelihood = .5
 sc = [0, .125, .25, .375, .5, .625, .75, .875, 1]
 ho = [0, .125, .25, .375, .5, .625, .75, .875, 1]
-#sc = [0,1]
-#ho = [0,1]
+#sc = [0, .5, 1]
+#ho = [0, .5, 1]
 sim_iters = 5
 kl_tolerance = .05
 
@@ -54,6 +54,7 @@ def type_dict(context, shape, context_p, attr, struct):
     #Base color is a rgb list
     base_dict = {'likelihood' : likelihood,
               'struct_util' : struct_func,
+              'struct' : struct,
               'init_attrs' : context,
               'edge_attr_util' : attr_edge_func,
               'total_attr_util' : attr_total_func,
@@ -84,9 +85,9 @@ def find_holes_bridges(G):
     holes = [hole for hole in bridge_nodes if bridge_nodes.count(hole) > 1]
     #remove dups
     holes = list(set(holes))
-    print('holes based on bridges:', holes)
+    return holes
 
-# looser hole definition
+# less strict definition
 def find_holes_components(G):
     holes = []
     curr_num_components = len(get_component_sizes(G))
@@ -99,7 +100,28 @@ def find_holes_components(G):
             holes.append(v)
         for u in nbors:
             G.add_edge(u,v)
-    print('holes based on components:', holes)
+    return holes
+
+def get_hole_borders(G):
+    holes = find_holes_components(G)
+    borders = []
+    for v in G.vertices:
+        if v in holes:
+            borders = borders + [8]
+        else:
+            borders = borders + [0]
+    return borders
+
+def get_edge_types(G):
+    edge_types = []
+    G_nx = alu.graph_to_nx(G)
+    for (u, v) in G_nx.edges():
+        if u.data['struct'] == v.data['struct']:
+            edge_types = edge_types + ['black']
+        else:
+            edge_types = edge_types + ['saddlebrown']
+    return edge_types
+
 
 ################ plotting functions ################
 
@@ -265,9 +287,9 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters):
 
     ind_cost_dist = np.array(cost_dist) - np.array(degree_dist)*G.sim_params['direct_cost']
     print('ho: ', ho_likelihood, 'sc: ', sc_likelihood)
-    vis.graph_vis(G, image_name, info_string, partition)
 
-    #vis.draw_graph(G, partition, image_name)
+    vis.graph_vis(G, image_name, info_string, partition, get_edge_types(G), get_hole_borders(G))
+
 
     plot_dist(G, degree_dist, util_dist, cost_dist, max_degree, image_name)
     summary_stats = [np.mean(degree_dist), np.mean(util_dist), np.mean(cost_dist), np.mean(exit_iter), np.mean(ind_cost_dist), np.mean(num_comm), np.mean(modularity), np.mean(num_comp)]

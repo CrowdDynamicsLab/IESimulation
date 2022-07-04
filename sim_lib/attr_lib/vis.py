@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 
 import sim_lib.attr_lib.util as attr_util
 
+'''
 def draw_graph(G_attr, partition, info_string):
     G = attr_util.graph_to_nx(G_attr)
     pos = nx.spring_layout(G)
@@ -17,26 +18,31 @@ def draw_graph(G_attr, partition, info_string):
 
     node_sizes = []
     labels_array = []
+    edge_colors = []
 
     for v in G_attr.vertices:
         v_attr_util, v_struct_util = v.utility_values(G_attr)
         node_sizes.append((v_attr_util + v_struct_util) + 20)
 
+
     nx.draw(G, pos, with_labels = False, nodelist = partition.keys(), node_size=node_sizes, cmap=cmap, node_color=list(partition.values()), font_size = 5)
     save_string = 'figures/networks/community_' + info_string + '.png'
     plt.savefig(save_string, dpi = 1000)
     plt.close('all')
+'''
 
-def make_edge(x, y):
+def make_edge(x, y, edge_types):
     return  go.Scatter(x         = x,
                        y         = y,
-                       line = dict(color = 'black', width = 1),
-                       mode      = 'lines')
+                       mode = 'lines',
+                       line = dict(width = 1,
+                                   color = edge_types))
 
-def graph_vis(G, name, string, partition, save=True):
+def graph_vis(G, name, string, partition, edge_types, borders, save=True):
     G_nx = attr_util.graph_to_nx(G)
     pos = nx.spring_layout(G_nx)
     edge_trace = []
+    k = 0
     for edge in G_nx.edges():
 
         char_1 = edge[0]
@@ -45,7 +51,8 @@ def graph_vis(G, name, string, partition, save=True):
         x0, y0 = pos[char_1]
         x1, y1 = pos[char_2]
 
-        trace  = make_edge([x0, x1, None], [y0, y1, None])
+        trace  = make_edge([x0, x1, None], [y0, y1, None], edge_types[k])
+        k = k + 1
 
         edge_trace.append(trace)
 
@@ -60,16 +67,18 @@ def graph_vis(G, name, string, partition, save=True):
                             marker    = dict(color = list(partition.values()),
                                              size  = [],
                                              symbol = [],
-                                             line  = None))
+                                             line  = dict(width = borders,
+                                                          color = 'gray')))
     for node in G_nx.nodes():
         x, y = pos[node]
         node_trace['x'] += tuple([x])
         node_trace['y'] += tuple([y])
         node_trace['marker']['size'] += tuple([6*(G_nx.nodes()[node]['struct_util'] + G_nx.nodes()[node]['attr_util'])+2])
-        node_info = str(node) + '\n Structural utility: ' + str(np.round(G_nx.nodes()[node]['struct_util'],2)) + '\n Attribute utility: ' + str(np.round(G_nx.nodes()[node]['attr_util'],2)) + '\n Cost: ' + str(np.round(G_nx.nodes()[node]['cost'],2))
+        node_info = str(node) + '\n Structural utility: ' + str(np.round(G_nx.nodes()[node]['struct_util'],2)) \
+        + '\n Attribute utility: ' + str(np.round(G_nx.nodes()[node]['attr_util'],2)) \
+        + '\n Cost: ' + str(np.round(G_nx.nodes()[node]['cost'],2))
         node_trace['hovertext'] += tuple([node_info])
         node_trace['text'] += tuple([node])
-        #node_trace['marker']['color'] += 
         node_trace['marker']['symbol'] += tuple([G_nx.nodes()[node]['shape']])
 
 
@@ -93,4 +102,3 @@ def graph_vis(G, name, string, partition, save=True):
         fig.write_image(plot_name)
     else:
         fig.show()
-        
