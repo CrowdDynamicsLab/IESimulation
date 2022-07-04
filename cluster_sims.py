@@ -27,7 +27,7 @@ sc = [0, .125, .25, .375, .5, .625, .75, .875, 1]
 ho = [0, .125, .25, .375, .5, .625, .75, .875, 1]
 #sc = [0,1]
 #ho = [0,1]
-sim_iters = 1
+sim_iters = 5
 kl_tolerance = .05
 
 similarity_homophily, similarity_heterophily = alu.gen_similarity_funcs()
@@ -201,6 +201,9 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters):
     util_dist = []
     cost_dist = []
     ind_cost_dist = []
+    num_comm = []
+    modularity = []
+
     exit_iter = [num_iters]*sim_iters
     kl_divergence = np.inf
     for k in range(sim_iters):
@@ -251,19 +254,20 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters):
         util_dist = util_dist + ([v.data['struct_util'](v, G) + v.data['total_attr_util'](v,G) for v in G.vertices ])
         cost_dist = cost_dist + ([alu.calc_cost(v, G) for v in G.vertices ])
 
+        partition = {}
+        partition = community_louvain.best_partition(alu.graph_to_nx(G))
+
+        num_comm = num_comm + [max(partition.values())]
+        modularity = modularity + [community_louvain.modularity(partition, alu.graph_to_nx(G))]
+
     ind_cost_dist = np.array(cost_dist) - np.array(degree_dist)*G.sim_params['direct_cost']
-    print('ho: ', ho_likelihood, 'sc: ', sc_likelihood, 'exited in ', np.round(np.mean(exit_iter),2), ', std: ', np.round(np.std(exit_iter),2))
-    #print(exit_iter)
-    partition = {}
-    partition = community_louvain.best_partition(alu.graph_to_nx(G))
-    #print(partition)
-    find_holes_bridges(G)
-    find_holes_components(G)
+    print('ho: ', ho_likelihood, 'sc: ', sc_likelihood)
     vis.graph_vis(G, image_name, info_string, partition)
+
     #vis.draw_graph(G, partition, image_name)
 
     plot_dist(G, degree_dist, util_dist, cost_dist, max_degree, image_name)
-    summary_stats = [np.mean(degree_dist), np.mean(util_dist), np.mean(cost_dist), np.mean(exit_iter), np.mean(ind_cost_dist)]
+    summary_stats = [np.mean(degree_dist), np.mean(util_dist), np.mean(cost_dist), np.mean(exit_iter), np.mean(ind_cost_dist), np.mean(num_comm), np.mean(modularity)]
     return summary_stats
 
 ################ run simulation with various params ################
@@ -273,6 +277,8 @@ util_array = np.zeros((len(sc), len(ho)))
 cost_array = np.zeros((len(sc), len(ho)))
 iter_array = np.zeros((len(sc), len(ho)))
 ind_cost_array = np.zeros((len(sc), len(ho)))
+num_comm_array = np.zeros((len(sc), len(ho)))
+mod_array = np.zeros((len(sc), len(ho)))
 
 for i in sc:
     sc_likelihood = float(i)
@@ -284,8 +290,12 @@ for i in sc:
         cost_array[int((1-sc_likelihood)/float(sc[1])), int(ho_likelihood/float(ho[1]))] = summary_stats[2]
         iter_array[int((1-sc_likelihood)/float(sc[1])), int(ho_likelihood/float(ho[1]))] = summary_stats[3]
         ind_cost_array[int((1-sc_likelihood)/float(sc[1])), int(ho_likelihood/float(ho[1]))] = summary_stats[4]
+        num_comm_array[int((1-sc_likelihood)/float(sc[1])), int(ho_likelihood/float(ho[1]))] = summary_stats[5]
+        mod_array[int((1-sc_likelihood)/float(sc[1])), int(ho_likelihood/float(ho[1]))] = summary_stats[6]
 plot_heat_map(degree_array, 'Avg Degree', 0, sc, ho)
 plot_heat_map(util_array, 'Avg Utility', 0, sc, ho)
 plot_heat_map(cost_array, 'Avg Cost', 0, sc, ho)
 plot_heat_map(iter_array, 'Avg Iterations', 0, sc, ho)
 plot_heat_map(ind_cost_array, 'Avg Ind Cost', 0, sc, ho)
+plot_heat_map(num_comm_array, 'Num Communities', 0, sc, ho)
+plot_heat_map(mod_array, 'Modularity', 0, sc, ho)
