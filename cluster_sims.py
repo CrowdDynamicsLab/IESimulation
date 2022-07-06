@@ -25,9 +25,9 @@ max_clique_size = 10
 ctxt_likelihood = .5
 sc = [0, .125, .25, .375, .5, .625, .75, .875, 1]
 ho = [0, .125, .25, .375, .5, .625, .75, .875, 1]
-#sc = [0,1]
-#ho = [0,1]
-sim_iters = 5 
+#sc = [0, .5, 1]
+#ho = [0, .5, 1]
+sim_iters = 5
 kl_tolerance = .05
 
 similarity_homophily, similarity_heterophily = alu.gen_similarity_funcs()
@@ -54,6 +54,7 @@ def type_dict(context, shape, context_p, attr, struct):
     #Base color is a rgb list
     base_dict = {'likelihood' : likelihood,
               'struct_util' : struct_func,
+              'struct' : struct,
               'init_attrs' : context,
               'edge_attr_util' : attr_edge_func,
               'total_attr_util' : attr_total_func,
@@ -65,7 +66,7 @@ def type_dict(context, shape, context_p, attr, struct):
 
     return base_dict
 
-################ logging/plotting ################
+################ graph functions ################
 
 # size of components
 def get_component_sizes(G):
@@ -75,6 +76,54 @@ def get_component_sizes(G):
     G_nx_comps = [ G_nx.subgraph(G_nxc_nodes) for G_nxc_nodes in G_nx_comp_nodes ]
     component_sizes = [ len(G_nxc) for G_nxc in G_nx_comps ]
     return component_sizes
+
+# stricter hole definition
+def find_holes_bridges(G):
+    bridges = nx.bridges(alu.graph_to_nx(G))
+    # flatten tuple list
+    bridge_nodes = list(sum(bridges,()))
+    holes = [hole for hole in bridge_nodes if bridge_nodes.count(hole) > 1]
+    #remove dups
+    holes = list(set(holes))
+    return holes
+
+# less strict definition
+def find_holes_components(G):
+    holes = []
+    curr_num_components = len(get_component_sizes(G))
+    for v in G.vertices:
+        nbors = v.nbors
+        for u in nbors:
+            G.remove_edge(u,v)
+        new_num_components = len(get_component_sizes(G)) - 1
+        if new_num_components > curr_num_components:
+            holes.append(v)
+        for u in nbors:
+            G.add_edge(u,v)
+    return holes
+
+def get_hole_borders(G):
+    holes = find_holes_components(G)
+    borders = []
+    for v in G.vertices:
+        if v in holes:
+            borders = borders + [8]
+        else:
+            borders = borders + [0]
+    return borders
+
+def get_edge_types(G):
+    edge_types = []
+    G_nx = alu.graph_to_nx(G)
+    for (u, v) in G_nx.edges():
+        if u.data['struct'] == v.data['struct']:
+            edge_types = edge_types + ['black']
+        else:
+            edge_types = edge_types + ['saddlebrown']
+    return edge_types
+
+
+################ plotting functions ################
 
 def plot_dist(G, degree_dist, util_dist, cost_dist, max_degree, title):
 
@@ -114,6 +163,9 @@ def plot_heat_map(data, title, min, sc, ho):
     plt.savefig(title_save, dpi = 300)
     plt.close('all')
 
+
+################ other functions ################
+
 # constructing basic pdf from util list
 def to_pdf(data):
     pdf = [0]*25
@@ -123,6 +175,7 @@ def to_pdf(data):
     # adding 1 so none of the probs = 0
     pdf = [(x / sum(counts)) + .001 for x in counts]
     return pdf
+
 
 ################ run simulation ################
 
@@ -170,6 +223,10 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters):
     util_dist = []
     cost_dist = []
     ind_cost_dist = []
+    num_comm = []
+    modularity = []
+    num_comp = []
+
     exit_iter = [num_iters]*sim_iters
     kl_divergence = np.inf
     for k in range(sim_iters):
@@ -220,17 +277,22 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters):
         util_dist = util_dist + ([v.data['struct_util'](v, G) + v.data['total_attr_util'](v,G) for v in G.vertices ])
         cost_dist = cost_dist + ([alu.calc_cost(v, G) for v in G.vertices ])
 
+        partition = {}
+        partition = community_louvain.best_partition(alu.graph_to_nx(G))
+
+        num_comm = num_comm + [max(partition.values())]
+        modularity = modularity + [community_louvain.modularity(partition, alu.graph_to_nx(G))]
+
+        num_comp = num_comp + [num_components]
+
     ind_cost_dist = np.array(cost_dist) - np.array(degree_dist)*G.sim_params['direct_cost']
-    print('ho: ', ho_likelihood, 'sc: ', sc_likelihood, 'exited in ', np.round(np.mean(exit_iter),2), ', std: ', np.round(np.std(exit_iter),2))
-    #print(exit_iter)
-    partition = {}
-    partition = community_louvain.best_partition(alu.graph_to_nx(G))
-    #print(partition)
-    vis.graph_vis(G, image_name, info_string, partition)
-    #vis.draw_graph(G, partition, image_name)
+    print('ho: ', ho_likelihood, 'sc: ', sc_likelihood)
+
+    vis.graph_vis(G, image_name, info_string, partition, get_edge_types(G), get_hole_borders(G))
+
 
     plot_dist(G, degree_dist, util_dist, cost_dist, max_degree, image_name)
-    summary_stats = [np.mean(degree_dist), np.mean(util_dist), np.mean(cost_dist), np.mean(exit_iter), np.mean(ind_cost_dist)]
+    summary_stats = [np.mean(degree_dist), np.mean(util_dist), np.mean(cost_dist), np.mean(exit_iter), np.mean(ind_cost_dist), np.mean(num_comm), np.mean(modularity), np.mean(num_comp)]
     return summary_stats
 
 ################ run simulation with various params ################
@@ -240,6 +302,9 @@ util_array = np.zeros((len(sc), len(ho)))
 cost_array = np.zeros((len(sc), len(ho)))
 iter_array = np.zeros((len(sc), len(ho)))
 ind_cost_array = np.zeros((len(sc), len(ho)))
+num_comm_array = np.zeros((len(sc), len(ho)))
+mod_array = np.zeros((len(sc), len(ho)))
+num_comp_array = np.zeros((len(sc), len(ho)))
 
 for i in sc:
     sc_likelihood = float(i)
@@ -251,8 +316,14 @@ for i in sc:
         cost_array[int((1-sc_likelihood)/float(sc[1])), int(ho_likelihood/float(ho[1]))] = summary_stats[2]
         iter_array[int((1-sc_likelihood)/float(sc[1])), int(ho_likelihood/float(ho[1]))] = summary_stats[3]
         ind_cost_array[int((1-sc_likelihood)/float(sc[1])), int(ho_likelihood/float(ho[1]))] = summary_stats[4]
+        num_comm_array[int((1-sc_likelihood)/float(sc[1])), int(ho_likelihood/float(ho[1]))] = summary_stats[5]
+        mod_array[int((1-sc_likelihood)/float(sc[1])), int(ho_likelihood/float(ho[1]))] = summary_stats[6]
+        num_comp_array[int((1-sc_likelihood)/float(sc[1])), int(ho_likelihood/float(ho[1]))] = summary_stats[7]
 plot_heat_map(degree_array, 'Avg Degree', 0, sc, ho)
 plot_heat_map(util_array, 'Avg Utility', 0, sc, ho)
 plot_heat_map(cost_array, 'Avg Cost', 0, sc, ho)
 plot_heat_map(iter_array, 'Avg Iterations', 0, sc, ho)
 plot_heat_map(ind_cost_array, 'Avg Ind Cost', 0, sc, ho)
+plot_heat_map(num_comm_array, 'Avg Num Communities', 0, sc, ho)
+plot_heat_map(mod_array, 'Avg Modularity', 0, sc, ho)
+plot_heat_map(num_comp_array, 'Avg Num Components', 0, sc, ho)

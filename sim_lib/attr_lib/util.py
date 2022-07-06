@@ -156,13 +156,13 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
         # No options
         if len(v.nbors) == 0 and len(proposed_by[v]) == 0:
             continue
-            
+
         cur_attr_util = v.data['total_attr_util'](v, G)
         cur_struct_util = v.data['struct_util'](v, G)
         cur_cost = calc_cost(v, G)
 
         # Satiated
-        cur_agg_util = util_agg( 
+        cur_agg_util = util_agg(
             cur_attr_util,
             cur_struct_util,
             cur_cost, v, G
@@ -172,7 +172,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
         if remaining_budget(v, G) < 0:
             subset_budget_resolution(v, G, util_agg)
             continue
-            
+
         if cur_agg_util >= 2.0:
             continue
 
@@ -244,7 +244,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
                 if remaining_budget(v, G) >= 0:
 
                     # Disallow substitution if over budget
-                    attr_cnt_del = G.potential_utils[v.vnum][u.vnum] - G.potential_utils[v.vnum][w.vnum] 
+                    attr_cnt_del = G.potential_utils[v.vnum][u.vnum] - G.potential_utils[v.vnum][w.vnum]
                     attr_change = attr_cnt_del / G.sim_params['max_degree']
 
                     agg_util = util_agg(
@@ -302,11 +302,11 @@ def struct_first_agg(a, s, c, v, G):
 # Revelation proposal sets
 
 def indep_revelation(G):
-    
+
     # Do not allow self revelation
     rand_sel = np.random.randint(low=0, high=G.num_people, size=G.num_people)
     self_sel = np.arange(0, G.num_people)
-    
+
     self_match = np.arange(len(rand_sel))[rand_sel == self_sel]
     while len(self_match) > 0:
         new_rand_sel = np.random.randint(low=0, high=G.num_people, size=len(self_match))
@@ -344,9 +344,11 @@ def graph_to_nx(G, with_labels=True):
             cost = calc_cost(vtx, G)
             #color = vtx.data['color']
             shape = vtx.data['shape']
+            struct = vtx.data['struct']
             nx_G.add_node(vtx,
                 attr_util=attr_util,
                 struct_util=struct_util,
+                struct = struct,
                 cost=cost,
                 #color=color,
                 shape=shape)
