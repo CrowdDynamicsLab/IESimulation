@@ -20,7 +20,7 @@ def gen_similarity_funcs():
         return 1 if u.attr_type == v.attr_type else 0
 
     def heterophily(u, v, G):
-        return 1 if u.attr_type == v.attr_type else 0
+        return 1 if u.attr_type != v.attr_type else 0
 
     return homophily, heterophily
 
