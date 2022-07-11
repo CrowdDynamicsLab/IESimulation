@@ -5,6 +5,7 @@ import networkx as nx
 import community as community_louvain
 from scipy.sparse import linalg as scp_sla
 from scipy.special import rel_entr
+from scipy.stats import wasserstein_distance
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -172,7 +173,6 @@ def to_pdf(data):
     counts = [0]*25
     for util in data:
         counts[int(util*10)] = counts[int(util*10)] + 1
-    # adding 1 so none of the probs = 0
     pdf = [(x / sum(counts)) + .001 for x in counts]
     return pdf
 
@@ -257,12 +257,20 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters):
             prev_util_pdf = to_pdf(prev_iter_util_dist)
             curr_util_pdf = to_pdf(curr_iter_util_dist)
             kl_divergence = sum(rel_entr(prev_util_pdf, curr_util_pdf))
-            #print(kl_divergence)
-            if (kl_divergence <= kl_tolerance):
-                #print('kl divergence small at iter ', it)
+            wass_dist = wasserstein_distance(prev_iter_util_dist, curr_iter_util_dist)
+            #print(wass_dist)
+            #if (kl_divergence <= kl_tolerance):
+            #    #print('kl divergence small at iter ', it)
+            #    if it <= min_iters:
+            #        continue
+            #    exit_iter[k] = it
+            #    print(wass_dist)
+            #    break
+            if wass_dist <= .009:
                 if it <= min_iters:
                     continue
                 exit_iter[k] = it
+                print(exit_iter[k])
                 break
 
         num_components = len(get_component_sizes(G))
@@ -319,6 +327,7 @@ for i in sc:
         num_comm_array[int((1-sc_likelihood)/float(sc[1])), int(ho_likelihood/float(ho[1]))] = summary_stats[5]
         mod_array[int((1-sc_likelihood)/float(sc[1])), int(ho_likelihood/float(ho[1]))] = summary_stats[6]
         num_comp_array[int((1-sc_likelihood)/float(sc[1])), int(ho_likelihood/float(ho[1]))] = summary_stats[7]
+
 plot_heat_map(degree_array, 'Avg Degree', 0, sc, ho)
 plot_heat_map(util_array, 'Avg Utility', 0, sc, ho)
 plot_heat_map(cost_array, 'Avg Cost', 0, sc, ho)
