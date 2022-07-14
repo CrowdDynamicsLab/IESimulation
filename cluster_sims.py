@@ -26,10 +26,11 @@ max_clique_size = 10
 ctxt_likelihood = .5
 sc = [0, .125, .25, .375, .5, .625, .75, .875, 1]
 ho = [0, .125, .25, .375, .5, .625, .75, .875, 1]
-#sc = [0, .5, 1]
-#ho = [0, .5, 1]
+#sc = [0, 1]
+#ho = [0, 1]
 sim_iters = 5
-kl_tolerance = .05
+kl_tolerance = 0
+wass_tolerance = 0
 
 similarity_homophily, similarity_heterophily = alu.gen_similarity_funcs()
 total_attr_util = alu.gen_attr_util_func(satisfice)
@@ -41,7 +42,7 @@ def type_dict(context, shape, context_p, attr, struct):
         struct_func = alu.satisfice(satisfice)(alu.triangle_count)
         likelihood = likelihood * (1 - sc_likelihood)
     else:
-        struct_func = alu.satisfice(satisfice)(alu.num_disc_nbors)
+        struct_func = alu.satisfice(satisfice)(alu.num_nbor_comp_nx)
         likelihood = likelihood * sc_likelihood
     if attr == 'ho':
         attr_edge_func = similarity_homophily
@@ -164,6 +165,15 @@ def plot_heat_map(data, title, min, sc, ho):
     plt.savefig(title_save, dpi = 300)
     plt.close('all')
 
+def plot_mod_line(data, sc, ho):
+    plt.close('all')
+    plt.plot(data)
+    title_mod = 'ho: ' + str(ho) + ' sc: ' + str(sc)
+    plt.title(title_mod)
+    plt.xlabel('Iter')
+    plt.ylabel('Avg Modularity')
+    plt.show()
+
 
 ################ other functions ################
 
@@ -227,6 +237,8 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters):
     modularity = []
     num_comp = []
 
+    #mod_iters = []
+
     exit_iter = [num_iters]*sim_iters
     kl_divergence = np.inf
     for k in range(sim_iters):
@@ -258,20 +270,27 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters):
             curr_util_pdf = to_pdf(curr_iter_util_dist)
             kl_divergence = sum(rel_entr(prev_util_pdf, curr_util_pdf))
             wass_dist = wasserstein_distance(prev_iter_util_dist, curr_iter_util_dist)
+
+            #par = community_louvain.best_partition(alu.graph_to_nx(G))
+            #mod_iters = mod_iters + [community_louvain.modularity(par, alu.graph_to_nx(G))]
+
             #print(wass_dist)
             #if (kl_divergence <= kl_tolerance):
             #    #print('kl divergence small at iter ', it)
             #    if it <= min_iters:
             #        continue
             #    exit_iter[k] = it
-            #    print(wass_dist)
+            #    print(exit_iter[k])
             #    break
-            if wass_dist <= .009:
+
+            if wass_dist <= wass_tolerance:
                 if it <= min_iters:
                     continue
                 exit_iter[k] = it
-                print(exit_iter[k])
+                #print(exit_iter[k])
                 break
+
+        #plot_mod_line(mod_iters, sc_likelihood, ho_likeliood)
 
         num_components = len(get_component_sizes(G))
         over_budget = sum([ind_ob(v) for v in G.vertices])
@@ -293,14 +312,13 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters):
 
         num_comp = num_comp + [num_components]
 
-    ind_cost_dist = np.array(cost_dist) - np.array(degree_dist)*G.sim_params['direct_cost']
     print('ho: ', ho_likelihood, 'sc: ', sc_likelihood)
 
     vis.graph_vis(G, image_name, info_string, partition, get_edge_types(G), get_hole_borders(G))
 
 
     plot_dist(G, degree_dist, util_dist, cost_dist, max_degree, image_name)
-    summary_stats = [np.mean(degree_dist), np.mean(util_dist), np.mean(cost_dist), np.mean(exit_iter), np.mean(ind_cost_dist), np.mean(num_comm), np.mean(modularity), np.mean(num_comp)]
+    summary_stats = [np.mean(degree_dist), np.mean(util_dist), np.mean(cost_dist), np.mean(exit_iter), np.mean(num_comm), np.mean(modularity), np.mean(num_comp)]
     return summary_stats
 
 ################ run simulation with various params ################
@@ -309,7 +327,6 @@ degree_array = np.zeros((len(sc), len(ho)))
 util_array = np.zeros((len(sc), len(ho)))
 cost_array = np.zeros((len(sc), len(ho)))
 iter_array = np.zeros((len(sc), len(ho)))
-ind_cost_array = np.zeros((len(sc), len(ho)))
 num_comm_array = np.zeros((len(sc), len(ho)))
 mod_array = np.zeros((len(sc), len(ho)))
 num_comp_array = np.zeros((len(sc), len(ho)))
@@ -323,16 +340,14 @@ for i in sc:
         util_array[int((1-sc_likelihood)/float(sc[1])), int(ho_likelihood/float(ho[1]))] = summary_stats[1]
         cost_array[int((1-sc_likelihood)/float(sc[1])), int(ho_likelihood/float(ho[1]))] = summary_stats[2]
         iter_array[int((1-sc_likelihood)/float(sc[1])), int(ho_likelihood/float(ho[1]))] = summary_stats[3]
-        ind_cost_array[int((1-sc_likelihood)/float(sc[1])), int(ho_likelihood/float(ho[1]))] = summary_stats[4]
-        num_comm_array[int((1-sc_likelihood)/float(sc[1])), int(ho_likelihood/float(ho[1]))] = summary_stats[5]
-        mod_array[int((1-sc_likelihood)/float(sc[1])), int(ho_likelihood/float(ho[1]))] = summary_stats[6]
-        num_comp_array[int((1-sc_likelihood)/float(sc[1])), int(ho_likelihood/float(ho[1]))] = summary_stats[7]
+        num_comm_array[int((1-sc_likelihood)/float(sc[1])), int(ho_likelihood/float(ho[1]))] = summary_stats[4]
+        mod_array[int((1-sc_likelihood)/float(sc[1])), int(ho_likelihood/float(ho[1]))] = summary_stats[5]
+        num_comp_array[int((1-sc_likelihood)/float(sc[1])), int(ho_likelihood/float(ho[1]))] = summary_stats[6]
 
 plot_heat_map(degree_array, 'Avg Degree', 0, sc, ho)
 plot_heat_map(util_array, 'Avg Utility', 0, sc, ho)
 plot_heat_map(cost_array, 'Avg Cost', 0, sc, ho)
 plot_heat_map(iter_array, 'Avg Iterations', 0, sc, ho)
-plot_heat_map(ind_cost_array, 'Avg Ind Cost', 0, sc, ho)
 plot_heat_map(num_comm_array, 'Avg Num Communities', 0, sc, ho)
 plot_heat_map(mod_array, 'Avg Modularity', 0, sc, ho)
 plot_heat_map(num_comp_array, 'Avg Num Components', 0, sc, ho)

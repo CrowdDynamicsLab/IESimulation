@@ -7,6 +7,7 @@ import time
 
 import numpy as np
 from scipy.sparse import linalg as scp_sla
+from scipy.sparse.csgraph import connected_components as conn_comp_func
 import networkx as nx
 
 from tabulate import tabulate
@@ -65,6 +66,23 @@ def num_disc_nbors(v, G):
     num_con = np.count_nonzero(nbor_deg)
     num_disc = v.degree - num_con
     return min(1.0, num_disc / G.sim_params['max_degree'])
+
+def num_nbor_comp_scipy(v, G):
+
+    nbor_mat = G.nborhood_adj_mat(v)
+    conn_comps = conn_comp_func(nbor_mat)
+    num_comps = conn_comps[0]
+
+    return min(1.0, num_comps / G.sim_params['max_degree'])
+
+def num_nbor_comp_nx(v, G):
+
+    nbor_mat = G.nborhood_adj_mat(v)
+    G_nx = nx.from_numpy_matrix(nbor_mat)
+    num_comps = nx.number_connected_components(G_nx)
+
+    return min(1.0, num_comps / G.sim_params['max_degree'])
+
 
 ##################
 # Cost functions #
@@ -147,6 +165,8 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
 
     for v in G.vertices:
 
+        action_dict = {'add': 0, 'delete': 0, 'swap': 0, 'resolve': 0}
+
         #NOTE: the init max val would be negative for an optimistic agent
         max_inc_cand = None
         max_inc_val = 0
@@ -168,9 +188,11 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
             cur_cost, v, G
         )
 
+
         # No point checking proposal/single drop values if over budget anyways
         if remaining_budget(v, G) < 0:
             subset_budget_resolution(v, G, util_agg)
+            action_dict['resolve'] = action_dict['resolve'] + 1
             continue
 
         if cur_agg_util >= 2.0:
@@ -182,7 +204,6 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
 
             # Consider drop choices
             if not allow_early_drop and can_add_nbor:
-
                 # Disallow early drops
                 break
 
@@ -270,6 +291,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
         else:
             v_move[v] = max_ninc_cand
 
+
     for v, cand_tuple in v_move.items():
         if cand_tuple is None:
             continue
@@ -278,11 +300,14 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
         if action == 's':
             G.add_edge(v, cand[0])
             G.remove_edge(v, cand[1])
+            action_dict['swap'] = action_dict['swap'] + 1
         elif action == 'd':
             G.remove_edge(v, cand)
-        else:
+            action_dict['delete'] = action_dict['delete'] + 1
+        elif action == 'a':
             G.add_edge(v, cand)
-
+            action_dict['add'] = action_dict['add'] + 1
+    #print(action_dict)
     return v_move
 
 # Utility aggregation functions
