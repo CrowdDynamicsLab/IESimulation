@@ -124,8 +124,7 @@ def subset_budget_resolution(v, G, util_agg):
         drop_candidate = None
 
         # Out of place shuffle
-        shuffled_nbors = np.random.choice(v.nbors, v.degree, replace=False)
-        for nbor in shuffled_nbors:
+        for nbor in v.nbors:
             G.remove_edge(v, nbor)
             pot_attr_util = v.data['total_attr_util'](v, G)
             pot_struct_util = v.data['struct_util'](v, G)
@@ -233,7 +232,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_dro
             G.add_edge(v, u)
 
             # Would have budget to add (remaining_budget assumes add here)
-            if remaining_budget(v, G) >= 0:
+            if remaining_budget(v, G) > 0:
                 attr_change = G.potential_utils[v.vnum][u.vnum] / G.sim_params['max_degree']
                 cost_change = 1  / G.sim_params['max_degree']
                 agg_util = util_agg(
