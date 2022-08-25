@@ -140,16 +140,17 @@ def subset_budget_resolution(v, G, util_agg):
     assert remaining_budget(v, G) >= 0, 'did not resolve budget'
 
 # Seq selection functions
-def seq_projection_single_selection(G, edge_proposals, log):
-    return seq_projection_edge_edit(G, edge_proposals, substitute=_allow_sub, log=log)
-
 def seq_edge_sel_logged(G, edge_proposals):
     return seq_projection_edge_edit(G, edge_proposals, log=True)
 
 def seq_edge_sel_silent(G, edge_proposals):
     return seq_projection_edge_edit(G, edge_proposals, log=False)
 
-def seq_projection_edge_edit(G, edge_proposals, substitute=True, allow_early_drop=True, log=True):
+def edge_sel_sub(G, edge_proposals):
+    return seq_projection_edge_edit(G, edge_proposals, substitute=True)
+
+                                           # No more substitutions.
+def seq_projection_edge_edit(G, edge_proposals, substitute=False, allow_early_drop=True, log=True):
     # Sequentially (non-random) pick one edge to propose to via projection
     # of multiobjective optimization function
     # Assumes even split of coefficients

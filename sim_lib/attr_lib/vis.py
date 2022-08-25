@@ -85,8 +85,8 @@ def graph_vis(G, name, string, partition, edge_types, borders, save=True):
     layout = go.Layout(xaxis = {'showgrid': False, 'zeroline': False, 'title': string},
                         yaxis = {'showgrid': False, 'zeroline': False},
                         autosize = False,
-                        width = 1500,
-                        height = 1500)
+                        width = 1000,
+                        height = 1000)
 
     # Create figure
     fig = go.Figure(layout = layout)
