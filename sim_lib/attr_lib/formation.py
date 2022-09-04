@@ -56,6 +56,8 @@ def calc_edges(G, walk_proposals='fof'):
         candidates = [ G.vertices[i] for i in np.nonzero(edge_proposals[v.vnum])[0]]
         candidates.append(G.vertices[revelations[v.vnum]])
         for u in candidates:
+            if G.are_neighbors(v, u):
+                continue
             G.add_edge(v, u)
             pattr, pstruct = v.utility_values(G)
             pcost = attr_lib_util.calc_cost(v, G)

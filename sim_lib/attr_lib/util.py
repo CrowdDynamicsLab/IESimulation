@@ -254,6 +254,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=False, allow_early_dr
                 G.remove_edge(v, u)
                 continue
 
+            print('what are you doing here')
             for w in v.nbors:
 
                 # Check substitution
