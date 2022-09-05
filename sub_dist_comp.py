@@ -1,5 +1,6 @@
 from collections import defaultdict
 from math import isclose
+import os
 
 import networkx as nx
 import community as community_louvain
@@ -28,7 +29,7 @@ sc = [0, .125, .25, .375, .5, .625, .75, .875, 1]
 ho = [0, .125, .25, .375, .5, .625, .75, .875, 1]
 #sc = [0, 1]
 #ho = [0, 1]
-sim_iters = 1
+sim_iters = 10
 kl_tolerance = 0
 wass_tolerance = 0
 
@@ -99,7 +100,8 @@ def plot_heat_map(data, title, min, sc, ho):
     plt.title(title)
     ax.set_xlabel('Homophily Prop')
     ax.set_ylabel('Social Capital Prop')
-    title_save = 'figures/heatmaps/' + title + '.png'
+    file_dir = os.path.expandvars('/home/$USER/scratch/IESimulation/figures/heatmaps/')
+    title_save = file_dir + title + '.png'
     #plt.show()
     plt.savefig(title_save, dpi = 300)
     plt.close('all')
@@ -293,4 +295,4 @@ plot_heat_map(num_comm_array, 'Avg Num Communities {si}'.format(si=sub_ind), 0, 
 plot_heat_map(mod_array, 'Avg Modularity {si}'.format(si=sub_ind), 0, sc, ho)
 plot_heat_map(num_comp_array, 'Avg Num Components {si}'.format(si=sub_ind), 0, sc, ho)
 plot_heat_map(apl_array, 'Avg APL {si}'.format(si=sub_ind), 0, sc, ho)
-plot_heat_map(cluster_coeff_array, 'Avg Cluster Coeff', 0, sc, ho)
+plot_heat_map(cluster_coeff_array, 'Avg Cluster Coeff {si}'.format(si=sub_ind), 0, sc, ho)

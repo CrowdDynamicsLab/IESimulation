@@ -227,11 +227,10 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters, sub=False):
 
     exit_iter = [num_iters]*sim_iters
     
-    stable_iters = 0
-    st_count_hist = []
     for k in range(sim_iters):
         G = attribute_network(_N, params)
         G_nx = alu.graph_to_nx(G)
+	st_count_hist = []
         for it in range(num_iters):
             G.sim_params['edge_selection'] = alu.seq_edge_sel_silent
             calc_edges(G)
