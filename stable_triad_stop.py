@@ -31,7 +31,7 @@ ho = [0, .125, .25, .375, .5, .625, .75, .875, 1]
 #ho = [0, 1]
 sim_iters = 10
 st_count_track = 10
-st_count_dev_tol = 0.05
+st_count_dev_tol = 0.01
 
 similarity_homophily, similarity_heterophily = alu.gen_similarity_funcs()
 total_attr_util = alu.gen_attr_util_func(satisfice)
