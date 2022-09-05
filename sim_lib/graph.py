@@ -4,7 +4,6 @@ Includes methods for generating graphs
 """
 
 from collections import OrderedDict, defaultdict
-from functools import cached_property
 
 import numpy as np
 

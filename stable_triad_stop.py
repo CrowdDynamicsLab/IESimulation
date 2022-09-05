@@ -31,7 +31,7 @@ ho = [0, .125, .25, .375, .5, .625, .75, .875, 1]
 #ho = [0, 1]
 sim_iters = 10
 st_count_track = 10
-st_count_dev_tol = 0.05
+st_count_dev_tol = 0.01
 
 similarity_homophily, similarity_heterophily = alu.gen_similarity_funcs()
 total_attr_util = alu.gen_attr_util_func(satisfice)
@@ -227,11 +227,10 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters, sub=False):
 
     exit_iter = [num_iters]*sim_iters
     
-    stable_iters = 0
-    st_count_hist = []
     for k in range(sim_iters):
         G = attribute_network(_N, params)
         G_nx = alu.graph_to_nx(G)
+	st_count_hist = []
         for it in range(num_iters):
             G.sim_params['edge_selection'] = alu.seq_edge_sel_silent
             calc_edges(G)
