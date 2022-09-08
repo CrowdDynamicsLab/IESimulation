@@ -75,6 +75,8 @@ def calc_edges(G):
 
 def calc_edges_global(G):
     
+    all_costs = attr_lib_util.calc_all_costs(G)
+    edge_prop_dict = {}
     for v in G.vertices:
         v_attr_util, v_struct_util = v.utility_values(G)
         v_cost = all_costs[v.vnum]
@@ -87,6 +89,8 @@ def calc_edges_global(G):
 
         # Only propose to max value candidate
         #NOTE: max_val = 0 implies non-optimism
+        max_val = 0
+        max_cand = None
         for u in G.vertices:
             if u == v or G.are_neighbors(v, u):
                 continue
