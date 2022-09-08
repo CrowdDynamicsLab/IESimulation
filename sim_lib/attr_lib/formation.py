@@ -21,16 +21,15 @@ def calc_utils(G):
     G.potential_utils = util_mat
     return G.potential_utils
 
-def calc_edges(G, walk_proposals='fof'):
+def calc_edges(G):
    
+    # Get distance 2 agents for proposals
     adj_mat = G.adj_matrix
     d2_mat = adj_mat @ adj_mat
     nbor_mask = -1 * (adj_mat - 1)
     np.fill_diagonal(nbor_mask, 0)
     edge_proposals = nbor_mask * d2_mat
     edge_proposals[edge_proposals > 0] = 1
-
-    #TODO: Revelation, optimism, util calc improvements
 
     # Add revalation and check budget
     revelations = G.sim_params['revelation_proposals'](G)
@@ -57,6 +56,39 @@ def calc_edges(G, walk_proposals='fof'):
         candidates.append(G.vertices[revelations[v.vnum]])
         for u in candidates:
             if G.are_neighbors(v, u):
+                continue
+            G.add_edge(v, u)
+            pattr, pstruct = v.utility_values(G)
+            pcost = attr_lib_util.calc_cost(v, G)
+            pagg_util = G.sim_params['util_agg'](pattr, pstruct, pcost, v, G)
+
+            # Optimism from >= as opposed to >
+            util_del = pagg_util - v_agg_util
+            if util_del > 0 and pagg_util > max_val:
+                max_val = pagg_util
+                max_cand = u
+            G.remove_edge(v, u)
+        edge_prop_dict[v] = max_cand
+
+    # Returns metadata
+    return G.sim_params['edge_selection'](G, edge_prop_dict)
+
+def calc_edges_global(G):
+    
+    for v in G.vertices:
+        v_attr_util, v_struct_util = v.utility_values(G)
+        v_cost = all_costs[v.vnum]
+        v_agg_util = G.sim_params['util_agg'](v_attr_util, v_struct_util, v_cost, v, G)
+
+        # Skip satiated
+        if v_agg_util >= 2.0 or v_cost >= 1.0:
+            edge_prop_dict[v] = None
+            continue
+
+        # Only propose to max value candidate
+        #NOTE: max_val = 0 implies non-optimism
+        for u in G.vertices:
+            if u == v or G.are_neighbors(v, u):
                 continue
             G.add_edge(v, u)
             pattr, pstruct = v.utility_values(G)
