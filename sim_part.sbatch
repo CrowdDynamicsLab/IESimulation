@@ -2,7 +2,7 @@
 #SBATCH --time=100:00:00
 #SBATCH --nodes=2
 #SBATCH --ntasks-per-node=16
-#SBATCH --job-name="st budgetless"
+#SBATCH --job-name="st_budgetless"
 #SBATCH --partition=cs
 #SBATCH --output=max_30.o%j
 #SBATCH --mail-user=andy2@illinois.edu
