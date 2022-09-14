@@ -1,6 +1,8 @@
 from collections import defaultdict
 from math import isclose
 from itertools import combinations
+import json
+import sys
 
 import networkx as nx
 import community as community_louvain
@@ -15,11 +17,17 @@ import sim_lib.util as util
 import sim_lib.attr_lib.util as alu
 from sim_lib.attr_lib.formation import *
 import sim_lib.attr_lib.vis as vis
-import sys
+
+# Sim input params
+
+n = float(sys.argv[1])
+k = float(sys.argv[2])
+sc_likelihood = float(sys.argv[3])
+ho_likelihood = float(sys.argv[4])
 
 ############### initializing params ###############
 
-_N = 100
+_N = n
 satisfice = 1
 num_iters = 500
 min_iters = 10
@@ -30,6 +38,7 @@ ho = [0, .125, .25, .375, .5, .625, .75, .875, 1]
 #sc = [0, 1]
 #ho = [0, 1]
 sim_iters = 10
+#sim_iters = 1
 st_count_track = 10
 st_count_dev_tol = 0.01
 
@@ -297,9 +306,6 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters, sub=False):
 
 ################ run simulation with various params ################
 
-sc_likelihood = float(sys.argv[1])
-ho_likelihood = float(sys.argv[2])
-
 summary_stats = run_sim(sc_likelihood, ho_likelihood, sim_iters)
 
 sim_stats = {
@@ -317,7 +323,8 @@ sim_stats = {
     'stable_triads' : summary_stats[9]
 }
 
-outname = 'data/cluster_outputs/{sc}_{ho}_simout.json'.format(
+outname = 'data/budgetless/{sc}_{ho}_simout.json'.format(
     sc=str(sc_likelihood), ho=str(ho_likelihood))
+
 with open(outname, 'w+') as out:
     out.write(json.dumps(sim_stats))

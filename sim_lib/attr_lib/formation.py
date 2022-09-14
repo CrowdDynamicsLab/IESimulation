@@ -21,14 +21,14 @@ def calc_utils(G):
     G.potential_utils = util_mat
     return G.potential_utils
 
-def calc_edges(G):
+def calc_edges(G, k=2):
    
-    # Get distance 2 agents for proposals
+    # Get distance k agents for proposals
     adj_mat = G.adj_matrix
-    d2_mat = adj_mat @ adj_mat
+    dk_mat = np.linalg.matrix_power(adj_mat, k)
     nbor_mask = -1 * (adj_mat - 1)
     np.fill_diagonal(nbor_mask, 0)
-    edge_proposals = nbor_mask * d2_mat
+    edge_proposals = nbor_mask * dk_mat
     edge_proposals[edge_proposals > 0] = 1
 
     # Add revalation and check budget
