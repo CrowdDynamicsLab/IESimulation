@@ -34,8 +34,8 @@ num_iters = 500
 min_iters = 10
 max_clique_size = max_deg + 1
 ctxt_likelihood = .5
-#sim_iters = 10
-sim_iters = 2
+sim_iters = 10
+#sim_iters = 2
 st_count_track = 10
 st_count_dev_tol = 0.01
 
@@ -404,13 +404,13 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters, sub=False):
 
 summary_stats, final_networks = run_sim(sc_likelihood, ho_likelihood, sim_iters)
 
-stat_outname = 'data/test_comparison/{n}_{k}_{sc}_{ho}_stats.json'.format(
+stat_outname = 'data/comparison/{n}_{k}_{sc}_{ho}_stats.json'.format(
     n=str(n), k=str(max_deg), sc=str(sc_likelihood), ho=str(ho_likelihood))
 
 with open(stat_outname, 'w+') as out:
     out.write(json.dumps(summary_stats))
 
-ntwk_outname = 'data/test_comparison/{n}_{k}_{sc}_{ho}_networks.json'.format(
+ntwk_outname = 'data/comparison/{n}_{k}_{sc}_{ho}_networks.json'.format(
     n=str(n), k=str(max_deg), sc=str(sc_likelihood), ho=str(ho_likelihood))
 
 with open(ntwk_outname, 'w+') as out:
