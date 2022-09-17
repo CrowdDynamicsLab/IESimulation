@@ -415,7 +415,7 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters, sub=False):
 
 ################ run simulation with various params ################
 
-if __name__ == "__main":
+if __name__ == "__main__":
     summary_stats, final_networks = run_sim(sc_likelihood, ho_likelihood, sim_iters)
 
     stat_outname = 'data/comparison/{n}_{k}_{sc}_{ho}_stats.json'.format(
