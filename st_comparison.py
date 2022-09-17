@@ -4,6 +4,7 @@ from itertools import combinations
 import json
 import sys
 import copy
+import multiprocessing as mp
 
 import networkx as nx
 import community as community_louvain
@@ -310,14 +311,26 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters, sub=False):
         for it in range(num_iters):
             
             # Calculate edges for networks
+
+            # Attempt to parallelize
+            procs = []
             if not std_fin:
-                calc_edges(G_std)
+                sf_proc =  mp.Process(target=calc_edges, args=(G_std,))
+                procs.append(sf_proc)
+                sf_procs.start()
             for k in budgets:
                 if not bdgt_fin[k]:
-                    calc_edges(G_bdgt[k])
+                    bdgt_proc = mp.Process(target=calc_edges, args=(G_bdgt[k],))
+                    procs.append(bdgt_proc)
+                    bdgt_proc.start()
             for d in nonlocal_dists:
                 if not nl_fin[d]:
-                    calc_edges(G_nl[d], d)
+                    nl_proc = mp.Process(target=calc_edges, args=(G_nl[d], d,))
+                    procs.append(nl_proc)
+                    nl_proc.start()
+
+            for p in procs:
+                p.join()
 
             # Get all stable triad counts
             std_st_count = count_stable_triads(G_std)
@@ -402,17 +415,18 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters, sub=False):
 
 ################ run simulation with various params ################
 
-summary_stats, final_networks = run_sim(sc_likelihood, ho_likelihood, sim_iters)
+if __name__ == "__main":
+    summary_stats, final_networks = run_sim(sc_likelihood, ho_likelihood, sim_iters)
 
-stat_outname = 'data/comparison/{n}_{k}_{sc}_{ho}_stats.json'.format(
-    n=str(n), k=str(max_deg), sc=str(sc_likelihood), ho=str(ho_likelihood))
+    stat_outname = 'data/comparison/{n}_{k}_{sc}_{ho}_stats.json'.format(
+        n=str(n), k=str(max_deg), sc=str(sc_likelihood), ho=str(ho_likelihood))
 
-with open(stat_outname, 'w+') as out:
-    out.write(json.dumps(summary_stats))
+    with open(stat_outname, 'w+') as out:
+        out.write(json.dumps(summary_stats))
 
-ntwk_outname = 'data/comparison/{n}_{k}_{sc}_{ho}_networks.json'.format(
-    n=str(n), k=str(max_deg), sc=str(sc_likelihood), ho=str(ho_likelihood))
+    ntwk_outname = 'data/comparison/{n}_{k}_{sc}_{ho}_networks.json'.format(
+        n=str(n), k=str(max_deg), sc=str(sc_likelihood), ho=str(ho_likelihood))
 
-with open(ntwk_outname, 'w+') as out:
-    out.write(json.dumps(final_networks))
+    with open(ntwk_outname, 'w+') as out:
+        out.write(json.dumps(final_networks))
 
