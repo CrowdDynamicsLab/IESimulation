@@ -171,7 +171,10 @@ def get_summary_stats(G):
     partition = community_louvain.best_partition(g_nx)
 
     num_comm = max(partition.values())
-    modularity = community_louvain.modularity(partition, g_nx)
+    if g_nx.number_of_edges() > 0:
+        modularity = community_louvain.modularity(partition, g_nx)
+    else:
+        modularity = -1
     num_comp = num_components
     comp_apl = np.mean([ nx.average_shortest_path_length(g_nx.subgraph(c))
         for c in nx.connected_components(g_nx) ])
@@ -317,7 +320,7 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters, sub=False):
             if not std_fin:
                 sf_proc =  mp.Process(target=calc_edges, args=(G_std,))
                 procs.append(sf_proc)
-                sf_procs.start()
+                sf_proc.start()
             for k in budgets:
                 if not bdgt_fin[k]:
                     bdgt_proc = mp.Process(target=calc_edges, args=(G_bdgt[k],))
