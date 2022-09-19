@@ -244,7 +244,13 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters, sub=False):
     #np.random.shuffle(vtx_types_list)
     params['type_assignment'] = { i : vtx_types_list[i] for i in range(_N) }
 
-    final_type_assignments = copy.deepcoy(params['type_assignment'])
+    type_assgn_copy = copy.deepcopy(params['type_assignment'])
+    final_type_assignments = {}
+    for i, ta in params['type_assignment'].items():
+        final_type_assignments[i] = copy.deepcopy(vtx_types[ta])
+        final_type_assignments[i].pop('struct_util', None)
+        final_type_assignments[i].pop('edge_attr_util', None)
+        final_type_assignments[i].pop('total_attr_util', None)
 
     assert math.isclose(sum([ t['likelihood'] for t in params['vtx_types'].values() ]), 1.0)
 
