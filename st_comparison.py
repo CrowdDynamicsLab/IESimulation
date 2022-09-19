@@ -241,8 +241,16 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters, sub=False):
 
     vtx_types_list = np.array([ np.repeat(t, tc) for t, tc in tc_dict.items() ])
     vtx_types_list = np.hstack(vtx_types_list)
-    np.random.shuffle(vtx_types_list)
+    #np.random.shuffle(vtx_types_list)
     params['type_assignment'] = { i : vtx_types_list[i] for i in range(_N) }
+
+    type_assgn_copy = copy.deepcopy(params['type_assignment'])
+    final_type_assignments = {}
+    for i, ta in params['type_assignment'].items():
+        final_type_assignments[i] = copy.deepcopy(vtx_types[ta])
+        final_type_assignments[i].pop('struct_util', None)
+        final_type_assignments[i].pop('edge_attr_util', None)
+        final_type_assignments[i].pop('total_attr_util', None)
 
     assert math.isclose(sum([ t['likelihood'] for t in params['vtx_types'].values() ]), 1.0)
 
@@ -414,12 +422,12 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters, sub=False):
             summary_stats['nonlocal'][d][st] = np.mean(summary_stats['nonlocal'][d][st])
             summary_stats['nonlocal_match'][d][st] = np.mean(
                 summary_stats['nonlocal_match'][d][st])
-    return summary_stats, final_networks
+    return summary_stats, final_networks, final_type_assignments
 
 ################ run simulation with various params ################
 
 if __name__ == "__main__":
-    summary_stats, final_networks = run_sim(sc_likelihood, ho_likelihood, sim_iters)
+    summary_stats, final_networks, type_assgns = run_sim(sc_likelihood, ho_likelihood, sim_iters)
 
     stat_outname = 'data/comparison/{n}_{k}_{sc}_{ho}_stats.json'.format(
         n=str(n), k=str(max_deg), sc=str(sc_likelihood), ho=str(ho_likelihood))
@@ -433,3 +441,7 @@ if __name__ == "__main__":
     with open(ntwk_outname, 'w+') as out:
         out.write(json.dumps(final_networks))
 
+    types_outname = 'data/comparison/{n}_{k}_{sc}_{ho}_types.json'.format(
+        n=str(n), k=str(max_deg), sc=str(sc_likelihood), ho=str(ho_likelihood))
+    with open(types_outname, 'w+') as out:
+        out.write(json.dumps(type_assgns))
