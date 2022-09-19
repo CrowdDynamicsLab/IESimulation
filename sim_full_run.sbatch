@@ -19,7 +19,7 @@ kvals=(10 150)
 
 (for sc in ${gridvals[@]}; do (
     (for ho in ${gridvals[@]}; do (
-        python3 /home/$USER/scratch/IESimulation/st_comparison.py 670 10 $sc $ho
+        python3 /home/$USER/scratch/IESimulation/st_comparison.py 500 15 $sc $ho
     ) done)
 ) done)
 
