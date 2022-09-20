@@ -16,25 +16,14 @@ from tabulate import tabulate
 # Attr utility functions #
 ##########################
 
-def gen_similarity_funcs():
-    def homophily(u, v, G):
-        return 1 if u.attr_type == v.attr_type else 0
+def homophily(u, v, G):
+    return 1 if u.attr_type == v.attr_type else 0
 
-    def heterophily(u, v, G):
-        return 1 if u.attr_type != v.attr_type else 0
+def heterophily(u, v, G):
+    return 1 if u.attr_type != v.attr_type else 0
 
-    return homophily, heterophily
-
-def gen_attr_util_func(thresh):
-    def util_func(u, G):
-        if thresh == 0.0:
-            return 1.0
-            # return 1.0 if u.sum_edge_util > 0 else 0.0
-        thresh_count = math.ceil(G.sim_params['max_degree'] * thresh)
-        if u.sum_edge_util >= thresh_count:
-            return 1.0
-        return min(u.sum_edge_util / thresh_count, 1.0)
-    return util_func
+def agg_attr_util(u, G):
+    return min(u.sum_edge_util / G.sim_params['max_degree'], 1.0)
 
 ###########################
 # Structural (normalized) #

@@ -44,26 +44,21 @@ nonlocal_dists = list(range(3, 8))
 # Make sure to add k = 150 here for large _N!
 budgets = [math.ceil(math.log(_N)), math.ceil(_N / 2), math.ceil(3 * _N / 4), _N]
 
-similarity_homophily, similarity_heterophily = alu.gen_similarity_funcs()
-total_attr_util = alu.gen_attr_util_func(satisfice)
-
 # Create types
 def type_dict(context, shape, context_p, attr, struct):
     likelihood = context_p
     if struct == 'em':
-        struct_func = alu.satisfice(satisfice)(alu.triangle_count)
+        struct_func = alu.triangle_count
         likelihood = likelihood * (1 - sc_likelihood)
     else:
-        struct_func = alu.satisfice(satisfice)(alu.num_nbor_comp_nx)
+        struct_func = alu.num_nbor_comp_nx
         likelihood = likelihood * sc_likelihood
     if attr == 'ho':
-        attr_edge_func = similarity_homophily
+        attr_edge_func = alu.homophily
         likelihood = likelihood * ho_likelihood
     else:
-        attr_edge_func = similarity_heterophily
+        attr_edge_func = alu.heterophily
         likelihood = likelihood * (1 - ho_likelihood)
-
-    attr_total_func = total_attr_util
 
     #Base color is a rgb list
     base_dict = {'likelihood' : likelihood,
@@ -72,7 +67,7 @@ def type_dict(context, shape, context_p, attr, struct):
               'init_attrs' : context,
               'attr' : attr,
               'edge_attr_util' : attr_edge_func,
-              'total_attr_util' : attr_total_func,
+              'total_attr_util' : alu.agg_attr_util,
               'optimistic' : False,
               #'color' : 'rgb({rgb})'.format(rgb=', '.join([ str(c) for c in color ])),
               'shape' :  shape
@@ -324,24 +319,37 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters, sub=False):
             # Calculate edges for networks
 
             # Attempt to parallelize
-            procs = []
+            to_process = []
+            update_idx = {
+                'std' : -1,
+                'bdgt' : { k : -1 for k in budgets },
+                'nl' : { d : -1 for d in nonlocal_dists }
+            }
             if not std_fin:
-                sf_proc =  mp.Process(target=calc_edges, args=(G_std,))
-                procs.append(sf_proc)
-                sf_proc.start()
+                to_process.append((G_std,2))
+                update_idx['std'] = 0
             for k in budgets:
                 if not bdgt_fin[k]:
-                    bdgt_proc = mp.Process(target=calc_edges, args=(G_bdgt[k],))
-                    procs.append(bdgt_proc)
-                    bdgt_proc.start()
+                    to_process.append((G_bdgt[k],2))
+                    update_idx['bdgt'][k] = len(to_process) - 1
             for d in nonlocal_dists:
                 if not nl_fin[d]:
-                    nl_proc = mp.Process(target=calc_edges, args=(G_nl[d], d,))
-                    procs.append(nl_proc)
-                    nl_proc.start()
+                    to_process.append((G_nl[d],d))
+                    update_idx['nl'][d] = len(to_process) - 1
 
-            for p in procs:
-                p.join()
+            pool = mp.Pool(processes=8)
+            ce_rets = pool.starmap(calc_edges, to_process)
+            pool.close()
+            
+            # Update graphs if needed
+            if update_idx['std'] != -1:
+                G_std = ce_rets[0]
+            for k in budgets:
+                if update_idx['bdgt'][k] != -1:
+                    G_bdgt[k] = ce_rets[update_idx['bdgt'][k]]
+            for d in nonlocal_dists:
+                if update_idx['nl'][d] != -1:
+                    G_nl[k] = ce_rets[update_idx['nl'][d]]
 
             # Get all stable triad counts
             std_st_count = count_stable_triads(G_std)
