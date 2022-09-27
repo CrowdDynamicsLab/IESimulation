@@ -3,6 +3,7 @@ import math
 from itertools import combinations
 import json
 import sys
+import os
 import copy
 import multiprocessing as mp
 
@@ -28,6 +29,8 @@ sc_likelihood = float(sys.argv[3])
 ho_likelihood = float(sys.argv[4])
 
 ############### initializing params ###############
+
+_FIXED_ITERS = math.ceil(max_deg * math.log(max_deg))
 
 _N = n
 satisfice = 1
@@ -351,6 +354,10 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters, sub=False):
                 if update_idx['nl'][d] != -1:
                     G_nl[k] = ce_rets[update_idx['nl'][d]]
 
+            # If running fixed iters ignore stable triad checks
+            if _FIXED_ITERS > 0 and it == _FIXED_ITERS - 1:
+                break
+
             # Get all stable triad counts
             std_st_count = count_stable_triads(G_std)
             bdgt_st_counts = {}
@@ -435,21 +442,31 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters, sub=False):
 ################ run simulation with various params ################
 
 if __name__ == "__main__":
-    summary_stats, final_networks, type_assgns = run_sim(sc_likelihood, ho_likelihood, sim_iters)
 
-    stat_outname = 'data/comparison/{n}_{k}_{sc}_{ho}_stats.json'.format(
-        n=str(n), k=str(max_deg), sc=str(sc_likelihood), ho=str(ho_likelihood))
+    # Skip if file exist
+    data_dir = 'data/comparison_proposal'
+    if _FIXED_ITERS > -1:
+        data_dir = 'data/comparison_proposal_fixed'
+    stat_filename = '{odir}/{n}_{k}_{sc}_{ho}_stats.json'.format(
+        odir=data_dir, n=str(n), k=str(max_deg), sc=str(sc_likelihood), ho=str(ho_likelihood))
+    if os.path.exists(stat_filename):
+        pass
+    else:
+        summary_stats, final_networks, type_assgns = run_sim(sc_likelihood, ho_likelihood, sim_iters)
 
-    with open(stat_outname, 'w+') as out:
-        out.write(json.dumps(summary_stats))
+        stat_outname = '{odir}/{n}_{k}_{sc}_{ho}_stats.json'.format(
+            odir=data_dir, n=str(n), k=str(max_deg), sc=str(sc_likelihood), ho=str(ho_likelihood))
 
-    ntwk_outname = 'data/comparison/{n}_{k}_{sc}_{ho}_networks.json'.format(
-        n=str(n), k=str(max_deg), sc=str(sc_likelihood), ho=str(ho_likelihood))
+        with open(stat_outname, 'w+') as out:
+            out.write(json.dumps(summary_stats))
 
-    with open(ntwk_outname, 'w+') as out:
-        out.write(json.dumps(final_networks))
+        ntwk_outname = '{odir}/{n}_{k}_{sc}_{ho}_networks.json'.format(
+            odir=data_dir, n=str(n), k=str(max_deg), sc=str(sc_likelihood), ho=str(ho_likelihood))
 
-    types_outname = 'data/comparison/{n}_{k}_{sc}_{ho}_types.json'.format(
-        n=str(n), k=str(max_deg), sc=str(sc_likelihood), ho=str(ho_likelihood))
-    with open(types_outname, 'w+') as out:
-        out.write(json.dumps(type_assgns))
+        with open(ntwk_outname, 'w+') as out:
+            out.write(json.dumps(final_networks))
+
+        types_outname = '{odir}/{n}_{k}_{sc}_{ho}_types.json'.format(
+            odir=data_dir, n=str(n), k=str(max_deg), sc=str(sc_likelihood), ho=str(ho_likelihood))
+        with open(types_outname, 'w+') as out:
+            out.write(json.dumps(type_assgns))
