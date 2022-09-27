@@ -180,9 +180,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=False, allow_early_dr
 
         # No point checking proposal/single drop values if over budget anyways
         if remaining_budget(v, G) < 0:
-            subset_budget_resolution(v, G, util_agg)
-            action_dict['resolve'] = action_dict['resolve'] + 1
-            continue
+            raise ValueError('Agents should never have negative budget')
 
         if cur_agg_util >= 2.0:
             continue
@@ -256,8 +254,8 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=False, allow_early_dr
         v_ninc_move = max_ninc_cand
         v_inc_move = max_inc_cand
         if remaining_budget(v, G) < (1 / G.sim_params['max_degree']) and edge_proposals[v] is not None:
-            assert remaining_budget(v, G) == 0
-            print('Shouldnt be here')
+            raise ValueError('If agent budget was 0 should not have proposed')
+        elif remaining_budget(v, G) <= (1 / G.sim_params['max_degree']) and edge_proposals[v] is not None:
             v_move[v] = max_ninc_cand
         elif max_inc_val >= max_ninc_val:
             v_move[v] = max_inc_cand
@@ -279,7 +277,6 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=False, allow_early_dr
         elif action == 'a':
             G.add_edge(v, cand)
             action_dict['add'] = action_dict['add'] + 1
-    #print(action_dict)
     return v_move
 
 # Utility aggregation functions
