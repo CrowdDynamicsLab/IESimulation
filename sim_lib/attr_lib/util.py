@@ -224,6 +224,9 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=False, allow_early_dr
 
             # Would have budget to add (remaining_budget assumes add here)
             if remaining_budget(v, G) > 0:
+                if assume_accept and edge_proposals[v] is not None and edge_proposals[v] != u:
+                    G.add_edge(v, edge_proposals[v])
+
                 attr_change = G.potential_utils[v.vnum][u.vnum] / G.sim_params['max_degree']
                 cost_change = 1  / G.sim_params['max_degree']
                 agg_util = util_agg(
@@ -234,26 +237,10 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=False, allow_early_dr
                 )
                 agg_change = agg_util - cur_agg_util
 
-                aa_agg_change = -1
-                if assume_accept and edge_proposals[v] is not None:
-                    G.add_edge(v, edge_proposals[v])
-                    aa_attr_change = G.potential_utils[v.vnum][u.vnum] / G.sim_params['max_degree']
-                    aa_cost_change = 1  / G.sim_params['max_degree']
-                    aa_agg_util = util_agg(
-                        cur_attr_util + attr_change,
-                        v.data['struct_util'](v, G),
-                        cur_cost + cost_change,
-                        v, G
-                    )
-
-                    # Compare against utility without add
-                    aa_agg_change = aa_agg_util - cur_agg_util
+                if assume_accept and edge_proposals[v] is not None and edge_proposals[v] != u:
                     G.remove_edge(v, edge_proposals[v])
 
-                if assume_accept and aa_agg_change > max_inc_val:
-                    max_inc_val = aa_agg_change
-                    max_inc_cand = ('a', u)
-                if agg_change > max_inc_val:
+                elif agg_change > max_inc_val:
                     max_inc_val = agg_change
                     max_inc_cand = ('a', u)
 
@@ -269,6 +256,8 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=False, allow_early_dr
         v_ninc_move = max_ninc_cand
         v_inc_move = max_inc_cand
         if remaining_budget(v, G) < (1 / G.sim_params['max_degree']) and edge_proposals[v] is not None:
+            assert remaining_budget(v, G) == 0
+            print('Shouldnt be here')
             v_move[v] = max_ninc_cand
         elif max_inc_val >= max_ninc_val:
             v_move[v] = max_inc_cand
