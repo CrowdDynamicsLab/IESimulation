@@ -139,7 +139,7 @@ def edge_sel_sub(G, edge_proposals):
     return seq_projection_edge_edit(G, edge_proposals, substitute=True)
 
                                            # No more substitutions.
-def seq_projection_edge_edit(G, edge_proposals, substitute=False, allow_early_drop=True, log=True):
+def seq_projection_edge_edit(G, edge_proposals, substitute=False, allow_early_drop=True, assume_accept=True, log=True):
     # Sequentially (non-random) pick one edge to propose to via projection
     # of multiobjective optimization function
     # Assumes even split of coefficients
@@ -189,6 +189,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=False, allow_early_dr
 
         #can_add_nbor = remaining_budget(v, G) >= G.sim_params['direct_cost']
         can_add_nbor = remaining_budget(v, G) > 0
+            
         for u in v.nbors:
 
             # Consider drop choices
@@ -232,6 +233,26 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=False, allow_early_dr
                     v, G
                 )
                 agg_change = agg_util - cur_agg_util
+
+                aa_agg_change = -1
+                if assume_accept and edge_proposals[v] is not None:
+                    G.add_edge(v, edge_proposals[v])
+                    aa_attr_change = G.potential_utils[v.vnum][u.vnum] / G.sim_params['max_degree']
+                    aa_cost_change = 1  / G.sim_params['max_degree']
+                    aa_agg_util = util_agg(
+                        cur_attr_util + attr_change,
+                        v.data['struct_util'](v, G),
+                        cur_cost + cost_change,
+                        v, G
+                    )
+
+                    # Compare against utility without add
+                    aa_agg_change = aa_agg_util - cur_agg_util
+                    G.remove_edge(v, edge_proposals[v])
+
+                if assume_accept and aa_agg_change > max_inc_val:
+                    max_inc_val = aa_agg_change
+                    max_inc_cand = ('a', u)
                 if agg_change > max_inc_val:
                     max_inc_val = agg_change
                     max_inc_cand = ('a', u)
@@ -243,33 +264,6 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=False, allow_early_dr
                 G.remove_edge(v, u)
                 continue
 
-            print('what are you doing here')
-            for w in v.nbors:
-
-                # Check substitution
-                if u == w:
-                    continue
-
-                G.remove_edge(v, w)
-
-                if remaining_budget(v, G) >= 0:
-
-                    # Disallow substitution if over budget
-                    attr_cnt_del = G.potential_utils[v.vnum][u.vnum] - G.potential_utils[v.vnum][w.vnum]
-                    attr_change = attr_cnt_del / G.sim_params['max_degree']
-
-                    agg_util = util_agg(
-                        cur_attr_util + attr_change,
-                        v.data['struct_util'](v, G),
-                        cur_cost,
-                        v, G
-                    )
-                    agg_change = agg_util - cur_agg_util
-                    if agg_change > max_ninc_val:
-                        max_ninc_val = agg_change
-                        max_ninc_cand = ('s', (u, w))
-
-                G.add_edge(v, w)
             G.remove_edge(v, u)
 
         v_ninc_move = max_ninc_cand
@@ -280,7 +274,6 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=False, allow_early_dr
             v_move[v] = max_inc_cand
         else:
             v_move[v] = max_ninc_cand
-
 
     for v, cand_tuple in v_move.items():
         if cand_tuple is None:
