@@ -98,11 +98,6 @@ def initialize_vertex(G, vtx=None):
     vtx.data.pop('likelihood')
     vtx.attr_type = vtx.data['init_attrs']
 
-    #NOTE: Keep old code for reference of multi-context pareto attr init
-#    contexts = np.random.choice(list(range(G.sim_params['context_count'])),
-#            replace=False, size=G.sim_params['k'])
-#    G.data[vtx] = { context : { vtx.data['attr_func']() } for context in contexts }
-
     return vtx
 
 # Graph creation
@@ -124,7 +119,6 @@ def attribute_network(n, params):
     G.sim_params['indirect_cost'] = G.sim_params['direct_cost'] ** 2
     
     # Ignore indirect cost
-    #G.sim_params['max_degree'] = math.floor(1 / G.sim_params['direct_cost'])
     G.sim_params['max_degree'] = max_clique_degree
 
     for i in range(n):
@@ -136,40 +130,6 @@ def attribute_network(n, params):
 
     # Calculate edge utils
     calc_utils(G)
-
-    if params['seed_type'] == 'clique':
-
-        # This may give a network that starts as over budget
-        for v_idx in range(n):
-            for u_idx in range(v_idx + 1, n):
-                G.add_edge(G.vertices[v_idx], G.vertices[u_idx])
-    elif params['seed_type'] == 'trivial':
-        pass
-    elif params['seed_type'] == 'erdos_renyi':
-        edge_prob = ((1 + (2 ** -10)) * math.log(n)) / n
-        #edge_prob = 1 / n
-        for v_idx in range(n):
-            for u_idx in range(v_idx + 1, n):
-                if np.random.random() <= edge_prob:
-                    G.add_edge(G.vertices[v_idx], G.vertices[u_idx])
-    elif params['seed_type'] == 'grid':
-        n_sqrt = math.floor(math.sqrt(n))
-        assert n_sqrt ** 2 == n, 'Have not implemented non-square n for grid seed'
-        grid_l = n_sqrt
-        grid_w = n_sqrt
-        coord = lambda i : (i % grid_w, i // grid_l) # gives (x, y) coordinate
-        row_idx = lambda x, y : x + (y * grid_l)
-        in_bound = lambda x, y : x < grid_w and y < grid_l
-        for v_idx in range(n):
-            v_x, v_y = coord(v_idx)
-            right_vtx = (v_x + 1, v_y)
-            down_vtx = (v_x, v_y + 1)
-            if in_bound(*right_vtx):
-                G.add_edge(G.vertices[v_idx], G.vertices[row_idx(*right_vtx)])
-            if in_bound(*down_vtx):
-                G.add_edge(G.vertices[v_idx], G.vertices[row_idx(*down_vtx)])
-        for v in G.vertices:
-            assert v.degree > 1, 'How can degree be < 2'
 
     G.init_adj_matrix()
     return G
