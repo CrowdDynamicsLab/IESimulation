@@ -13,19 +13,6 @@ import networkx as nx
 from tabulate import tabulate
 
 ##########################
-# Comp utility functions #
-##########################
-
-def approx_less(a, b, strict=True):
-    close = math.isclose(a, b)
-    if close:
-
-        # Consider them as equal
-        return not strict
-    else:
-        return a < b
-
-##########################
 # Attr utility functions #
 ##########################
 
@@ -114,33 +101,6 @@ def remaining_budget(u, G):
 # Edge calculation #
 ####################
 
-def subset_budget_resolution(v, G, util_agg):
-
-    # Brings v under budget by removing subset of edges incident to v
-    cur_attr_util = v.data['total_attr_util'](v, G)
-    cur_struct_util = v.data['struct_util'](v, G)
-    cur_cost = calc_cost(v, G)
-    cur_util = util_agg(cur_attr_util, cur_struct_util, cur_cost, v, G)
-    while remaining_budget(v, G) < 0:
-        min_util_loss = np.inf
-        drop_candidate = None
-
-        # Out of place shuffle
-        for nbor in v.nbors:
-            G.remove_edge(v, nbor)
-            pot_attr_util = v.data['total_attr_util'](v, G)
-            pot_struct_util = v.data['struct_util'](v, G)
-            pot_cost = calc_cost(v, G)
-            potential_util = util_agg(pot_attr_util, pot_struct_util, pot_cost, v, G)
-            util_loss = cur_util - potential_util
-            G.add_edge(v, nbor)
-            if util_loss < min_util_loss:
-                min_util_loss = util_loss
-                drop_candidate = nbor
-        G.remove_edge(v, drop_candidate)
-        cur_util -= min_util_loss
-    assert remaining_budget(v, G) >= 0, 'did not resolve budget'
-
 # Seq selection functions
 def seq_edge_sel_logged(G, edge_proposals):
     return seq_projection_edge_edit(G, edge_proposals, log=True)
@@ -148,11 +108,7 @@ def seq_edge_sel_logged(G, edge_proposals):
 def seq_edge_sel_silent(G, edge_proposals):
     return seq_projection_edge_edit(G, edge_proposals, log=False)
 
-def edge_sel_sub(G, edge_proposals):
-    return seq_projection_edge_edit(G, edge_proposals, substitute=True)
-
-                                           # No more substitutions.
-def seq_projection_edge_edit(G, edge_proposals, substitute=False, allow_early_drop=True, assume_accept=True, log=True):
+def seq_projection_edge_edit(G, edge_proposals, allow_early_drop=True, assume_accept=True, log=True):
     # Sequentially (non-random) pick one edge to propose to via projection
     # of multiobjective optimization function
     # Assumes even split of coefficients
@@ -255,23 +211,14 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=False, allow_early_dr
                     max_inc_val = agg_change
                     max_inc_cand = ('a', u)
 
-            if (not allow_early_drop and can_add_nbor) or not substitute:
-
-                # If can still add do not allow a substitution
-                # Edge case when no available vertex at direct cost
-                G.remove_edge(v, u)
-                continue
-
             G.remove_edge(v, u)
 
         v_ninc_move = max_ninc_cand
         v_inc_move = max_inc_cand
-        if approx_less(remaining_budget(v, G), (1 / G.sim_params['max_degree'])) \
-                                                        and edge_proposals[v] is not None:
+        if (G.sim_params['max_degree'] - v.degree) < 1 and edge_proposals[v] is not None:
             print('Agent v budget', remaining_budget(v, G), 'limit', 1 / G.sim_params['max_degree'])
             raise ValueError('If agent budget was 0 should not have proposed')
-        elif approx_less(remaining_budget(v, G), (1 / G.sim_params['max_degree']), False) \
-                                                        and edge_proposals[v] is not None:
+        elif (G.sim_params['max_degree'] - v.degree) <= 1 and edge_proposals[v] is not None:
             v_move[v] = max_ninc_cand
         elif max_inc_val >= max_ninc_val:
             v_move[v] = max_inc_cand
@@ -283,11 +230,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=False, allow_early_dr
             continue
         action = cand_tuple[0]
         cand = cand_tuple[1]
-        if action == 's':
-            G.add_edge(v, cand[0])
-            G.remove_edge(v, cand[1])
-            action_dict['swap'] = action_dict['swap'] + 1
-        elif action == 'd':
+        if action == 'd':
             G.remove_edge(v, cand)
             action_dict['delete'] = action_dict['delete'] + 1
         elif action == 'a':
@@ -299,18 +242,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=False, allow_early_dr
 def linear_util_agg(a, s, c, v, G):
     return a + s
 
-def attr_first_agg(a, s, c, v, G):
-    if v.data['total_attr_util'](v, G) == 1.0:
-        return a + s
-    return a
-
-def struct_first_agg(a, s, c, v, G):
-    if v.data['struct_util'](v, G) == 1.0:
-        return a + s
-    return s
-
 # Revelation proposal sets
-
 def indep_revelation(G):
 
     # Do not allow self revelation
@@ -325,16 +257,6 @@ def indep_revelation(G):
         self_match = np.arange(len(rand_sel))[rand_sel == self_sel]
 
     return rand_sel
-
-#########################
-# Measurement functions #
-#########################
-
-def random_walk_length(u, G):
-
-    # Uses budget calculation to get length of walk that u should take on G
-    walk_budget = remaining_budget(u, G)
-    return math.floor(walk_budget / 0.1)
 
 #######################
 # Networkx Conversion #
