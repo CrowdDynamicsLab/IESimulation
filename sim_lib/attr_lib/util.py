@@ -13,6 +13,19 @@ import networkx as nx
 from tabulate import tabulate
 
 ##########################
+# Comp utility functions #
+##########################
+
+def approx_less(a, b, strict=True):
+    close = math.isclose(a, b)
+    if close:
+
+        # Consider them as equal
+        return not strict
+    else:
+        return a < b
+
+##########################
 # Attr utility functions #
 ##########################
 
@@ -238,7 +251,7 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=False, allow_early_dr
                 if assume_accept and edge_proposals[v] is not None and edge_proposals[v] != u:
                     G.remove_edge(v, edge_proposals[v])
 
-                elif agg_change > max_inc_val:
+                if agg_change > max_inc_val:
                     max_inc_val = agg_change
                     max_inc_cand = ('a', u)
 
@@ -253,9 +266,12 @@ def seq_projection_edge_edit(G, edge_proposals, substitute=False, allow_early_dr
 
         v_ninc_move = max_ninc_cand
         v_inc_move = max_inc_cand
-        if remaining_budget(v, G) < (1 / G.sim_params['max_degree']) and edge_proposals[v] is not None:
+        if approx_less(remaining_budget(v, G), (1 / G.sim_params['max_degree'])) \
+                                                        and edge_proposals[v] is not None:
+            print('Agent v budget', remaining_budget(v, G), 'limit', 1 / G.sim_params['max_degree'])
             raise ValueError('If agent budget was 0 should not have proposed')
-        elif remaining_budget(v, G) <= (1 / G.sim_params['max_degree']) and edge_proposals[v] is not None:
+        elif approx_less(remaining_budget(v, G), (1 / G.sim_params['max_degree']), False) \
+                                                        and edge_proposals[v] is not None:
             v_move[v] = max_ninc_cand
         elif max_inc_val >= max_ninc_val:
             v_move[v] = max_inc_cand
