@@ -156,8 +156,11 @@ def seq_projection_edge_edit(G, edge_proposals, allow_early_drop=True, assume_ac
 
         #can_add_nbor = remaining_budget(v, G) >= G.sim_params['direct_cost']
         can_add_nbor = remaining_budget(v, G) > 0
-            
+
         for u in v.nbors:
+                
+            if assume_accept and edge_proposals[v] is not None and edge_proposals[v] != u:
+                G.add_edge(v, edge_proposals[v])
 
             # Consider drop choices
             if not allow_early_drop and can_add_nbor:
@@ -181,18 +184,22 @@ def seq_projection_edge_edit(G, edge_proposals, allow_early_drop=True, assume_ac
 
             G.add_edge(v, u)
 
+            if assume_accept and edge_proposals[v] is not None and edge_proposals[v] != u:
+                G.remove_edge(v, edge_proposals[v])
+
         for u in proposed_by[v]:
 
             # Consider edge formation choices
             if u in v.nbors:
                 continue
 
+            if assume_accept and edge_proposals[v] is not None and edge_proposals[v] != u:
+                G.add_edge(v, edge_proposals[v])
+
             G.add_edge(v, u)
 
             # Would have budget to add (remaining_budget assumes add here)
             if remaining_budget(v, G) > 0:
-                if assume_accept and edge_proposals[v] is not None and edge_proposals[v] != u:
-                    G.add_edge(v, edge_proposals[v])
 
                 attr_change = G.potential_utils[v.vnum][u.vnum] / G.sim_params['max_degree']
                 cost_change = 1  / G.sim_params['max_degree']
@@ -204,14 +211,14 @@ def seq_projection_edge_edit(G, edge_proposals, allow_early_drop=True, assume_ac
                 )
                 agg_change = agg_util - cur_agg_util
 
-                if assume_accept and edge_proposals[v] is not None and edge_proposals[v] != u:
-                    G.remove_edge(v, edge_proposals[v])
-
                 if agg_change > max_inc_val:
                     max_inc_val = agg_change
                     max_inc_cand = ('a', u)
 
             G.remove_edge(v, u)
+
+            if assume_accept and edge_proposals[v] is not None and edge_proposals[v] != u:
+                G.remove_edge(v, edge_proposals[v])
 
         v_ninc_move = max_ninc_cand
         v_inc_move = max_inc_cand
