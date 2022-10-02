@@ -317,6 +317,8 @@ def fit_village_data(params):
 
     stata_household = pd.read_stata('banerjee_data/datav4.0/Data/2. Demographics and Outcomes/household_characteristics.dta')
 
+    print('found stata_household')
+
     # various edge sets
     money_hyp_files = ['borrowmoney', 'lendmoney', 'keroricecome', 'keroricego']
     trust_hyp_files = ['helpdecision', 'giveadvice', 'medic']
