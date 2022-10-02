@@ -315,11 +315,8 @@ def fit_village_data(params):
 
     sim_iters = 5
 
-    print('looking for stata_household')
-
     stata_household = pd.read_stata('banerjee_data/datav4.0/Data/2. Demographics and Outcomes/household_characteristics.dta')
 
-    print('found stata_household')
 
     # various edge sets
     money_hyp_files = ['borrowmoney', 'lendmoney', 'keroricecome', 'keroricego']
@@ -660,7 +657,7 @@ paramlist = list(product(vill_list, max_clique_size_list, sc_likelihood_list, ho
 if __name__ == '__main__':
 
     # create a process pool that uses all cpus
-    with mp.Pool() as pool:
+    with mp.Pool(processes = 32) as pool:
         # call the function for each item in parallel
         pool.map(fit_village_data, paramlist)
 
