@@ -315,6 +315,8 @@ def fit_village_data(params):
 
     sim_iters = 5
 
+    print('looking for stata_household')
+
     stata_household = pd.read_stata('banerjee_data/datav4.0/Data/2. Demographics and Outcomes/household_characteristics.dta')
 
     print('found stata_household')
