@@ -9,12 +9,17 @@ import sim_lib.util as util
 import sim_lib.attr_lib.util as alu
 from sim_lib.attr_lib.formation import *
 from math import isclose
+from itertools import product
 from itertools import combinations
+from itertools import chain
 import json
 import sys
 import os
 import copy
 import multiprocessing as mp
+
+import warnings
+warnings.filterwarnings("ignore")
 
 _FIXED_ITERS = -1
 
@@ -261,25 +266,6 @@ def run_sim(sc_likelihood, ho_likelihood, max_clique_size, ctxt_likelihood, _N, 
 
         for it in range(num_iters):
 
-            # Calculate edges for networks
-
-            # Attempt to parallelize
-            #to_process = []
-            #update_idx = {
-            #    'std' : -1
-            #}
-            #if not std_fin:
-            #    to_process.append((G_std,2))
-            #    update_idx['std'] = 0
-
-            #pool = mp.Pool(processes=8)
-            #ce_rets = pool.starmap(calc_edges, to_process)
-            #pool.close()
-
-            # Update graphs if needed
-            #if update_idx['std'] != -1:
-                #G_std = ce_rets[0]
-
             calc_edges(G_std)
 
             # If running fixed iters ignore stable triad checks
@@ -308,7 +294,7 @@ def run_sim(sc_likelihood, ho_likelihood, max_clique_size, ctxt_likelihood, _N, 
             if std_fin:
                 break
 
-    print('k: ', max_clique_size, 'ho: ', ho_likelihood, 'sc: ', sc_likelihood)
+    #print('k: ', max_clique_size, 'ho: ', ho_likelihood, 'sc: ', sc_likelihood)
 
     # Take mean of all summary stats
     for st, vs in summary_stats['standard'].items():
@@ -316,7 +302,18 @@ def run_sim(sc_likelihood, ho_likelihood, max_clique_size, ctxt_likelihood, _N, 
 
     return summary_stats, final_networks, final_type_assignments
 
-def fit_village_data(vill_list, max_clique_size_list, sc_likelihood_list, ho_likelihood_list, sim_iters = 1):
+#k_loss_array1 = np.full((len(vill_list),len(max_clique_size_list)), np.inf)
+#k_loss_array2 = np.full((len(vill_list),len(max_clique_size_list)), np.inf)
+#k_loss_array3 = np.full((len(vill_list),len(max_clique_size_list)), np.inf)
+
+def fit_village_data(params):
+
+    vill_no = params[0]
+    max_clique_size = params[1]
+    sc_likelihood = params[2]
+    ho_likelihood = params[3]
+
+    sim_iters = 5
 
     stata_household = pd.read_stata('banerjee_data/datav4.0/Data/2. Demographics and Outcomes/household_characteristics.dta')
 
@@ -325,135 +322,133 @@ def fit_village_data(vill_list, max_clique_size_list, sc_likelihood_list, ho_lik
     trust_hyp_files = ['helpdecision', 'giveadvice', 'medic']
     trust_fact_files = ['visitcome','visitgo', 'templecompany']
 
-    k_loss_array1 = np.full((len(vill_list),len(max_clique_size_list)), np.inf)
-    k_loss_array2 = np.full((len(vill_list),len(max_clique_size_list)), np.inf)
-    k_loss_array3 = np.full((len(vill_list),len(max_clique_size_list)), np.inf)
+    vill_no = vill_no + 1
 
-    for vill_idx, vill_no in enumerate(vill_list):
-        vill_no = vill_no + 1
-        # don't exist in dataset
-        if vill_no == 13 or vill_no == 22:
-            continue
+    # choose village and label with normalized room type
+    stata_vill = stata_household.where(stata_household['village'] == vill_no).dropna(how = 'all')
+    room_type = np.array(stata_vill['room_no']/np.sqrt((stata_vill['bed_no']+1))<=2)
 
-        print('village ', vill_no)
+    # ad mat for money_hyp_files
 
-        # choose village and label with normalized room type
-        stata_vill = stata_household.where(stata_household['village'] == vill_no).dropna(how = 'all')
-        room_type = np.array(stata_vill['room_no']/np.sqrt((stata_vill['bed_no']+1))<=2)
+    old_file1 = 'banerjee_data/datav4.0/Data/1. Network Data/Adjacency Matrices/adj_' + money_hyp_files[0] +'_HH_vilno_' + str(vill_no) + '.csv'
+    ad_mat_old1 = (pd.read_csv(old_file1, header=None)).to_numpy()
 
-        # ad mat for money_hyp_files
+    for file in money_hyp_files[1:]:
+        new_file1 = 'banerjee_data/datav4.0/Data/1. Network Data/Adjacency Matrices/adj_' + file +'_HH_vilno_' + str(vill_no) + '.csv'
+        ad_mat_new1= (pd.read_csv(new_file1, header=None)).to_numpy()
 
-        old_file1 = 'banerjee_data/datav4.0/Data/1. Network Data/Adjacency Matrices/adj_' + money_hyp_files[0] +'_HH_vilno_' + str(vill_no) + '.csv'
-        ad_mat_old1 = (pd.read_csv(old_file1, header=None)).to_numpy()
+        ad_mat_old1 = np.bitwise_or(ad_mat_old1, ad_mat_new1)
 
-        for file in money_hyp_files[1:]:
-            new_file1 = 'banerjee_data/datav4.0/Data/1. Network Data/Adjacency Matrices/adj_' + file +'_HH_vilno_' + str(vill_no) + '.csv'
-            ad_mat_new1= (pd.read_csv(new_file1, header=None)).to_numpy()
+    ad_mat_np1 = ad_mat_old1
 
-            ad_mat_old1 = np.bitwise_or(ad_mat_old1, ad_mat_new1)
+    # ad mat for trust_hyp_files
 
-        ad_mat_np1 = ad_mat_old1
+    old_file2 = 'banerjee_data/datav4.0/Data/1. Network Data/Adjacency Matrices/adj_' + trust_hyp_files[0] +'_HH_vilno_' + str(vill_no) + '.csv'
+    ad_mat_old2 = (pd.read_csv(old_file2, header=None)).to_numpy()
 
-        # ad mat for trust_hyp_files
+    for file in trust_hyp_files[1:]:
+        new_file2 = 'banerjee_data/datav4.0/Data/1. Network Data/Adjacency Matrices/adj_' + file +'_HH_vilno_' + str(vill_no) + '.csv'
+        ad_mat_new2= (pd.read_csv(new_file2, header=None)).to_numpy()
 
-        old_file2 = 'banerjee_data/datav4.0/Data/1. Network Data/Adjacency Matrices/adj_' + trust_hyp_files[0] +'_HH_vilno_' + str(vill_no) + '.csv'
-        ad_mat_old2 = (pd.read_csv(old_file2, header=None)).to_numpy()
+        ad_mat_old2 = np.bitwise_or(ad_mat_old2, ad_mat_new2)
 
-        for file in trust_hyp_files[1:]:
-            new_file2 = 'banerjee_data/datav4.0/Data/1. Network Data/Adjacency Matrices/adj_' + file +'_HH_vilno_' + str(vill_no) + '.csv'
-            ad_mat_new2= (pd.read_csv(new_file2, header=None)).to_numpy()
+    ad_mat_np2 = ad_mat_old2
 
-            ad_mat_old2 = np.bitwise_or(ad_mat_old2, ad_mat_new2)
+    # ad mat for trust_fact_files
 
-        ad_mat_np2 = ad_mat_old2
+    old_file3 = 'banerjee_data/datav4.0/Data/1. Network Data/Adjacency Matrices/adj_' + trust_fact_files[0] +'_HH_vilno_' + str(vill_no) + '.csv'
+    ad_mat_old3 = (pd.read_csv(old_file3, header=None)).to_numpy()
 
-        # ad mat for trust_fact_files
+    for file in trust_fact_files[1:]:
+        new_file3 = 'banerjee_data/datav4.0/Data/1. Network Data/Adjacency Matrices/adj_' + file +'_HH_vilno_' + str(vill_no) + '.csv'
+        ad_mat_new3= (pd.read_csv(new_file3, header=None)).to_numpy()
 
-        old_file3 = 'banerjee_data/datav4.0/Data/1. Network Data/Adjacency Matrices/adj_' + trust_fact_files[0] +'_HH_vilno_' + str(vill_no) + '.csv'
-        ad_mat_old3 = (pd.read_csv(old_file3, header=None)).to_numpy()
+        ad_mat_old3 = np.bitwise_or(ad_mat_old3, ad_mat_new3)
 
-        for file in trust_fact_files[1:]:
-            new_file3 = 'banerjee_data/datav4.0/Data/1. Network Data/Adjacency Matrices/adj_' + file +'_HH_vilno_' + str(vill_no) + '.csv'
-            ad_mat_new3= (pd.read_csv(new_file3, header=None)).to_numpy()
+    ad_mat_np3 = ad_mat_old3
 
-            ad_mat_old3 = np.bitwise_or(ad_mat_old3, ad_mat_new3)
+    matrix_key_filename = 'banerjee_data/datav4.0/Data/1. Network Data/Adjacency Matrix Keys/key_HH_vilno_' + str(vill_no) + '.csv'
+    ad_mat_key_vill = np.array(pd.read_csv(matrix_key_filename, header = None))
 
-        ad_mat_np3 = ad_mat_old3
+    # confirm households in every village are actually labelled 1...h
+    assert(np.array_equal(ad_mat_key_vill.flatten(),stata_vill['HHnum_in_village'].values))
 
-        matrix_key_filename = 'banerjee_data/datav4.0/Data/1. Network Data/Adjacency Matrix Keys/key_HH_vilno_' + str(vill_no) + '.csv'
-        ad_mat_key_vill = np.array(pd.read_csv(matrix_key_filename, header = None))
+    # confirm is symmetric
+    assert(is_symmetric(ad_mat_np1))
+    assert(is_symmetric(ad_mat_np2))
+    assert(is_symmetric(ad_mat_np3))
 
-        # confirm households in every village are actually labelled 1...h
-        assert(np.array_equal(ad_mat_key_vill.flatten(),stata_vill['HHnum_in_village'].values))
+    G_nx_data1 = nx.from_numpy_matrix(ad_mat_np1)
+    G_nx_data2 = nx.from_numpy_matrix(ad_mat_np2)
+    G_nx_data3 = nx.from_numpy_matrix(ad_mat_np3)
 
-        # confirm is symmetric
-        assert(is_symmetric(ad_mat_np1))
-        assert(is_symmetric(ad_mat_np2))
-        assert(is_symmetric(ad_mat_np3))
+    data_type_dict = {k: v for k, v in enumerate(room_type)}
+    nx.set_node_attributes(G_nx_data1, data_type_dict, "type")
+    nx.set_node_attributes(G_nx_data2, data_type_dict, "type")
+    nx.set_node_attributes(G_nx_data3, data_type_dict, "type")
 
-        G_nx_data1 = nx.from_numpy_matrix(ad_mat_np1)
-        G_nx_data2 = nx.from_numpy_matrix(ad_mat_np2)
-        G_nx_data3 = nx.from_numpy_matrix(ad_mat_np3)
+    # values to aim for
+    data_tri_cnt1 = sum((nx.triangles(G_nx_data1)).values())/3
+    data_assort1 = nx.attribute_assortativity_coefficient(G_nx_data1, "type")
 
-        data_type_dict = {k: v for k, v in enumerate(room_type)}
-        nx.set_node_attributes(G_nx_data1, data_type_dict, "type")
-        nx.set_node_attributes(G_nx_data2, data_type_dict, "type")
-        nx.set_node_attributes(G_nx_data3, data_type_dict, "type")
+    data_tri_cnt2 = sum((nx.triangles(G_nx_data2)).values())/3
+    data_assort2 = nx.attribute_assortativity_coefficient(G_nx_data2, "type")
 
-        # values to aim for
-        data_tri_cnt1 = sum((nx.triangles(G_nx_data1)).values())/3
-        data_assort1 = nx.attribute_assortativity_coefficient(G_nx_data1, "type")
+    data_tri_cnt3 = sum((nx.triangles(G_nx_data3)).values())/3
+    data_assort3 = nx.attribute_assortativity_coefficient(G_nx_data3, "type")
 
-        data_tri_cnt2 = sum((nx.triangles(G_nx_data2)).values())/3
-        data_assort2 = nx.attribute_assortativity_coefficient(G_nx_data2, "type")
+    ########## simulation ###########
 
-        data_tri_cnt3 = sum((nx.triangles(G_nx_data3)).values())/3
-        data_assort3 = nx.attribute_assortativity_coefficient(G_nx_data3, "type")
+    ## checking which k is optimal ##
 
-        ########## simulation ###########
+    #loss_array1 = np.full((len(max_clique_size_list), len(sc_likelihood_list), len(ho_likelihood_list)), np.inf)
+    #loss_array2 = np.full((len(max_clique_size_list),len(sc_likelihood_list), len(ho_likelihood_list)), np.inf)
+    #loss_array3 = np.full((len(max_clique_size_list),len(sc_likelihood_list), len(ho_likelihood_list)), np.inf)
 
-        ## checking which k is optimal ##
+    summ_stats, final_ntwks, final_types = run_sim(sc_likelihood, ho_likelihood, max_clique_size, ctxt_likelihood = sum(room_type)/len(room_type), _N = G_nx_data1.number_of_nodes(), sim_iters = sim_iters)
 
-        for k_idx, max_clique_size in enumerate(max_clique_size_list):
-            loss_array1 = np.full((len(sc_likelihood_list), len(ho_likelihood_list)), np.inf)
-            loss_array2 = np.full((len(sc_likelihood_list), len(ho_likelihood_list)), np.inf)
-            loss_array3 = np.full((len(sc_likelihood_list), len(ho_likelihood_list)), np.inf)
+    tri_loss1 = (data_tri_cnt1-summ_stats['standard']['triangle_count'])/data_tri_cnt1
+    tri_loss2 = (data_tri_cnt2-summ_stats['standard']['triangle_count'])/data_tri_cnt2
+    tri_loss3 = (data_tri_cnt3-summ_stats['standard']['triangle_count'])/data_tri_cnt3
 
-            for sc_idx, sc_likelihood in enumerate(sc_likelihood_list):
-                for ho_idx, ho_likelihood in enumerate(ho_likelihood_list):
-                    summ_stats, final_ntwks, final_types = run_sim(sc_likelihood, ho_likelihood, max_clique_size, ctxt_likelihood = sum(room_type)/len(room_type), _N = G_nx_data1.number_of_nodes(), sim_iters = sim_iters)
+    assort_loss1 = (data_assort1 - summ_stats['standard']['assortativity'])/2
+    assort_loss2 = (data_assort2 - summ_stats['standard']['assortativity'])/2
+    assort_loss3 = (data_assort3 - summ_stats['standard']['assortativity'])/2
 
-                    tri_loss1 = (data_tri_cnt1-summ_stats['standard']['triangle_count'])/data_tri_cnt1
-                    tri_loss2 = (data_tri_cnt2-summ_stats['standard']['triangle_count'])/data_tri_cnt2
-                    tri_loss3 = (data_tri_cnt3-summ_stats['standard']['triangle_count'])/data_tri_cnt3
+    loss1 = np.sqrt(tri_loss1**2 + assort_loss1**2)
+    loss2 = np.sqrt(tri_loss2**2 + assort_loss2**2)
+    loss3 = np.sqrt(tri_loss3**2 + assort_loss3**2)
 
-                    assort_loss1 = (data_assort1 - summ_stats['standard']['assortativity'])/2
-                    assort_loss2 = (data_assort2 - summ_stats['standard']['assortativity'])/2
-                    assort_loss3 = (data_assort3 - summ_stats['standard']['assortativity'])/2
+    value = [str(loss1), '\n', str(loss2), '\n', str(loss3)]
 
-                    loss1 = np.sqrt(tri_loss1**2 + assort_loss1**2)
-                    loss2 = np.sqrt(tri_loss2**2 + assort_loss2**2)
-                    loss3 = np.sqrt(tri_loss3**2 + assort_loss3**2)
+    print(value)
 
-                    loss_array1[sc_idx, ho_idx] = loss1
-                    loss_array2[sc_idx, ho_idx] = loss2
-                    loss_array3[sc_idx, ho_idx] = loss3
+    data_dir = 'coarse_results'
 
-                    print(loss_array1, loss_array2, loss_array3)
+    filename = '{odir}/{vill_no}_{k}_{sc}_{ho}_losses.txt'.format(
+        odir=data_dir, vill_no=str(vill_no), k=str(max_clique_size), sc=str(sc_likelihood), ho=str(ho_likelihood))
 
-            k_loss_array1[vill_idx, k_idx] = np.amin(loss_array1)
-            k_loss_array2[vill_idx, k_idx] = np.amin(loss_array2)
-            k_loss_array3[vill_idx, k_idx] = np.amin(loss_array3)
+    with open(filename, 'w') as f:
+        f.writelines(value)
+    f.close()
 
-    k_min1 = k_loss_array1.mean(axis = 0)
-    k_min2 = k_loss_array2.mean(axis = 0)
-    k_min3 = k_loss_array3.mean(axis = 0)
+#    loss_array1[max_clique_size - 4, sc_likelihood * 4, ho_likelihood * 4] = loss1
+#    loss_array2[max_clique_size - 4, sc_likelihood * 4, ho_likelihood * 4] = loss2
+#    loss_array3[max_clique_size - 4, sc_likelihood * 4, ho_likelihood * 4] = loss3
 
-    k_best1 = max_clique_size_list[(np.where(k_min1 == (min(k_min1))))[0][0]]
-    k_best2 = max_clique_size_list[(np.where(k_min2 == (min(k_min2))))[0][0]]
-    k_best3 = max_clique_size_list[(np.where(k_min3 == (min(k_min3))))[0][0]]
 
-    return (k_best1, k_best2, k_best3)
+#    k_loss_array1[vill_no-1, max_clique_size - 4] = np.amin(loss_array1, axis = (1,2))
+#    k_loss_array2[vill_no-1, max_clique_size - 4] = np.amin(loss_array2, axis = (1,2))
+#    k_loss_array3[vill_no-1, max_clique_size - 4] = np.amin(loss_array3, axis = (1,2))
+
+#    k_min1 = k_loss_array1.mean(axis = 0)
+#    k_min2 = k_loss_array2.mean(axis = 0)
+#    k_min3 = k_loss_array3.mean(axis = 0)
+
+#    k_best1 = max_clique_size_list[(np.where(k_min1 == (min(k_min1))))[0][0]]
+#    k_best2 = max_clique_size_list[(np.where(k_min2 == (min(k_min2))))[0][0]]
+#    k_best3 = max_clique_size_list[(np.where(k_min3 == (min(k_min3))))[0][0]]
+
 
 def fit_village_data_fine(vill_list, max_clique_size_list1, max_clique_size_list2, max_clique_size_list3, sc_likelihood_list, ho_likelihood_list, sim_iters = 1):
 
@@ -643,11 +638,26 @@ def fit_village_data_fine(vill_list, max_clique_size_list1, max_clique_size_list
 
     return (params_best1, params_best2, params_best3, k_best1, k_best2, k_best3)
 
-k_best1, k_best2, k_best3 = fit_village_data(range(77), range(4,11), [0,.25,.5,.75,1], [0,.25,.5,.75,1], sim_iters = 10)
+#k_best1, k_best2, k_best3 = fit_village_data(range(77), range(4,15), [0,.25,.5,.75,1], [0,.25,.5,.75,1], sim_iters = 10)
 
+#k_range1 = range(k_best1-1, k_best1+2)
+#k_range2 = range(k_best2-1, k_best2+2)
+#k_range3 = range(k_best3-1, k_best3+2)
 
-k_range1 = range(k_best1-1, k_best1+2)
-k_range2 = range(k_best2-1, k_best2+2)
-k_range3 = range(k_best3-1, k_best3+2)
+#params_best1, params_best2, params_best3 = fit_village_data_fine(range(77), k_range1, k_range2, k_range3, [0, .125, .25, .375, .5, .625, .75, .875, 1], [0, .125, .25, .375, .5, .625, .75, .875, 1], sim_iters = 10)
 
-params_best1, params_best2, params_best3 = fit_village_data_fine(range(77), k_range1, k_range2, k_range3, [0, .125, .25, .375, .5, .625, .75, .875, 1], [0, .125, .25, .375, .5, .625, .75, .875, 1], sim_iters = 10)
+vill_list = chain(range(12),range(13, 21),range(22, 77))
+max_clique_size_list = [15]
+sc_likelihood_list = [0,.25,.5,.75,1]
+ho_likelihood_list = [0,.25,.5,.75,1]
+
+paramlist = list(product(vill_list, max_clique_size_list, sc_likelihood_list, ho_likelihood_list))
+
+if __name__ == '__main__':
+
+    # create a process pool that uses all cpus
+    with mp.Pool() as pool:
+        # call the function for each item in parallel
+        pool.map(fit_village_data, paramlist)
+
+            #print(result)
