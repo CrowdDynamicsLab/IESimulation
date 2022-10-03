@@ -7,7 +7,7 @@ test*.py
 
 # Datasets
 *.json
-*.csv
+#*.csv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
