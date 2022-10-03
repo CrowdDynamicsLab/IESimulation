@@ -31,10 +31,11 @@ ho_likelihood = float(sys.argv[4])
 ############### initializing params ###############
 
 _FIXED_ITERS = math.ceil(max_deg * math.log(max_deg))
+#_FIXED_ITERS = -1
 
 _N = n
 satisfice = 1
-num_iters = 500
+num_iters = max(_N, max_deg ** 2)
 min_iters = 10
 max_clique_size = max_deg + 1
 ctxt_likelihood = .5
@@ -343,6 +344,7 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters, sub=False):
             pool = mp.Pool(processes=8)
             ce_rets = pool.starmap(calc_edges, to_process)
             pool.close()
+            pool.join()
             
             # Update graphs if needed
             if update_idx['std'] != -1:
