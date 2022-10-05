@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --time=60:00:00
+#SBATCH --time=55:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=32
 #SBATCH --job-name="village_fit_test"
