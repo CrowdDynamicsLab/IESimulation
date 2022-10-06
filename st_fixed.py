@@ -52,7 +52,7 @@ def type_dict(context, shape, context_p, attr, struct):
         struct_func = alu.triangle_count
         likelihood = likelihood * (1 - sc_likelihood)
     else:
-        struct_func = alu.num_nbor_comp_nx
+        struct_func = alu.num_disc_nbors
         likelihood = likelihood * sc_likelihood
     if attr == 'ho':
         attr_edge_func = alu.homophily
@@ -329,8 +329,6 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters, sub=False):
             pool.join()
             
             # Update graphs if needed
-            print('pre edge count', G_std.edge_count, 'post edge count', ce_rets[0].edge_count)
-            print('pre id', id(G_std), 'post id', id(ce_rets[0]))
             G_std = ce_rets[0]
             for k in budgets:
                 G_bdgt[k] = ce_rets[update_idx['bdgt'][k]]
@@ -362,13 +360,9 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters, sub=False):
     for k in budgets:
         for st in summary_stats['budget'][k].keys():
             summary_stats['budget'][k][st] = np.mean(summary_stats['budget'][k][st])
-            summary_stats['budget_match'][k][st] = np.mean(
-                summary_stats['budget_match'][k][st])
     for d in nonlocal_dists:
         for st in summary_stats['nonlocal'][d].keys():
             summary_stats['nonlocal'][d][st] = np.mean(summary_stats['nonlocal'][d][st])
-            summary_stats['nonlocal_match'][d][st] = np.mean(
-                summary_stats['nonlocal_match'][d][st])
     return summary_stats, final_networks, final_type_assignments
 
 ################ run simulation with various params ################
@@ -379,7 +373,7 @@ if __name__ == "__main__":
     data_dir = 'data/comparison_proposal_fixed'
     stat_filename = '{odir}/{n}_{k}_{sc}_{ho}_stats.json'.format(
         odir=data_dir, n=str(n), k=str(max_deg), sc=str(sc_likelihood), ho=str(ho_likelihood))
-    if os.path.exists(stat_filename):
+    if os.path.isfile(stat_filename):
         pass
     else:
         summary_stats, final_networks, type_assgns = run_sim(sc_likelihood, ho_likelihood, sim_iters)
