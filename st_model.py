@@ -361,21 +361,6 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters, sub=False):
             # If running fixed iters ignore stable triad checks
             if _FIXED_ITERS > 0:
                 if it == _FIXED_ITERS - 1:
-                    summary_stats['standard']['exit_iter'][si] = it
-                    add_sum_stat(summary_stats['standard'], get_summary_stats(G_std))
-                    final_networks['standard'].append(G_std.adj_matrix.tolist())
-
-                    for k in budgets:
-                        summary_stats['budget'][k]['exit_iter'][si] = it
-                        add_sum_stat(summary_stats['budget'][k],
-                            get_summary_stats(G_bdgt[k]))
-                        final_networks['budget'][k].append(G_bdgt[k].adj_matrix.tolist())
-
-                    for d in nonlocal_dists:
-                        summary_stats['nonlocal'][d]['exit_iter'][si] = it
-                        add_sum_stat(summary_stats['nonlocal'][d],
-                            get_summary_stats(G_nl[d]))
-                        final_networks['nonlocal'][d].append(G_nl[d].adj_matrix.tolist())
                     break
                 else:
                     continue
