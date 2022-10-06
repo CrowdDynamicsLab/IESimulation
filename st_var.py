@@ -30,14 +30,9 @@ ho_likelihood = float(sys.argv[4])
 
 ############### initializing params ###############
 
-_FIXED_ITERS = math.ceil(max_deg * math.log(max_deg))
-#_FIXED_ITERS = -1
-
 _N = n
 
 num_iters = max(_N, max_deg ** 2)
-if _FIXED_ITERS > -1:
-    num_iters = _FIXED_ITERS
 
 min_iters = 10
 max_clique_size = max_deg + 1
@@ -335,10 +330,12 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters, sub=False):
                 to_process.append((G_std,2))
                 update_idx['std'] = 0
             for k in budgets:
-                if not bdgt_fin[k]:
+
+                # Need to run if std has not finished for match model
+                if not bdgt_fin[k] or not std_fin:
                     to_process.append((G_bdgt[k],2))
                     update_idx['bdgt'][k] = len(to_process) - 1
-            for d in nonlocal_dists:
+            for d in nonlocal_dists or not std_fin:
                 if not nl_fin[d]:
                     to_process.append((G_nl[d],d))
                     update_idx['nl'][d] = len(to_process) - 1
@@ -357,28 +354,6 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters, sub=False):
             for d in nonlocal_dists:
                 if update_idx['nl'][d] != -1:
                     G_nl[k] = ce_rets[update_idx['nl'][d]]
-
-            # If running fixed iters ignore stable triad checks
-            if _FIXED_ITERS > 0:
-                if it == _FIXED_ITERS - 1:
-                    summary_stats['standard']['exit_iter'][si] = it
-                    add_sum_stat(summary_stats['standard'], get_summary_stats(G_std))
-                    final_networks['standard'].append(G_std.adj_matrix.tolist())
-
-                    for k in budgets:
-                        summary_stats['budget'][k]['exit_iter'][si] = it
-                        add_sum_stat(summary_stats['budget'][k],
-                            get_summary_stats(G_bdgt[k]))
-                        final_networks['budget'][k].append(G_bdgt[k].adj_matrix.tolist())
-
-                    for d in nonlocal_dists:
-                        summary_stats['nonlocal'][d]['exit_iter'][si] = it
-                        add_sum_stat(summary_stats['nonlocal'][d],
-                            get_summary_stats(G_nl[d]))
-                        final_networks['nonlocal'][d].append(G_nl[d].adj_matrix.tolist())
-                    break
-                else:
-                    continue
 
             # Get all stable triad counts
             std_st_count = count_stable_triads(G_std)
@@ -467,8 +442,6 @@ if __name__ == "__main__":
 
     # Skip if file exist
     data_dir = 'data/comparison_proposal'
-    if _FIXED_ITERS > -1:
-        data_dir = 'data/comparison_proposal_fixed'
     stat_filename = '{odir}/{n}_{k}_{sc}_{ho}_stats.json'.format(
         odir=data_dir, n=str(n), k=str(max_deg), sc=str(sc_likelihood), ho=str(ho_likelihood))
     if os.path.exists(stat_filename):
