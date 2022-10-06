@@ -12,6 +12,16 @@ import networkx as nx
 
 from tabulate import tabulate
 
+#######################
+# Numerical functions #
+#######################
+
+# Approximately strictly greater, x > y
+def asg(x, y):
+    if math.isclose(x, y):
+        return False
+    return x > y
+
 ##########################
 # Attr utility functions #
 ##########################
@@ -178,7 +188,7 @@ def seq_projection_edge_edit(G, edge_proposals, allow_early_drop=True, assume_ac
             )
             agg_change = agg_util - cur_agg_util
 
-            if agg_change > max_ninc_val:
+            if asg(agg_change, max_ninc_val):
                 max_ninc_val = agg_change
                 max_ninc_cand = ('d', u)
 
@@ -211,7 +221,7 @@ def seq_projection_edge_edit(G, edge_proposals, allow_early_drop=True, assume_ac
                 )
                 agg_change = agg_util - cur_agg_util
 
-                if agg_change > max_inc_val:
+                if asg(agg_change, max_inc_val):
                     max_inc_val = agg_change
                     max_inc_cand = ('a', u)
 
@@ -227,7 +237,7 @@ def seq_projection_edge_edit(G, edge_proposals, allow_early_drop=True, assume_ac
             raise ValueError('If agent budget was 0 should not have proposed')
         elif (G.sim_params['max_degree'] - v.degree) <= 1 and edge_proposals[v] is not None:
             v_move[v] = max_ninc_cand
-        elif max_inc_val >= max_ninc_val:
+        elif asg(max_inc_val, max_ninc_val) or math.isclose(max_inc_val, max_ninc_val):
             v_move[v] = max_inc_cand
         else:
             v_move[v] = max_ninc_cand

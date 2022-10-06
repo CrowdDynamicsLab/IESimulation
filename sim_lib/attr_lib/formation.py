@@ -7,7 +7,7 @@ import networkx as nx
 import numpy as np
 
 import sim_lib.graph as graph
-import sim_lib.attr_lib.util as attr_lib_util
+import sim_lib.attr_lib.util as alu
 
 # Edge selection
 def calc_utils(G):
@@ -35,7 +35,7 @@ def calc_edges(G, k=2):
     revelations = G.sim_params['revelation_proposals'](G)
 
     # Only propose to vertices with non-negative expected utility
-    all_costs = attr_lib_util.calc_all_costs(G)
+    all_costs = alu.calc_all_costs(G)
     edge_prop_dict = {}
     
     for v in G.vertices:
@@ -59,12 +59,12 @@ def calc_edges(G, k=2):
                 continue
             G.add_edge(v, u)
             pattr, pstruct = v.utility_values(G)
-            pcost = attr_lib_util.calc_cost(v, G)
+            pcost = alu.calc_cost(v, G)
             pagg_util = G.sim_params['util_agg'](pattr, pstruct, pcost, v, G)
 
             # Optimism from >= as opposed to >
             util_del = pagg_util - v_agg_util
-            if util_del > 0 and pagg_util > max_val:
+            if alu.asg(util_del, 0) and alu.asg(pagg_util, max_val):
                 max_val = pagg_util
                 max_cand = u
             G.remove_edge(v, u)
