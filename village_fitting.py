@@ -648,7 +648,7 @@ def fit_village_data_fine(vill_list, max_clique_size_list1, max_clique_size_list
 #params_best1, params_best2, params_best3 = fit_village_data_fine(range(77), k_range1, k_range2, k_range3, [0, .125, .25, .375, .5, .625, .75, .875, 1], [0, .125, .25, .375, .5, .625, .75, .875, 1], sim_iters = 10)
 
 vill_list = chain(range(12),range(13, 21),range(22, 77))
-max_clique_size_list = [15]
+max_clique_size_list = [5,10]
 sc_likelihood_list = [0,.25,.5,.75,1]
 ho_likelihood_list = [0,.25,.5,.75,1]
 
