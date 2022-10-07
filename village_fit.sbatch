@@ -2,7 +2,7 @@
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=32
-#SBATCH --job-name="village_fit_test"
+#SBATCH --job-name="village_fit_coarse_leftovers"
 #SBATCH --partition=shared
 #SBATCH --account=uic333
 #SBATCH --mail-user=nainab2@illinois.edu

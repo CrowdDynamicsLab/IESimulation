@@ -652,7 +652,10 @@ max_clique_size_list = [5,10]
 sc_likelihood_list = [0,.25,.5,.75,1]
 ho_likelihood_list = [0,.25,.5,.75,1]
 
-paramlist = list(product(vill_list, max_clique_size_list, sc_likelihood_list, ho_likelihood_list))
+#paramlist = list(product(vill_list, max_clique_size_list, sc_likelihood_list, ho_likelihood_list))
+
+#leftovers to run
+paramlist = [(61, 5, 0, 0), (61, 5, 0, 0.25), (61, 5, 0, 0.5), (61, 5, 0, 0.75), (61, 5, 0, 1), (61, 5, 0.25, 0), (61, 5, 0.25, 0.25), (61, 5, 0.25, 0.5), (61, 5, 0.25, 0.75), (61, 5, 0.25, 1), (61, 15, 0, 0), (61, 15, 0, 0.25), (61, 15, 0, 0.5), (61, 15, 0, 0.75), (61, 15, 0, 1)]
 
 if __name__ == '__main__':
 
