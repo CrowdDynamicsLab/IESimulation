@@ -37,13 +37,14 @@ num_iters = _FIXED_ITERS
 min_iters = 10
 max_clique_size = max_deg + 1
 ctxt_likelihood = .5
-#sim_iters = 10
-sim_iters = 2
+sim_iters = 10
+#sim_iters = 2
 st_count_track = 10
 st_count_dev_tol = 0.01
 
 nonlocal_dists = list(range(3, 8))
 budgets = [math.ceil(math.log(_N)), math.ceil(_N / 2), math.ceil(3 * _N / 4), _N]
+budgets = [ b for b in budgets if b <= num_iters ]
 
 # Create types
 def type_dict(context, shape, context_p, attr, struct):
@@ -200,6 +201,15 @@ def add_sum_stat(st_dict, res):
     st_dict['cluster_coeff'].append(res['cluster_coeff'])
     st_dict['stable_triad_count'].append(res['stable_triad_count'])
 
+def run_model(G, dist):
+    for it in range(num_iters):
+        
+        # Calculate edges for networks
+        calc_edges(G, dist)
+    
+    # If running fixed iters ignore stable triad checks
+    return get_summary_stats(G), G.adj_matrix.tolist()
+
 ################ run simulation ################
 
 def run_sim(sc_likelihood, ho_likeliood, sim_iters, sub=False):
@@ -295,62 +305,37 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters, sub=False):
         G_nl = { d : attribute_network(_N, copy.deepcopy(params))
             for d in nonlocal_dists }
 
-        st_counts = {
-            'standard' : [],
-            'nonlocal' : 
-                { d : [] for d in nonlocal_dists },
-            'budget' : 
-                { k : [] for k in budgets },
-        }
-
-        for it in range(num_iters):
-            
-            # Calculate edges for networks
-
-            # Attempt to parallelize
-            to_process = []
-            update_idx = {
-                'std' : -1,
-                'bdgt' : { k : -1 for k in budgets },
-                'nl' : { d : -1 for d in nonlocal_dists }
-            }
-            to_process.append((G_std,2))
-            update_idx['std'] = 0
-            for k in budgets:
-                to_process.append((G_bdgt[k],2))
-                update_idx['bdgt'][k] = len(to_process) - 1
-            for d in nonlocal_dists:
-                to_process.append((G_nl[d],d))
-                update_idx['nl'][d] = len(to_process) - 1
-
-            pool = mp.Pool(processes=8)
-            ce_rets = pool.starmap(calc_edges, to_process)
-            pool.close()
-            pool.join()
-            
-            # Update graphs if needed
-            G_std = ce_rets[0]
-            for k in budgets:
-                G_bdgt[k] = ce_rets[update_idx['bdgt'][k]]
-            for d in nonlocal_dists:
-                G_nl[k] = ce_rets[update_idx['nl'][d]]
-
-        # If running fixed iters ignore stable triad checks
-        summary_stats['standard']['exit_iter'][si] = it
-        add_sum_stat(summary_stats['standard'], get_summary_stats(G_std))
-        final_networks['standard'].append(G_std.adj_matrix.tolist())
-
+        # Add each network to process pool
+        to_process = []
+        to_process.append((G_std, 2))
         for k in budgets:
-            summary_stats['budget'][k]['exit_iter'][si] = it
-            add_sum_stat(summary_stats['budget'][k],
-                get_summary_stats(G_bdgt[k]))
-            final_networks['budget'][k].append(G_bdgt[k].adj_matrix.tolist())
-
+            to_process.append((G_bdgt[k], 2))
         for d in nonlocal_dists:
-            summary_stats['nonlocal'][d]['exit_iter'][si] = it
-            add_sum_stat(summary_stats['nonlocal'][d],
-                get_summary_stats(G_nl[d]))
-            final_networks['nonlocal'][d].append(G_nl[d].adj_matrix.tolist())
+            to_process.append((G_nl[d], d))
+
+        pool = mp.Pool(processes=8)
+        sim_rets = pool.starmap(run_model, to_process)
+        pool.close()
+        pool.join()
+
+        std_stats, std_ntwks = sim_rets[0]
+        summary_stats['standard']['exit_iter'][si] = num_iters
+        add_sum_stat(summary_stats['standard'], std_stats)
+        final_networks['standard'].append(std_ntwks)
+
+        sim_idx = 1
+        for k in budgets:
+            sim_stats, sim_ntwks = sim_rets[sim_idx]
+            summary_stats['budget'][k]['exit_iter'][si] = num_iters
+            add_sum_stat(summary_stats['budget'][k], sim_stats)
+            final_networks['budget'][k].append(sim_ntwks)
+            sim_idx += 1
+        for d in nonlocal_dists:
+            sim_stats, sim_ntwks = sim_rets[sim_idx]
+            summary_stats['nonlocal'][d]['exit_iter'][si] = num_iters
+            add_sum_stat(summary_stats['nonlocal'][d], sim_stats)
+            final_networks['nonlocal'][d].append(sim_ntwks)
+            sim_idx += 1
 
     print('ho: ', ho_likelihood, 'sc: ', sc_likelihood)
 
@@ -378,7 +363,7 @@ if __name__ == "__main__":
     else:
         summary_stats, final_networks, type_assgns = run_sim(sc_likelihood, ho_likelihood, sim_iters)
 
-        with open(stat_outname, 'w+') as out:
+        with open(stat_filename, 'w+') as out:
             out.write(json.dumps(summary_stats))
 
         ntwk_outname = '{odir}/{n}_{k}_{sc}_{ho}_networks.json'.format(
