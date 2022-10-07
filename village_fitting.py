@@ -313,7 +313,7 @@ def fit_village_data(params):
     sc_likelihood = params[2]
     ho_likelihood = params[3]
 
-    sim_iters = 1
+    sim_iters = 5
 
     stata_household = pd.read_stata('banerjee_data/datav4.0/Data/2. Demographics and Outcomes/household_characteristics.dta')
 
