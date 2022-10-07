@@ -125,8 +125,11 @@ def seq_projection_edge_edit(G, edge_proposals, allow_early_drop=True, assume_ac
 
     util_agg = G.sim_params['util_agg']
 
-    proposed_by = { v : [ u for u, u_prop in edge_proposals.items() if v == u_prop ] \
-            for v in G.vertices }
+    # Agents who have proposed to v
+    add_candidates = { v : [] for v in G.vertices }
+    for u, u_prop in edge_proposals.items():
+        if u_prop is not None:
+            add_candidates[u_prop].append(u)
 
     # For each candidate store its max cost inc action and its cost non-inc action
     v_move = { }
@@ -138,11 +141,13 @@ def seq_projection_edge_edit(G, edge_proposals, allow_early_drop=True, assume_ac
         #NOTE: the init max val would be negative for an optimistic agent
         max_inc_cand = None
         max_inc_val = 0
-        max_ninc_cand = None
+        max_dec_cand = None
+        max_dec_val = 0
         max_ninc_val = 0
+        max_ninc_cand = None
 
         # No options
-        if len(v.nbors) == 0 and len(proposed_by[v]) == 0:
+        if len(v.nbors) == 0 and len(add_candidates[v]) == 0:
             continue
 
         cur_attr_util = v.data['total_attr_util'](v, G)
@@ -164,13 +169,25 @@ def seq_projection_edge_edit(G, edge_proposals, allow_early_drop=True, assume_ac
         if cur_agg_util >= 2.0:
             continue
 
-        #can_add_nbor = remaining_budget(v, G) >= G.sim_params['direct_cost']
         can_add_nbor = remaining_budget(v, G) > 0
 
+        # If proposals are not assumed to be accepted then the expected utility of doing nothing is 0
+        do_nothing_val = 0
+
+        # If we assume proposals are accepted then add the proposal edge for checking
+        if assume_accept and edge_proposals[v] is not None:
+            G.add_edge(v, edge_proposals[v])
+            attr_change = G.potential_utils[v.vnum][edge_proposals[v].vnum] / G.sim_params['max_degree']
+            cost_change = 1  / G.sim_params['max_degree']
+            agg_util = util_agg(
+                cur_attr_util + attr_change,
+                v.data['struct_util'](v, G),
+                cur_cost + cost_change,
+                v, G
+            )
+            do_nothing_val = cur_agg_util - agg_util
+
         for u in v.nbors:
-                
-            if assume_accept and edge_proposals[v] is not None and edge_proposals[v] != u:
-                G.add_edge(v, edge_proposals[v])
 
             # Consider drop choices
             if not allow_early_drop and can_add_nbor:
@@ -188,21 +205,24 @@ def seq_projection_edge_edit(G, edge_proposals, allow_early_drop=True, assume_ac
             )
             agg_change = agg_util - cur_agg_util
 
-            if asg(agg_change, max_ninc_val):
-                max_ninc_val = agg_change
-                max_ninc_cand = ('d', u)
+            if asg(agg_change, max_dec_val):
+                max_dec_val = agg_change
+                max_dec_cand = ('d', u)
 
             G.add_edge(v, u)
 
-            if assume_accept and edge_proposals[v] is not None and edge_proposals[v] != u:
-                G.remove_edge(v, edge_proposals[v])
+        # Drop proposal edge for addition checking
+        if assume_accept and edge_proposals[v] is not None:
+            G.remove_edge(v, edge_proposals[v])
 
-        for u in proposed_by[v]:
+        for u in add_candidates[v]:
 
             # Consider edge formation choices
-            if u in v.nbors:
-                continue
+            if G.are_neighbors(u, v):
+                print(u, v, add_candidates[v], u.nbors, v.nbors)
+                raise ValueError('Neighbors should not propose to one another')
 
+            # It is possible that u proposed to v and v proposed to u
             if assume_accept and edge_proposals[v] is not None and edge_proposals[v] != u:
                 G.add_edge(v, edge_proposals[v])
 
@@ -230,8 +250,13 @@ def seq_projection_edge_edit(G, edge_proposals, allow_early_drop=True, assume_ac
             if assume_accept and edge_proposals[v] is not None and edge_proposals[v] != u:
                 G.remove_edge(v, edge_proposals[v])
 
-        v_ninc_move = max_ninc_cand
-        v_inc_move = max_inc_cand
+        # Set cost non-increasing action
+        if asg(max_dec_val, do_nothing_val):
+            max_ninc_cand = max_dec_cand
+            max_ninc_val = max_dec_val
+        else:
+            max_ninc_val = do_nothing_val
+
         if (G.sim_params['max_degree'] - v.degree) < 1 and edge_proposals[v] is not None:
             print('Agent v budget', remaining_budget(v, G), 'limit', 1 / G.sim_params['max_degree'])
             raise ValueError('If agent budget was 0 should not have proposed')
