@@ -123,6 +123,8 @@ def seq_projection_edge_edit(G, edge_proposals, allow_early_drop=True, assume_ac
     # of multiobjective optimization function
     # Assumes even split of coefficients
 
+    #print(edge_proposals)
+
     util_agg = G.sim_params['util_agg']
 
     # Agents who have proposed to v
@@ -185,7 +187,7 @@ def seq_projection_edge_edit(G, edge_proposals, allow_early_drop=True, assume_ac
                 cur_cost + cost_change,
                 v, G
             )
-            do_nothing_val = cur_agg_util - agg_util
+            do_nothing_val = agg_util - cur_agg_util
 
         for u in v.nbors:
 
