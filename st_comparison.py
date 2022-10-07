@@ -57,7 +57,7 @@ def type_dict(context, shape, context_p, attr, struct):
         struct_func = alu.triangle_count
         likelihood = likelihood * (1 - sc_likelihood)
     else:
-        struct_func = alu.num_nbor_comp_nx
+        struct_func = alu.num_disc_nbors
         likelihood = likelihood * sc_likelihood
     if attr == 'ho':
         attr_edge_func = alu.homophily

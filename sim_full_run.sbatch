@@ -2,7 +2,7 @@
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=32
-#SBATCH --job-name="fcomp_proposal"
+#SBATCH --job-name="gen_comp_proposal"
 #SBATCH --partition=shared
 #SBATCH --account=uic333
 #SBATCH --mail-user=andy2@illinois.edu
