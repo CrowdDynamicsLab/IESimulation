@@ -330,10 +330,6 @@ def fit_pokec_data(params):
 
     assert(is_symmetric(ad_mat_np1))
 
-    # read json network
-
-    # read json attrs
-
     sim_iters = 5
 
     G_nx_data1 = nx.from_numpy_matrix(ad_mat_np1)
@@ -367,7 +363,7 @@ def fit_pokec_data(params):
 
     print(value)
 
-    data_dir = 'pokec_coarse_results'
+    data_dir = 'pokec_fine_results'
 
     filename = '{odir}/{pokec_no}_{k}_{sc}_{ho}_losses.txt'.format(
         odir=data_dir, pokec_no=str(pokec_no), k=str(max_clique_size), sc=str(sc_likelihood), ho=str(ho_likelihood))
@@ -382,16 +378,19 @@ def fit_pokec_data(params):
 
 # these are the small/medium villages
 pokec_list = range(10)
-max_clique_size_list = [5,10]
+max_clique_size_list = [5]
 sc_likelihood_list = [0,.25,.5,.75,1]
 ho_likelihood_list = [0,.25,.5,.75,1]
 #sc_likelihood_list = [0]
 #ho_likelihood_list = [0]
 
-#sc_likelihood_list_fine = [0,.125,.25,.375,.5,.625,.75,.825,1]
-#ho_likelihood_list_fine = [0,.125,.25,.375,.5,.625,.75,.825,1]
+sc_likelihood_list_fine = [0,.125,.25,.375,.5,.625,.75,.825,1]
+ho_likelihood_list_fine = [0,.125,.25,.375,.5,.625,.75,.825,1]
 
-paramlist = list(product(pokec_list, max_clique_size_list, sc_likelihood_list, ho_likelihood_list))
+paramlist1 = list(product(pokec_list, max_clique_size_list, sc_likelihood_list_fine, ho_likelihood_list_fine))
+
+# only run the params we didn't do yet
+paramlist = list(set(list(product(pokec_list, max_clique_size_list, sc_likelihood_list_fine, ho_likelihood_list_fine))) - set(list(product(pokec_list, max_clique_size_list, sc_likelihood_list, ho_likelihood_list))))
 
 #leftovers to run
 #paramlist = [(61, 5, 0, 0), (61, 5, 0, 0.25), (61, 5, 0, 0.5), (61, 5, 0, 0.75), (61, 5, 0, 1), (61, 5, 0.25, 0), (61, 5, 0.25, 0.25), (61, 5, 0.25, 0.5), (61, 5, 0.25, 0.75), (61, 5, 0.25, 1), (61, 15, 0, 0), (61, 15, 0, 0.25), (61, 15, 0, 0.5), (61, 15, 0, 0.75), (61, 15, 0, 1)]

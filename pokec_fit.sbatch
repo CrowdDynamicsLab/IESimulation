@@ -2,7 +2,7 @@
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=32
-#SBATCH --job-name="pokec_coarse_fit"
+#SBATCH --job-name="pokec_fine_fit"
 #SBATCH --partition=shared
 #SBATCH --account=uic333
 #SBATCH --mail-user=nainab2@illinois.edu
