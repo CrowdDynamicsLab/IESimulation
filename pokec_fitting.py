@@ -334,7 +334,7 @@ def fit_pokec_data(params):
 
     # read json attrs
 
-    sim_iters = 1
+    sim_iters = 5
 
     G_nx_data1 = nx.from_numpy_matrix(ad_mat_np1)
 
@@ -382,11 +382,11 @@ def fit_pokec_data(params):
 
 # these are the small/medium villages
 pokec_list = range(10)
-max_clique_size_list = [5]
-#sc_likelihood_list = [0,.25,.5,.75,1]
-#ho_likelihood_list = [0,.25,.5,.75,1]
-sc_likelihood_list = [0]
-ho_likelihood_list = [0]
+max_clique_size_list = [5,10]
+sc_likelihood_list = [0,.25,.5,.75,1]
+ho_likelihood_list = [0,.25,.5,.75,1]
+#sc_likelihood_list = [0]
+#ho_likelihood_list = [0]
 
 #sc_likelihood_list_fine = [0,.125,.25,.375,.5,.625,.75,.825,1]
 #ho_likelihood_list_fine = [0,.125,.25,.375,.5,.625,.75,.825,1]
@@ -399,7 +399,7 @@ paramlist = list(product(pokec_list, max_clique_size_list, sc_likelihood_list, h
 if __name__ == '__main__':
 
     # create a process pool that uses all cpus
-    with mp.Pool() as pool:
+    with mp.Pool(processes = 32) as pool:
         # call the function for each item in parallel
         pool.map(fit_pokec_data, paramlist)
 
