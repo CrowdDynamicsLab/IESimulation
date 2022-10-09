@@ -306,96 +306,40 @@ def run_sim(sc_likelihood, ho_likelihood, max_clique_size, ctxt_likelihood, _N, 
 #k_loss_array2 = np.full((len(vill_list),len(max_clique_size_list)), np.inf)
 #k_loss_array3 = np.full((len(vill_list),len(max_clique_size_list)), np.inf)
 
-def fit_village_data(params):
+def fit_pokec_data(params):
 
-    vill_no = params[0]
+    pokec_no = params[0]
     max_clique_size = params[1]
     sc_likelihood = params[2]
     ho_likelihood = params[3]
 
+    file_name = 'datasets/pokec/sampled/pokec_' + str(pokec_no) + '.json'
+
+    f = open(file_name)
+
+    data = json.load(f)
+
+    f.close()
+
+    ad_mat_np1 = np.array(data['ntwk'])
+    gender = list(data['attrs'].values())
+    gender_list = []
+
+    for j in range(151):
+        gender_list.append(int(gender[j]['gender']))
+
+    assert(is_symmetric(ad_mat_np1))
+
     sim_iters = 5
 
-    stata_household = pd.read_stata('banerjee_data/datav4.0/Data/2. Demographics and Outcomes/household_characteristics.dta')
-
-
-    # various edge sets
-    money_hyp_files = ['borrowmoney', 'lendmoney', 'keroricecome', 'keroricego']
-    trust_hyp_files = ['helpdecision', 'giveadvice', 'medic']
-    trust_fact_files = ['visitcome','visitgo', 'templecompany']
-
-
-    # choose village and label with normalized room type
-    stata_vill = stata_household.where(stata_household['village'] == vill_no).dropna(how = 'all')
-    room_type = np.array(stata_vill['room_no']/np.sqrt((stata_vill['bed_no']+1))<=2)
-
-    # ad mat for money_hyp_files
-
-    old_file1 = 'banerjee_data/datav4.0/Data/1. Network Data/Adjacency Matrices/adj_' + money_hyp_files[0] +'_HH_vilno_' + str(vill_no) + '.csv'
-    ad_mat_old1 = (pd.read_csv(old_file1, header=None)).to_numpy()
-
-    for file in money_hyp_files[1:]:
-        new_file1 = 'banerjee_data/datav4.0/Data/1. Network Data/Adjacency Matrices/adj_' + file +'_HH_vilno_' + str(vill_no) + '.csv'
-        ad_mat_new1= (pd.read_csv(new_file1, header=None)).to_numpy()
-
-        ad_mat_old1 = np.bitwise_or(ad_mat_old1, ad_mat_new1)
-
-    ad_mat_np1 = ad_mat_old1
-
-    # ad mat for trust_hyp_files
-
-    old_file2 = 'banerjee_data/datav4.0/Data/1. Network Data/Adjacency Matrices/adj_' + trust_hyp_files[0] +'_HH_vilno_' + str(vill_no) + '.csv'
-    ad_mat_old2 = (pd.read_csv(old_file2, header=None)).to_numpy()
-
-    for file in trust_hyp_files[1:]:
-        new_file2 = 'banerjee_data/datav4.0/Data/1. Network Data/Adjacency Matrices/adj_' + file +'_HH_vilno_' + str(vill_no) + '.csv'
-        ad_mat_new2= (pd.read_csv(new_file2, header=None)).to_numpy()
-
-        ad_mat_old2 = np.bitwise_or(ad_mat_old2, ad_mat_new2)
-
-    ad_mat_np2 = ad_mat_old2
-
-    # ad mat for trust_fact_files
-
-    old_file3 = 'banerjee_data/datav4.0/Data/1. Network Data/Adjacency Matrices/adj_' + trust_fact_files[0] +'_HH_vilno_' + str(vill_no) + '.csv'
-    ad_mat_old3 = (pd.read_csv(old_file3, header=None)).to_numpy()
-
-    for file in trust_fact_files[1:]:
-        new_file3 = 'banerjee_data/datav4.0/Data/1. Network Data/Adjacency Matrices/adj_' + file +'_HH_vilno_' + str(vill_no) + '.csv'
-        ad_mat_new3= (pd.read_csv(new_file3, header=None)).to_numpy()
-
-        ad_mat_old3 = np.bitwise_or(ad_mat_old3, ad_mat_new3)
-
-    ad_mat_np3 = ad_mat_old3
-
-    matrix_key_filename = 'banerjee_data/datav4.0/Data/1. Network Data/Adjacency Matrix Keys/key_HH_vilno_' + str(vill_no) + '.csv'
-    ad_mat_key_vill = np.array(pd.read_csv(matrix_key_filename, header = None))
-
-    # confirm households in every village are actually labelled 1...h
-    assert(np.array_equal(ad_mat_key_vill.flatten(),stata_vill['HHnum_in_village'].values))
-
-    # confirm is symmetric
-    assert(is_symmetric(ad_mat_np1))
-    assert(is_symmetric(ad_mat_np2))
-    assert(is_symmetric(ad_mat_np3))
-
     G_nx_data1 = nx.from_numpy_matrix(ad_mat_np1)
-    G_nx_data2 = nx.from_numpy_matrix(ad_mat_np2)
-    G_nx_data3 = nx.from_numpy_matrix(ad_mat_np3)
 
-    data_type_dict = {k: v for k, v in enumerate(room_type)}
+    data_type_dict = {k: v for k, v in enumerate(gender_list)}
     nx.set_node_attributes(G_nx_data1, data_type_dict, "type")
-    nx.set_node_attributes(G_nx_data2, data_type_dict, "type")
-    nx.set_node_attributes(G_nx_data3, data_type_dict, "type")
 
     # values to aim for
     data_tri_cnt1 = sum((nx.triangles(G_nx_data1)).values())/3
     data_assort1 = nx.attribute_assortativity_coefficient(G_nx_data1, "type")
-
-    data_tri_cnt2 = sum((nx.triangles(G_nx_data2)).values())/3
-    data_assort2 = nx.attribute_assortativity_coefficient(G_nx_data2, "type")
-
-    data_tri_cnt3 = sum((nx.triangles(G_nx_data3)).values())/3
-    data_assort3 = nx.attribute_assortativity_coefficient(G_nx_data3, "type")
 
     ########## simulation ###########
 
@@ -405,30 +349,24 @@ def fit_village_data(params):
     #loss_array2 = np.full((len(max_clique_size_list),len(sc_likelihood_list), len(ho_likelihood_list)), np.inf)
     #loss_array3 = np.full((len(max_clique_size_list),len(sc_likelihood_list), len(ho_likelihood_list)), np.inf)
 
-    summ_stats, final_ntwks, final_types = run_sim(sc_likelihood, ho_likelihood, max_clique_size, ctxt_likelihood = sum(room_type)/len(room_type), _N = G_nx_data1.number_of_nodes(), sim_iters = sim_iters)
+    summ_stats, final_ntwks, final_types = run_sim(sc_likelihood, ho_likelihood, max_clique_size, ctxt_likelihood = sum(gender_list)/len(gender_list), _N = G_nx_data1.number_of_nodes(), sim_iters = sim_iters)
 
     tri_loss1 = (data_tri_cnt1-summ_stats['standard']['triangle_count'])/data_tri_cnt1
-    tri_loss2 = (data_tri_cnt2-summ_stats['standard']['triangle_count'])/data_tri_cnt2
-    tri_loss3 = (data_tri_cnt3-summ_stats['standard']['triangle_count'])/data_tri_cnt3
 
     assort_loss1 = (data_assort1 - summ_stats['standard']['assortativity'])/2
-    assort_loss2 = (data_assort2 - summ_stats['standard']['assortativity'])/2
-    assort_loss3 = (data_assort3 - summ_stats['standard']['assortativity'])/2
 
     loss1 = np.sqrt(tri_loss1**2 + assort_loss1**2)
-    loss2 = np.sqrt(tri_loss2**2 + assort_loss2**2)
-    loss3 = np.sqrt(tri_loss3**2 + assort_loss3**2)
 
-    value = [str(loss1), '\n', str(loss2), '\n', str(loss3), '\n']
+    value = [str(loss1), '\n']
 
     metrics = [str(summ_stats['standard']['triangle_count']), '\n', str(summ_stats['standard']['assortativity'])]
 
     print(value)
 
-    data_dir = 'fine_results'
+    data_dir = 'pokec_fine_results'
 
-    filename = '{odir}/{vill_no}_{k}_{sc}_{ho}_losses.txt'.format(
-        odir=data_dir, vill_no=str(vill_no), k=str(max_clique_size), sc=str(sc_likelihood), ho=str(ho_likelihood))
+    filename = '{odir}/{pokec_no}_{k}_{sc}_{ho}_losses.txt'.format(
+        odir=data_dir, pokec_no=str(pokec_no), k=str(max_clique_size), sc=str(sc_likelihood), ho=str(ho_likelihood))
 
     with open(filename, 'w') as f:
         f.writelines(value)
@@ -439,17 +377,20 @@ def fit_village_data(params):
 #vill_list = chain(range(12),range(13, 21),range(22, 77))
 
 # these are the small/medium villages
-vill_list = [1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 16, 17, 18, 19, 20, 21, 24, 26, 27, 30, 31, 32, 33, 34, 35, 37, 38, 40, 41, 42, 43, 44, 45, 47, 48, 49, 50, 53, 54, 56, 57, 58, 61, 62, 63, 66, 67, 68, 69, 70, 72, 73, 74, 75, 77]
-max_clique_size_list = [5,10]
-#sc_likelihood_list = [0,.25,.5,.75,1]
-#ho_likelihood_list = [0,.25,.5,.75,1]
+pokec_list = range(10)
+max_clique_size_list = [5]
+sc_likelihood_list = [0,.25,.5,.75,1]
+ho_likelihood_list = [0,.25,.5,.75,1]
+#sc_likelihood_list = [0]
+#ho_likelihood_list = [0]
 
 sc_likelihood_list_fine = [0,.125,.25,.375,.5,.625,.75,.825,1]
 ho_likelihood_list_fine = [0,.125,.25,.375,.5,.625,.75,.825,1]
 
-paramlist = list(product(vill_list, max_clique_size_list, sc_likelihood_list_fine, ho_likelihood_list_fine))
+paramlist1 = list(product(pokec_list, max_clique_size_list, sc_likelihood_list_fine, ho_likelihood_list_fine))
 
-#paramlist = [(61, 5, 0, 0), (61, 5, 0, 0.25), (61, 5, 0, 0.5), (61, 5, 0, 0.75), (61, 5, 0, 1), (61, 5, 0.25, 0), (61, 5, 0.25, 0.25), (61, 5, 0.25, 0.5), (61, 5, 0.25, 0.75), (61, 5, 0.25, 1), (61, 15, 0, 0), (61, 15, 0, 0.25), (61, 15, 0, 0.5), (61, 15, 0, 0.75), (61, 15, 0, 1)]
+# only run the params we didn't do yet
+paramlist = list(set(list(product(pokec_list, max_clique_size_list, sc_likelihood_list_fine, ho_likelihood_list_fine))) - set(list(product(pokec_list, max_clique_size_list, sc_likelihood_list, ho_likelihood_list))))
 
 #leftovers to run
 #paramlist = [(61, 5, 0, 0), (61, 5, 0, 0.25), (61, 5, 0, 0.5), (61, 5, 0, 0.75), (61, 5, 0, 1), (61, 5, 0.25, 0), (61, 5, 0.25, 0.25), (61, 5, 0.25, 0.5), (61, 5, 0.25, 0.75), (61, 5, 0.25, 1), (61, 15, 0, 0), (61, 15, 0, 0.25), (61, 15, 0, 0.5), (61, 15, 0, 0.75), (61, 15, 0, 1)]
@@ -459,6 +400,6 @@ if __name__ == '__main__':
     # create a process pool that uses all cpus
     with mp.Pool(processes = 32) as pool:
         # call the function for each item in parallel
-        pool.map(fit_village_data, paramlist)
+        pool.map(fit_pokec_data, paramlist)
 
             #print(result)
