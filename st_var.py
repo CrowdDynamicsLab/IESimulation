@@ -202,6 +202,35 @@ def add_sum_stat(st_dict, res):
 
 ################ run simulation ################
 
+def run_model(G, dist, std_stop_iter):
+    match_stats = None
+    match_adjmat = None
+    st_counts = []
+    end_iter = -1
+    for it in range(num_iters):
+        if it == std_stop_iter:
+            match_stats = get_summary_stats(G)
+            match_adjmat = G.adj_matrix.tolist()
+
+        calc_edges(G, dist)
+        stc = count_stable_triads(G)
+        if len(st_counts) < st_count_track:
+            st_counts.append(stc)
+            continue
+
+        st_counts.pop(0)
+        st_counts.append(stc)
+        if np.std(st_counts) <= st_count_dev_tol:
+            end_iter = it
+            break
+
+    end_stats = get_summary_stats(G)
+    end_ntwk = G.adj_matrix.tolist()
+    end_out = (end_stats, end_ntwk, end_iter)
+    if match_stats is None:
+        return end_out, end_out
+    return end_out, (match_stats, match_adjmat, std_stop_iter)
+
 def run_sim(sc_likelihood, ho_likeliood, sim_iters, sub=False):
     ctxt_types = [-1, 1]
     #ctxt_base_colors = [[43, 98, 166], [161, 39, 45]]
@@ -237,7 +266,6 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters, sub=False):
 
     vtx_types_list = np.array([ np.repeat(t, tc) for t, tc in tc_dict.items() ])
     vtx_types_list = np.hstack(vtx_types_list)
-    #np.random.shuffle(vtx_types_list)
     params['type_assignment'] = { i : vtx_types_list[i] for i in range(_N) }
 
     type_assgn_copy = copy.deepcopy(params['type_assignment'])
@@ -264,7 +292,6 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters, sub=False):
     }
 
     summary_stats = {
-        'standard' : copy.deepcopy(summary_stats),
         'nonlocal' :
             { d : copy.deepcopy(summary_stats) for d in nonlocal_dists },
         'budget' :
@@ -276,7 +303,6 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters, sub=False):
     }
 
     final_networks = {
-        'standard' : [],
         'nonlocal' :
             { d : [] for d in nonlocal_dists },
         'budget' :
@@ -286,13 +312,17 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters, sub=False):
         'budget_match' :
             { k : [] for k in budgets }
     }
+
+    std_var_dir = 'data/standard_var'
+    sv_filename = '{n}_{k}_{sc}_{ho}_stats.json'.format(
+        n=str(n), k=str(max_deg), sc=str(sc_likelihood), ho=str(ho_likelihood))
+    with open(os.path.join(std_var_dir, sv_filename), 'r') as svf:
+        sv_data = json.loads(svf.read())
+    std_iter_num = math.ceil(float(sv_data['standard']['exit_iter']))
  
     for si in range(sim_iters):
 
         # Create networks to be compared
-        # Base case network
-        G_std = attribute_network(_N, copy.deepcopy(params))
-
         # Comparison networks
         G_bdgt = {}
         for k in budgets:
@@ -303,127 +333,51 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters, sub=False):
         G_nl = { d : attribute_network(_N, copy.deepcopy(params))
             for d in nonlocal_dists }
 
-        st_counts = {
-            'standard' : [],
-            'nonlocal' : 
-                { d : [] for d in nonlocal_dists },
-            'budget' : 
-                { k : [] for k in budgets },
-        }
+        to_process = []
+        for k in budgets:
+            to_process.append((G_bdgt[k], 2, std_iter_num))
+        for d in nonlocal_dists:
+            to_process.append((G_nl[d], d, std_iter_num))
 
-        std_fin = False
-        bdgt_fin = { k : False for k in budgets }
-        nl_fin = { d : False for d in nonlocal_dists }
+        # Run each model in pool
+        pool = mp.Pool(processes=8)
+        sim_rets = pool.starmap(run_model, to_process)
+        pool.close()
+        pool.join()
         
-        for it in range(num_iters):
-            
-            # Calculate edges for networks
+        sim_idx = 0
+        for k in budgets:
+            end_res, match_res = sim_rets[sim_idx]
+            end_stats, end_ntwk, end_iter = end_res
+            match_stats, match_ntwk, match_iter = match_res
 
-            # Attempt to parallelize
-            to_process = []
-            update_idx = {
-                'std' : -1,
-                'bdgt' : { k : -1 for k in budgets },
-                'nl' : { d : -1 for d in nonlocal_dists }
-            }
-            if not std_fin:
-                to_process.append((G_std,2))
-                update_idx['std'] = 0
-            for k in budgets:
+            summary_stats['budget'][k]['exit_iter'][si] = end_iter
+            add_sum_stat(summary_stats['budget'][k], end_stats)
+            final_networks['budget'][k].append(end_ntwk)
 
-                # Need to run if std has not finished for match model
-                if not bdgt_fin[k] or not std_fin:
-                    to_process.append((G_bdgt[k],2))
-                    update_idx['bdgt'][k] = len(to_process) - 1
-            for d in nonlocal_dists or not std_fin:
-                if not nl_fin[d]:
-                    to_process.append((G_nl[d],d))
-                    update_idx['nl'][d] = len(to_process) - 1
+            summary_stats['budget_match'][k]['exit_iter'][si] = match_iter
+            add_sum_stat(summary_stats['budget_match'][k], match_stats)
+            final_networks['budget_match'][k].append(match_ntwk)
 
-            pool = mp.Pool(processes=8)
-            ce_rets = pool.starmap(calc_edges, to_process)
-            pool.close()
-            pool.join()
-            
-            # Update graphs if needed
-            if update_idx['std'] != -1:
-                G_std = ce_rets[0]
-            for k in budgets:
-                if update_idx['bdgt'][k] != -1:
-                    G_bdgt[k] = ce_rets[update_idx['bdgt'][k]]
-            for d in nonlocal_dists:
-                if update_idx['nl'][d] != -1:
-                    G_nl[k] = ce_rets[update_idx['nl'][d]]
+            sim_idx += 1
+        for d in nonlocal_dists:
+            end_res, match_res = sim_rets[sim_idx]
+            end_stats, end_ntwk, end_iter = end_res
+            match_stats, match_ntwk, match_iter = match_res
 
-            # Get all stable triad counts
-            std_st_count = count_stable_triads(G_std)
-            bdgt_st_counts = {}
-            for k in budgets:
-                bdgt_st_counts[k] = count_stable_triads(G_bdgt[k])
-            nl_st_counts = {}
-            for d in nonlocal_dists:
-                nl_st_counts[d] = count_stable_triads(G_nl[d])
+            summary_stats['nonlocal'][d]['exit_iter'][si] = end_iter
+            add_sum_stat(summary_stats['nonlocal'][d], end_stats)
+            final_networks['nonlocal'][d].append(end_ntwk)
 
-            # If less than min number iterations has run, add and move on
-            if len(st_counts['standard']) < st_count_track:
-                st_counts['standard'].append(std_st_count)  
-                for k in budgets:
-                    st_counts['budget'][k].append(bdgt_st_counts[k])
-                for d in nonlocal_dists:
-                    st_counts['nonlocal'][d].append(nl_st_counts[d])
-                continue
+            summary_stats['nonlocal_match'][d]['exit_iter'][si] = match_iter
+            add_sum_stat(summary_stats['nonlocal_match'][d], match_stats)
+            final_networks['nonlocal_match'][d].append(match_ntwk)
 
-            # Update all count arrays with current
-            st_counts['standard'].pop(0)
-            st_counts['standard'].append(std_st_count)
-            for k in budgets:
-                st_counts['budget'][k].pop(0)
-                st_counts['budget'][k].append(bdgt_st_counts[k])
-            for k in nonlocal_dists:
-                st_counts['nonlocal'][d].pop(0)
-                st_counts['nonlocal'][d].append(nl_st_counts[d])
-
-            # Check if base case has just terminated
-            if np.std(st_counts['standard']) <= st_count_dev_tol and not std_fin:
-                std_fin = True
-                summary_stats['standard']['exit_iter'][si] = it
-                add_sum_stat(summary_stats['standard'], get_summary_stats(G_std))
-                final_networks['standard'].append(G_std.adj_matrix.tolist())
-
-                for k in budgets:
-                    summary_stats['budget_match'][k]['exit_iter'][si] = it
-                    add_sum_stat(summary_stats['budget_match'][k],
-                        get_summary_stats(G_bdgt[k]))
-                    final_networks['budget_match'][k].append(G_bdgt[k].adj_matrix.tolist())
-
-                for d in nonlocal_dists:
-                    summary_stats['nonlocal_match'][d]['exit_iter'][si] = it
-                    add_sum_stat(summary_stats['nonlocal_match'][d],
-                        get_summary_stats(G_nl[d]))
-                    final_networks['nonlocal_match'][d].append(G_nl[d].adj_matrix.tolist())
-
-            for k in budgets:
-                if np.std(st_counts['budget'][k]) <= st_count_dev_tol and not bdgt_fin[k]:
-                    bdgt_fin[k] = True
-                    summary_stats['budget'][k]['exit_iter'][si] = it
-                    add_sum_stat(summary_stats['budget'][k], get_summary_stats(G_bdgt[k]))
-                    final_networks['budget'][k].append(G_bdgt[k].adj_matrix.tolist())
-
-            for d in nonlocal_dists:
-                if np.std(st_counts['nonlocal'][d]) <= st_count_dev_tol and not nl_fin[d]:
-                    nl_fin[d] = True
-                    summary_stats['nonlocal'][d]['exit_iter'][si] = it
-                    add_sum_stat(summary_stats['nonlocal'][d], get_summary_stats(G_nl[d]))
-                    final_networks['nonlocal'][d].append(G_nl[d].adj_matrix.tolist())
-
-            if std_fin and all(bdgt_fin.values()) and all(nl_fin.values()):
-                break
+            sim_idx += 1
 
     print('ho: ', ho_likelihood, 'sc: ', sc_likelihood)
 
     # Take mean of all summary stats
-    for st, vs in summary_stats['standard'].items():
-        summary_stats['standard'][st] = np.mean(vs)
     for k in budgets:
         for st in summary_stats['budget'][k].keys():
             summary_stats['budget'][k][st] = np.mean(summary_stats['budget'][k][st])

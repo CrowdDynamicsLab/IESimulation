@@ -1,12 +1,13 @@
 #!/bin/bash
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=32
-#SBATCH --job-name="comp_proposal"
-#SBATCH --partition=cs
+#SBATCH --ntasks-per-node=8
+#SBATCH --job-name="test_var_abl"
+#SBATCH --partition=shared
+#SBATCH --account=uic333
 #SBATCH --mail-user=andy2@illinois.edu
-#SBATCH --output=VAR-%x.%j.out
-#SBATCH --error=VAR-%x.%j.err
+#SBATCH --output=TVAR-%x.%j.out
+#SBATCH --error=TVAR-%x.%j.err
 
 module load cpu/0.15.4
 module load gcc/10.2.0

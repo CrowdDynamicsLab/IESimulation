@@ -37,8 +37,8 @@ num_iters = _FIXED_ITERS
 min_iters = 10
 max_clique_size = max_deg + 1
 ctxt_likelihood = .5
-#sim_iters = 10
-sim_iters = 2
+sim_iters = 10
+#sim_iters = 2
 st_count_track = 10
 st_count_dev_tol = 0.01
 
