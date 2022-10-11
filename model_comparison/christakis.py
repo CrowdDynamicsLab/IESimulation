@@ -51,14 +51,14 @@ def run_sim(X, theta):
 
     for p in pairs:
         i_util = U(p[0], p[1], X, F, G, Eps[i, j], theta)
-        j_util = U(p[1], p[0], X, F, G, Eps[i, j], theta)
+        j_util = U(p[1], p[0], X, F, G, Eps[j, i], theta)
 
         # Should be strict?
         if i_util > 0 and j_util > 0:
-            X[i, j] = 1
-            X[j, i] = 1
-            F[i,:] = F[i,:] + X[j,:]
-            F[j,:] = F[j,:] + X[i,:]
+            D[i, j] = 1
+            D[j, i] = 1
+            F[i,:] = F[i,:] + D[j,:]
+            F[j,:] = F[j,:] + D[i,:]
             update_G(G, i, j)
 
     return D
