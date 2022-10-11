@@ -50,8 +50,8 @@ def run_sim(X, theta):
     np.random.shuffle(pairs)
 
     for p in pairs:
-        i_util = U(p[0], p[1], X, F, G, Eps[i, j], theta)
-        j_util = U(p[1], p[0], X, F, G, Eps[j, i], theta)
+        i_util = U(p[0], p[1], X, F, G, Eps[p[0], p[1]], theta)
+        j_util = U(p[1], p[0], X, F, G, Eps[p[1], p[0]], theta)
 
         # Should be strict?
         if i_util > 0 and j_util > 0:
