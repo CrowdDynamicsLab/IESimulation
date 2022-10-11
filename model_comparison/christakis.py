@@ -15,7 +15,7 @@ def U(i, j, X, F, G, eps_ij, theta):
     x_j = X[j]
     partner_prefs = b_1 * x_j
     disutil = (x_i - x_j) * omega * (x_i - x_j)
-    ntwk_eff = alpha[0] * F[i, j] + alpha[1] * (F[i, j])**2 + \
+    ntwk_eff = alpha[0] * F[j] + alpha[1] * (F[j]**2) + \
         alpha[2] * (1 if G[i, j] == 2 else 0) + alpha[3] * (1 if G[i, j] == 3 else 0)
     error = eps_ij
     return b_0 + partner_pref - disutil + ntwk_eff + error
@@ -43,7 +43,7 @@ def run_sim(X, theta):
 
     N = X.shape[0]
     D = np.zeros((N, N))
-    F = np.zeros((N, N))
+    F = [0] * N
     G = np.ones((N, N)) * np.inf
 
     pairs = [ (i, j) for i in range(_N) for j in range(i + 1, _N) ]
@@ -57,8 +57,8 @@ def run_sim(X, theta):
         if i_util > 0 and j_util > 0:
             D[i, j] = 1
             D[j, i] = 1
-            F[i,:] = F[i,:] + D[j,:]
-            F[j,:] = F[j,:] + D[i,:]
+            F[i] += 1
+            F[j] += 1
             update_G(G, i, j)
 
     return D
