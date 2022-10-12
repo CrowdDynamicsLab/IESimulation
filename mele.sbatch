@@ -2,7 +2,7 @@
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=48
-#SBATCH --job-name="mele_rand_fit6"
+#SBATCH --job-name="mele_fit6"
 #SBATCH --partition=shared
 #SBATCH --account=uic333
 #SBATCH --mail-user=nainab2@illinois.edu
@@ -13,4 +13,4 @@ module load gcc/10.2.0
 module load python/3.8.5
 export PYTHONPATH=/home/$USER/scratch/mypython3:${PYTHONPATH}
 
-python3 /home/$USER/scratch/IESimulation/mele_random_fitting.py
+python3 /home/$USER/scratch/IESimulation/mele_fitting.py
