@@ -102,11 +102,11 @@ data_assort1 = nx.attribute_assortativity_coefficient(G_nx_data1, "type")
 paramlist = []
 
 for i in range(100):
-    alpha1 = np.random.uniform(-1, 1)
-    alpha2 = np.random.uniform(-1, 1)
-    alpha3 = np.random.uniform(-1, 1)
-    alpha4 = np.random.uniform(-1, 1)
-    beta1 = np.random.uniform(-1, 1)
+    alpha1 = np.random.uniform(0, 2)
+    alpha2 = np.random.uniform(0, 2)
+    alpha3 = np.random.uniform(0, 2)
+    alpha4 = np.random.uniform(0, 2)
+    beta1 = np.random.uniform(0, 1)
     beta2 = np.random.uniform(-1, 1)
     gamma1 = np.random.uniform(-1, 1)
     gamma2 = np.random.uniform(-1, 1)
