@@ -5,21 +5,21 @@ import numpy as np
 def util(i, j, G, chars, z, theta):
     # Utility of agent i
     # Page 13
-    n = chars.shape[0]
+    n = len(chars)
     alpha, beta, gamma = theta
     alpha_val = None
     if z[i] == z[j]:
         alpha_val = alpha[z[i]]
     else:
         alpha_val = alpha[-1]
-    
+
     rooms1 = 0
     rooms2 = 0
-    if chars[i][0] == chars[j][0]  and chars[i][0] == 1:
+    if chars[i] == chars[j]  and chars[i] == 1:
         rooms1 = beta[0]
-    if chars[i][1] == chars[j][1]  and chars[i][1] == 1:
+    if chars[i] == chars[j]  and chars[i] == 2:
         rooms2 = beta[1]
-    
+
     tri = 0
     for r in range(n):
         tri += G[j][r] * G[r][i] * gamma[z[i]]
@@ -39,7 +39,7 @@ def potential(G, z, theta):
             for r in range(n):
                 term2 += G[i][j] * G[j][r] * G[i][r] * gamma[z[i]]
     return term1 + (term2 / 6)
-   
+
 def run_model(alpha, beta, gamma, chars):
     # Let K = # communities
     # Each agent put into an unobserved community by multinomial
@@ -55,13 +55,13 @@ def run_model(alpha, beta, gamma, chars):
 
     # In each iteration randomly select a pair
     # Run until potential function stops increasing
-    n = chars.shape[0]
+    n = len(chars)
     z = np.random.randint(0, 3, n)
     theta = (alpha, beta, gamma)
 
     G = np.zeros((n, n))
-   
-    min_iters = 100 
+
+    min_iters = 100
     it = 0
     cur_potential = potential(G, z, theta)
     while True:
@@ -82,16 +82,3 @@ def run_model(alpha, beta, gamma, chars):
         it += 1
 
     return G
-
-alpha = [-1, -0.75, -0.5, -1.25]
-beta = [1, 1.2]
-gamma = [0.969, 1.573, 0.995]
-n = 20
-chars = np.zeros((n, 2))
-char_vals = np.random.randint(0, 2, n)
-for idx, v in enumerate(char_vals):
-    chars[idx][v] = 1
-
-G = run_model(alpha, beta, gamma, chars)
-print(G)
-
