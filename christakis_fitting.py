@@ -62,8 +62,9 @@ def fit_chris(params):
     f.close()
 
 # we fit village 6 because it is of small size and our model fit it well
+# also 7 because small and worse fit
 # we only take edge set 1
-vill_no = 6
+vill_no = 7
 money_hyp_files = ['borrowmoney', 'lendmoney', 'keroricecome', 'keroricego']
 
 stata_household = pd.read_stata('banerjee_data/datav4.0/Data/2. Demographics and Outcomes/household_characteristics.dta')
@@ -102,14 +103,16 @@ data_assort1 = nx.attribute_assortativity_coefficient(G_nx_data1, "type")
 # best loss was  0.01774770433614083
 # for theta equals  (-1.1812111471290718, 0.1682709034133562, 0.08439179247757905, [-0.10016339241033151, -0.00259437014190718, 1.9263189421520241, 1.2667035584898267])
 
-b0_list = [-1.1, -1.2, -1.3]
-b1_list = [.1, .2, .3]
-om_list = [0, .1, .2]
-a1_list = [-.2, -.1, 0]
-a2_list = [-.1, 0, .1]
-a3_list = [1.8, 1.9, 2.0]
-a4_list = [1.2, 1.3, 1.4]
+#best loss was  0.20807938075597165
+#for theta equals  (-0.8225545718040959, 0.11217709835166051, 0.253450574997081, [-0.1908810055180419, 0.0010069741108848411, 3.4925360045274676, 1.734881759470818])
 
+b0_list = [-.7, -.8, -.9]
+b1_list = [0, .1, .2]
+om_list = [.2, .3, .4]
+a1_list = [-.3, -.2, -.1]
+a2_list = [-.1, 0, .1]
+a3_list = [3.4, 3.5, 3.6]
+a4_list = [1.6, 1.7, 1.8]
 
 
 paramlist = list(product(b0_list, b1_list, om_list, a1_list, a2_list, a3_list, a4_list))
