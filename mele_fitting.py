@@ -36,10 +36,12 @@ def fit_mele(params):
         nx.set_node_attributes(G_mnx, type_dict2, "type")
 
         curr_tri_cnta = sum((nx.triangles(G_mnx)).values())/3
-        tri_cnt_arr.append(curr_tri_cnta)
+        tri_cnt_arr.append(str(curr_tri_cnta))
+        tri_cnt_arr.append(', ')
 
         curr_assorta = nx.attribute_assortativity_coefficient(G_mnx, "type")
-        assort_arr.append(curr_assorta)
+        assort_arr.append(str(curr_assorta))
+        assort_arr.append(', ')
 
     #avg_tri_cnt = np.mean(tri_cnt_arr)
     #avg_assort = np.mean(assort_arr)
@@ -52,6 +54,9 @@ def fit_mele(params):
     #value = [str(loss), '\n']
 
     #metrics = [str(avg_tri_cnt), '\n', str(avg_assort)]
+
+    tri_cnt_arr.append(str('\n'))
+    assort_arr.append(str('\n'))
 
     data_dir = 'mele_results'
 
