@@ -71,7 +71,7 @@ def fit_mele(params):
 # we fit village 6 because it is of small size and our model fit it well
 # also 7 because small and worse fit
 # we only take edge set 1
-vill_no = 6
+vill_no = 7
 money_hyp_files = ['borrowmoney', 'lendmoney', 'keroricecome', 'keroricego']
 
 stata_household = pd.read_stata('banerjee_data/datav4.0/Data/2. Demographics and Outcomes/household_characteristics.dta')
@@ -113,15 +113,15 @@ data_assort1 = nx.attribute_assortativity_coefficient(G_nx_data1, "type")
 #best loss was  0.20807938075597165
 #for theta equals  (-0.8225545718040959, 0.11217709835166051, 0.253450574997081, [-0.1908810055180419, 0.0010069741108848411, 3.4925360045274676, 1.734881759470818])
 
-alpha1_list = [.2, .3]
-alpha2_list = [1.6, 1.7]
-alpha3_list = [.2, .3]
-alpha4_list = [.8, .9]
-beta1_list = [.8,.9]
-beta2_list = [-.9,-.8]
-gamma1_list = [0,.1]
-gamma2_list = [.7, .8]
-gamma3_list = [.9, 1]
+alpha1_list = [1.3, 1.4]
+alpha2_list = [.7, .8]
+alpha3_list = [1.4,1.5]
+alpha4_list = [2.5, 2.6]
+beta1_list = [1.1,1.2]
+beta2_list = [2.5,2.6]
+gamma1_list = [.7,.8]
+gamma2_list = [-.5, -.4]
+gamma3_list = [.2, .3]
 
 paramlist = list(product(alpha1_list, alpha2_list, alpha3_list, alpha4_list, beta1_list, beta2_list, gamma1_list, gamma2_list, gamma3_list))
 
