@@ -2,7 +2,7 @@
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=48
-#SBATCH --job-name="mele_rand_fit7"
+#SBATCH --job-name="mele_rand_fit6"
 #SBATCH --partition=shared
 #SBATCH --account=uic333
 #SBATCH --mail-user=nainab2@illinois.edu
