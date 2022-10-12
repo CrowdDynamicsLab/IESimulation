@@ -108,9 +108,9 @@ for i in range(100):
     alpha4 = np.random.uniform(-3, 3)
     beta1 = np.random.uniform(-3, 3)
     beta2 = np.random.uniform(-3, 3)
-    gamma1 = np.random.uniform(-1, 1)
-    gamma2 = np.random.uniform(-1, 1)
-    gamma3 = np.random.uniform(-1, 1)
+    gamma1 = np.random.uniform(0, 5)
+    gamma2 = np.random.uniform(0, 5)
+    gamma3 = np.random.uniform(0, 5)
 
     paramlist.append((alpha1, alpha2, alpha3, alpha4, beta1, beta2, gamma1, gamma2, gamma3))
 
