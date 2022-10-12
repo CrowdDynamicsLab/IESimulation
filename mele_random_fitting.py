@@ -17,7 +17,7 @@ def fit_mele_rand(params):
     beta2 = np.round(params[5],3)
     gamma1 = np.round(params[6],3)
     gamma2 = np.round(params[7],3)
-    gamma2 = np.round(params[8],3)
+    gamma3 = np.round(params[8],3)
 
     alpha = [alpha1, alpha2, alpha3, alpha4]
     beta = [beta1, beta2]
@@ -57,7 +57,7 @@ def fit_mele_rand(params):
 # we fit village 6 because it is of small size and our model fit it well
 # also 7 because small and worse fit
 # we only take edge set 1
-vill_no = 7
+vill_no = 6
 money_hyp_files = ['borrowmoney', 'lendmoney', 'keroricecome', 'keroricego']
 
 stata_household = pd.read_stata('banerjee_data/datav4.0/Data/2. Demographics and Outcomes/household_characteristics.dta')
@@ -101,7 +101,7 @@ data_assort1 = nx.attribute_assortativity_coefficient(G_nx_data1, "type")
 
 paramlist = []
 
-for i in range(100):
+for i in range(72):
     alpha1 = np.random.uniform(-1, 1)
     alpha2 = np.random.uniform(-1, 1)
     alpha3 = np.random.uniform(-1, 1)
