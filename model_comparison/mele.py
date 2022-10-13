@@ -26,7 +26,7 @@ def util(i, j, G, chars, z, theta):
 
     return alpha_val + rooms1 + rooms2 + tri
 
-def potential(G, z, theta):
+def potential(G, z, theta, chars):
 
     # Page 10
     alpha, beta, gamma = theta
@@ -63,22 +63,30 @@ def run_model(alpha, beta, gamma, chars):
 
     min_iters = 100
     it = 0
-    cur_potential = potential(G, z, theta)
+    cur_potential = potential(G, z, theta, chars)
     while True:
         i, j = np.random.randint(0, n, 2)
         if i == j:
             continue
 
+        print(it, i, j)
         i_util = util(i, j, G, chars, z, theta)
         j_util = util(j, i, G, chars, z, theta)
         if i_util + j_util > 0:
             G[i][j] = 1
             G[j][i] = 1
 
-        new_potential = potential(G, z, theta)
+        new_potential = potential(G, z, theta, chars)
         if new_potential <= cur_potential and it >= min_iters:
             break
         cur_potential = new_potential
         it += 1
 
     return G
+
+n = 150
+chars = np.random.randint(1, 3, n)
+alpha = [-1.5, -0.1, -0.1, -0.1]
+beta = [1.0, 1.0]
+gamma = [1.2, 0.8, 1.6]
+run_model(alpha, beta, gamma, chars)
