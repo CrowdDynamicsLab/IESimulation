@@ -69,6 +69,7 @@ def run_model(alpha, beta, gamma, chars):
         if i == j:
             continue
 
+        print(it, i, j)
         i_util = util(i, j, G, chars, z, theta)
         j_util = util(j, i, G, chars, z, theta)
         if i_util + j_util > 0:
@@ -82,3 +83,10 @@ def run_model(alpha, beta, gamma, chars):
         it += 1
 
     return G
+
+n = 150
+chars = np.random.randint(1, 3, n)
+alpha = [-1.5, -0.1, -0.1, -0.1]
+beta = [1.0, 1.0]
+gamma = [1.2, 0.8, 1.6]
+run_model(alpha, beta, gamma, chars)
