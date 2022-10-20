@@ -4,6 +4,7 @@ import networkx as nx
 import matplotlib
 import matplotlib.pyplot as plt
 import community as community_louvain
+from os.path import exists
 
 import sim_lib.util as util
 import sim_lib.attr_lib.util as alu
