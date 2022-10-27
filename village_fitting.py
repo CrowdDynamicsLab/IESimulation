@@ -455,6 +455,8 @@ for i in paramlist:
     sc = i[2]
     ho = i[3]
 
+    new_i = list([vill_no, k, sc, ho])
+
     data_dir = 'fine_results'
 
     filename = '{odir}/{vill_no}_{k}_{sc}_{ho}_losses.txt'.format(
@@ -463,7 +465,7 @@ for i in paramlist:
     if exists(filename):
         continue
     else:
-        to_run.append(i)
+        to_run.append(new_i)
 
 if __name__ == '__main__':
 
