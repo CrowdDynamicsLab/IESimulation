@@ -1,8 +1,8 @@
 #!/bin/bash
-#SBATCH --time=10:00:00
+#SBATCH --time=48:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=64
-#SBATCH --job-name="mele_fit7_b"
+#SBATCH --job-name="mele_fit7"
 #SBATCH --partition=shared
 #SBATCH --account=uic333
 #SBATCH --mail-user=nainab2@illinois.edu
