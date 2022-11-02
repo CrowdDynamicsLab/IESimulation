@@ -430,8 +430,8 @@ max_clique_size_list = [10]
 sc_likelihood_list_old = range(17)
 ho_likelihood_list_old = range(17)
 
-sc_likelihood_list = [x/16 for x in sc_likelihood_list]
-ho_likelihood_list = [x/16 for x in ho_likelihood_list]
+sc_likelihood_list = [x/16 for x in sc_likelihood_list_old]
+ho_likelihood_list = [x/16 for x in ho_likelihood_list_old]
 
 paramlist = list(product(vill_list, max_clique_size_list, sc_likelihood_list, ho_likelihood_list))
 
