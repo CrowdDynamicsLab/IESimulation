@@ -69,6 +69,7 @@ def get_summary_stats(G):
 
     triangle_count = sum((nx.triangles(g_nx)).values())/3
     assortativity = nx.attribute_assortativity_coefficient(g_nx, "shape")
+    edge_count = g_nx.number_of_edges()
 
     return {
         'degree' : avg_deg,
@@ -81,7 +82,8 @@ def get_summary_stats(G):
         'cluster_coeff' : cluster_coeff,
         'stable_triad_count' : stable_triad_count,
         'triangle_count': triangle_count,
-        'assortativity': assortativity
+        'assortativity': assortativity,
+        'edge_count': edge_count
     }
 
 def add_sum_stat(st_dict, res):
@@ -96,6 +98,7 @@ def add_sum_stat(st_dict, res):
     st_dict['stable_triad_count'].append(res['stable_triad_count'])
     st_dict['triangle_count'].append(res['triangle_count'])
     st_dict['assortativity'].append(res['assortativity'])
+    st_dict['edge_count'].append(res['edge_count'])
 
 
 def count_stable_triads(G):
@@ -241,7 +244,8 @@ def run_sim(sc_likelihood, ho_likelihood, max_clique_size, ctxt_likelihood, _N, 
         'stable_triad_count' : [],
         'exit_iter' : [num_iters] * sim_iters,
         'triangle_count': [],
-        'assortativity':[]
+        'assortativity':[],
+        'edge_count':[]
 
     }
 
@@ -314,7 +318,7 @@ def fit_village_data(params):
     sc_likelihood = params[2]
     ho_likelihood = params[3]
 
-    sim_iters = 5
+    sim_iters = 1
 
     stata_household = pd.read_stata('banerjee_data/datav4.0/Data/2. Demographics and Outcomes/household_characteristics.dta')
 
@@ -389,87 +393,72 @@ def fit_village_data(params):
     nx.set_node_attributes(G_nx_data3, data_type_dict, "type")
 
     # values to aim for
-    data_tri_cnt1 = sum((nx.triangles(G_nx_data1)).values())/3
-    data_assort1 = nx.attribute_assortativity_coefficient(G_nx_data1, "type")
-
-    data_tri_cnt2 = sum((nx.triangles(G_nx_data2)).values())/3
-    data_assort2 = nx.attribute_assortativity_coefficient(G_nx_data2, "type")
-
-    data_tri_cnt3 = sum((nx.triangles(G_nx_data3)).values())/3
-    data_assort3 = nx.attribute_assortativity_coefficient(G_nx_data3, "type")
+    # data_tri_cnt1 = sum((nx.triangles(G_nx_data1)).values())/3
+    # data_assort1 = nx.attribute_assortativity_coefficient(G_nx_data1, "type")
+    #
+    # data_tri_cnt2 = sum((nx.triangles(G_nx_data2)).values())/3
+    # data_assort2 = nx.attribute_assortativity_coefficient(G_nx_data2, "type")
+    #
+    # data_tri_cnt3 = sum((nx.triangles(G_nx_data3)).values())/3
+    # data_assort3 = nx.attribute_assortativity_coefficient(G_nx_data3, "type")
 
     ########## simulation ###########
 
-    ## checking which k is optimal ##
-
-    #loss_array1 = np.full((len(max_clique_size_list), len(sc_likelihood_list), len(ho_likelihood_list)), np.inf)
-    #loss_array2 = np.full((len(max_clique_size_list),len(sc_likelihood_list), len(ho_likelihood_list)), np.inf)
-    #loss_array3 = np.full((len(max_clique_size_list),len(sc_likelihood_list), len(ho_likelihood_list)), np.inf)
 
     summ_stats, final_ntwks, final_types = run_sim(sc_likelihood, ho_likelihood, max_clique_size, ctxt_likelihood = sum(room_type)/len(room_type), _N = G_nx_data1.number_of_nodes(), sim_iters = sim_iters)
 
-    tri_loss1 = (data_tri_cnt1-summ_stats['standard']['triangle_count'])/data_tri_cnt1
-    tri_loss2 = (data_tri_cnt2-summ_stats['standard']['triangle_count'])/data_tri_cnt2
-    tri_loss3 = (data_tri_cnt3-summ_stats['standard']['triangle_count'])/data_tri_cnt3
+    #value = [str(loss1), '\n', str(loss2), '\n', str(loss3), '\n']
 
-    assort_loss1 = (data_assort1 - summ_stats['standard']['assortativity'])/2
-    assort_loss2 = (data_assort2 - summ_stats['standard']['assortativity'])/2
-    assort_loss3 = (data_assort3 - summ_stats['standard']['assortativity'])/2
+    metrics = [str(summ_stats['standard']['triangle_count']), '\n', str(summ_stats['standard']['assortativity']), '\n', str(summ_stats['standard']['edge_count'])]
 
-    loss1 = np.sqrt(tri_loss1**2 + assort_loss1**2)
-    loss2 = np.sqrt(tri_loss2**2 + assort_loss2**2)
-    loss3 = np.sqrt(tri_loss3**2 + assort_loss3**2)
-
-    value = [str(loss1), '\n', str(loss2), '\n', str(loss3), '\n']
-
-    metrics = [str(summ_stats['standard']['triangle_count']), '\n', str(summ_stats['standard']['assortativity'])]
-
-    print(value)
-
-    data_dir = 'fine_results'
+    data_dir = 'finer_results'
 
     filename = '{odir}/{vill_no}_{k}_{sc}_{ho}_losses.txt'.format(
         odir=data_dir, vill_no=str(vill_no), k=str(max_clique_size), sc=str(sc_likelihood), ho=str(ho_likelihood))
 
     with open(filename, 'w') as f:
-        f.writelines(value)
+        #f.writelines(value)
         f.writelines(metrics)
     f.close()
 
 
-vill_list = chain(range(12),range(13, 21),range(22, 77))
+vill_list_old = chain(range(12),range(13, 21),range(22, 77))
+vill_list = [x+1 for x in vill_list_old]
 
 
 max_clique_size_list = [10]
-sc_likelihood_list = [0,.125,.25,.375,.5,.625,.75,.825,1]
-ho_likelihood_list = [0,.125,.25,.375,.5,.625,.75,.825,1]
+sc_likelihood_list_old = range(17)
+ho_likelihood_list_old = range(17)
+
+sc_likelihood_list = [x/16 for x in sc_likelihood_list]
+ho_likelihood_list = [x/16 for x in ho_likelihood_list]
 
 paramlist = list(product(vill_list, max_clique_size_list, sc_likelihood_list, ho_likelihood_list))
 
-to_run = []
-
-for i in paramlist:
-
-    vill_no = i[0] + 1
-    k = i[1]
-    sc = i[2]
-    ho = i[3]
-
-    new_i = list([vill_no, k, sc, ho])
-
-    data_dir = 'fine_results'
-
-    filename = '{odir}/{vill_no}_{k}_{sc}_{ho}_losses.txt'.format(
-        odir=data_dir, vill_no=str(vill_no), k = str(k), sc = str(sc), ho = str(ho))
-
-    if exists(filename):
-        continue
-    else:
-        to_run.append(new_i)
+# to_run = []
+#
+# for i in paramlist:
+#
+#     vill_no = i[0] + 1
+#     k = i[1]
+#     sc = i[2]
+#     ho = i[3]
+#
+#     new_i = list([vill_no, k, sc, ho])
+#
+#     data_dir = 'fine_results'
+#
+#     filename = '{odir}/{vill_no}_{k}_{sc}_{ho}_losses.txt'.format(
+#         odir=data_dir, vill_no=str(vill_no), k = str(k), sc = str(sc), ho = str(ho))
+#
+#     if exists(filename):
+#         continue
+#     else:
+#         to_run.append(new_i)
 
 if __name__ == '__main__':
 
     # create a process pool that uses all cpus
     with mp.Pool(processes = 32) as pool:
         # call the function for each item in parallel
-        pool.map(fit_village_data, to_run)
+        pool.map(fit_village_data, paramlist)
