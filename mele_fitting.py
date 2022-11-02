@@ -72,6 +72,7 @@ def fit_mele(params):
     with open(filename, 'w') as f:
         f.writelines(tri_cnt_arr)
         f.writelines(assort_arr)
+        f.writelines(edges_arr)
     f.close()
 
 # we fit village 6 because it is of small size and our model fit it well
