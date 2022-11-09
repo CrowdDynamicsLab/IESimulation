@@ -64,7 +64,7 @@ def fit_mele(params):
     assort_arr.append(str('\n'))
     edges_arr.append(str('\n'))
 
-    data_dir = 'mele_results'
+    data_dir = 'mele_results6'
 
     filename = '{odir}/{vill_no}_{a1}_{a2}_{a3}_{a4}_{b1}_{b2}_{g1}_{g2}_{g3}_losses.txt'.format(
         odir=data_dir, vill_no=str(vill_no), a1 =str(alpha1), a2 = str(alpha2), a3 = str(alpha3), a4 = str(alpha4), b1 = str(beta1), b2 = str(beta2), g1 = str(gamma1), g2 = str(gamma2), g3 = str(gamma3))
