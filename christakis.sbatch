@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=48
+#SBATCH --ntasks-per-node=32
 #SBATCH --job-name="christakis_fit_vill7"
 #SBATCH --partition=shared
 #SBATCH --account=uic333

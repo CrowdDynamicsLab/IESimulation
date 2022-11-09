@@ -23,6 +23,8 @@ def fit_chris(params):
 
     tri_cnt_arr = []
     assort_arr = []
+    edges_arr = []
+
     for i in range(5):
         Eps = np.random.gumbel(size = (len(X), len(X)))
 
@@ -33,23 +35,33 @@ def fit_chris(params):
         nx.set_node_attributes(G_cnx, type_dict, "type")
 
         curr_tri_cnt = sum((nx.triangles(G_cnx)).values())/3
-        tri_cnt_arr.append(curr_tri_cnt)
-        #print(curr_tri_cnt)
+        tri_cnt_arr.append(str(curr_tri_cnt))
+        tri_cnt_arr.append(', ')
+
+        curr_edges = G_cnx.number_of_edges()
+        edges_arr.append(str(curr_edges))
+        edges_arr.append(', ')
+
         curr_assort = nx.attribute_assortativity_coefficient(G_cnx, "type")
-        assort_arr.append(curr_assort)
+        assort_arr.append(str(curr_assort))
+        assort_arr.append(', ')
         #print(curr_assort)
+    #
+    # avg_tri_cnt = np.mean(tri_cnt_arr)
+    # avg_assort = np.mean(assort_arr)
+    #
+    # tri_loss = (data_tri_cnt1-avg_tri_cnt)/data_tri_cnt1
+    # assort_loss = (data_assort1 - avg_assort)/2
+    #
+    # loss = np.sqrt(tri_loss**2 + assort_loss**2)
+    #
+    # value = [str(loss), '\n']
+    #
+    # metrics = [str(avg_tri_cnt), '\n', str(avg_assort)]
 
-    avg_tri_cnt = np.mean(tri_cnt_arr)
-    avg_assort = np.mean(assort_arr)
-
-    tri_loss = (data_tri_cnt1-avg_tri_cnt)/data_tri_cnt1
-    assort_loss = (data_assort1 - avg_assort)/2
-
-    loss = np.sqrt(tri_loss**2 + assort_loss**2)
-
-    value = [str(loss), '\n']
-
-    metrics = [str(avg_tri_cnt), '\n', str(avg_assort)]
+    tri_cnt_arr.append(str('\n'))
+    assort_arr.append(str('\n'))
+    edges_arr.append(str('\n'))
 
     data_dir = 'christakis_results'
 
@@ -57,8 +69,9 @@ def fit_chris(params):
         odir=data_dir, vill_no=str(vill_no), b0 =str(b0), b1 = str(b1), om = str(om), a1 = str(a1), a2 = str(a2), a3 = str(a3), a4 = str(a4))
 
     with open(filename, 'w') as f:
-        f.writelines(value)
-        f.writelines(metrics)
+        f.writelines(tri_cnt_arr)
+        f.writelines(assort_arr)
+        f.writelines(edges_arr)
     f.close()
 
 # we fit village 6 because it is of small size and our model fit it well
