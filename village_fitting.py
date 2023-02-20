@@ -219,6 +219,7 @@ def run_sim(sc_likelihood, ho_likelihood, max_clique_size, ctxt_likelihood, _N, 
 
     vtx_types_list = np.array([ np.repeat(t, tc) for t, tc in tc_dict.items() ])
     vtx_types_list = np.hstack(vtx_types_list)
+    print(vtx_types_list)
     #np.random.shuffle(vtx_types_list)
     params['type_assignment'] = { i : vtx_types_list[i] for i in range(_N) }
 
@@ -318,7 +319,7 @@ def fit_village_data(params):
     sc_likelihood = params[2]
     ho_likelihood = params[3]
 
-    sim_iters = 1
+    sim_iters = 5
 
     stata_household = pd.read_stata('banerjee_data/datav4.0/Data/2. Demographics and Outcomes/household_characteristics.dta')
 
@@ -409,22 +410,27 @@ def fit_village_data(params):
 
     #value = [str(loss1), '\n', str(loss2), '\n', str(loss3), '\n']
 
-    metrics = [str(summ_stats['standard']['triangle_count']), '\n', str(summ_stats['standard']['assortativity']), '\n', str(summ_stats['standard']['edge_count'])]
+    #metrics = [str(summ_stats['standard']['triangle_count']), '\n', str(summ_stats['standard']['assortativity']), '\n', str(summ_stats['standard']['edge_count'])]
 
-    data_dir = 'finer_results'
+    attr_output = {}
+    for i in range(len(final_types)):
+        attr_output[i] = final_types[i]['init_attrs']
+
+    ntwk_details = [str(final_ntwks['standard']), '\n', str(attr_output), '\n']
+
+    data_dir = 'finer_results_ntwk'
 
     filename = '{odir}/{vill_no}_{k}_{sc}_{ho}_losses.txt'.format(
         odir=data_dir, vill_no=str(vill_no), k=str(max_clique_size), sc=str(sc_likelihood), ho=str(ho_likelihood))
 
     with open(filename, 'w') as f:
         #f.writelines(value)
-        f.writelines(metrics)
+        f.writelines(ntwk_details)
     f.close()
 
 
 vill_list_old = chain(range(12),range(13, 21),range(22, 77))
 vill_list = [x+1 for x in vill_list_old]
-
 
 max_clique_size_list = [10]
 sc_likelihood_list_old = range(17)
