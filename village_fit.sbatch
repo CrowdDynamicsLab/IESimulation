@@ -2,9 +2,8 @@
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=32
-#SBATCH --job-name="village_fit_finer"
+#SBATCH --job-name="village_fit_finer_ntwks"
 #SBATCH --partition=cs
-#SBATCH --account=uic333
 #SBATCH --mail-user=nainab2@illinois.edu
 #SBATCH --mail-type=ALL
 
