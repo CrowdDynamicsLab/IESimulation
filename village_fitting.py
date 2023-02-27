@@ -441,30 +441,30 @@ ho_likelihood_list = [x/16 for x in ho_likelihood_list_old]
 
 paramlist = list(product(vill_list, max_clique_size_list, sc_likelihood_list, ho_likelihood_list))
 
-# to_run = []
-#
-# for i in paramlist:
-#
-#     vill_no = i[0] + 1
-#     k = i[1]
-#     sc = i[2]
-#     ho = i[3]
-#
-#     new_i = list([vill_no, k, sc, ho])
-#
-#     data_dir = 'fine_results'
-#
-#     filename = '{odir}/{vill_no}_{k}_{sc}_{ho}_losses.txt'.format(
-#         odir=data_dir, vill_no=str(vill_no), k = str(k), sc = str(sc), ho = str(ho))
-#
-#     if exists(filename):
-#         continue
-#     else:
-#         to_run.append(new_i)
+to_run = []
+
+for i in paramlist:
+
+     vill_no = i[0]
+     k = i[1]
+     sc = i[2]
+     ho = i[3]
+
+     new_i = list([vill_no, k, sc, ho])
+
+     data_dir = 'finer_results_ntwk'
+
+     filename = '{odir}/{vill_no}_{k}_{sc}_{ho}_losses.txt'.format(
+         odir=data_dir, vill_no=str(vill_no), k = str(k), sc = str(sc), ho = str(ho))
+
+     if exists(filename):
+         continue
+     else:
+         to_run.append(new_i)
 
 if __name__ == '__main__':
 
     # create a process pool that uses all cpus
     with mp.Pool(processes = 32) as pool:
         # call the function for each item in parallel
-        pool.map(fit_village_data, paramlist)
+        pool.map(fit_village_data, to_run)
