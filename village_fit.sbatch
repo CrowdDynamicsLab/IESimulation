@@ -7,9 +7,8 @@
 #SBATCH --mail-user=nainab2@illinois.edu
 #SBATCH --mail-type=ALL
 
-module load cpu/0.15.4
-module load gcc/10.2.0
-module load python/3.8.5
+module load gcc
+module load python/3
 export PYTHONPATH=/home/$USER/scratch/mypython3a:${PYTHONPATH}
 
 python3 /home/$USER/scratch/IESimulation/village_fitting.py
