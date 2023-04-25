@@ -10,6 +10,6 @@
 module load cpu/0.15.4
 module load gcc/10.2.0
 module load python/3.8.5
-export PYTHONPATH=/home/$USER/scratch/mypython3:${PYTHONPATH}
+export PYTHONPATH=/home/$USER/scratch/mypython3a:${PYTHONPATH}
 
 python3 /home/$USER/scratch/IESimulation/village_fitting.py
