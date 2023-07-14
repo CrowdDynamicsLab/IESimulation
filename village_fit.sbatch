@@ -1,16 +1,14 @@
 #!/bin/bash
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=48
-#SBATCH --job-name="village_fit_fine"
-#SBATCH --partition=shared
-#SBATCH --account=uic333
+#SBATCH --ntasks-per-node=32
+#SBATCH --job-name="village_fit_finer_ntwks"
+#SBATCH --partition=cs
 #SBATCH --mail-user=nainab2@illinois.edu
 #SBATCH --mail-type=ALL
 
-module load cpu/0.15.4
-module load gcc/10.2.0
-module load python/3.8.5
-export PYTHONPATH=/home/$USER/scratch/mypython3:${PYTHONPATH}
+module load gcc
+module load python/3
+export PYTHONPATH=/home/$USER/scratch/mypython3a:${PYTHONPATH}
 
 python3 /home/$USER/scratch/IESimulation/village_fitting.py

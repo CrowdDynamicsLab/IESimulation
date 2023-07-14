@@ -23,6 +23,8 @@ def fit_chris(params):
 
     tri_cnt_arr = []
     assort_arr = []
+    edges_arr = []
+
     for i in range(5):
         Eps = np.random.gumbel(size = (len(X), len(X)))
 
@@ -33,23 +35,33 @@ def fit_chris(params):
         nx.set_node_attributes(G_cnx, type_dict, "type")
 
         curr_tri_cnt = sum((nx.triangles(G_cnx)).values())/3
-        tri_cnt_arr.append(curr_tri_cnt)
-        #print(curr_tri_cnt)
+        tri_cnt_arr.append(str(curr_tri_cnt))
+        tri_cnt_arr.append(', ')
+
+        curr_edges = G_cnx.number_of_edges()
+        edges_arr.append(str(curr_edges))
+        edges_arr.append(', ')
+
         curr_assort = nx.attribute_assortativity_coefficient(G_cnx, "type")
-        assort_arr.append(curr_assort)
+        assort_arr.append(str(curr_assort))
+        assort_arr.append(', ')
         #print(curr_assort)
+    #
+    # avg_tri_cnt = np.mean(tri_cnt_arr)
+    # avg_assort = np.mean(assort_arr)
+    #
+    # tri_loss = (data_tri_cnt1-avg_tri_cnt)/data_tri_cnt1
+    # assort_loss = (data_assort1 - avg_assort)/2
+    #
+    # loss = np.sqrt(tri_loss**2 + assort_loss**2)
+    #
+    # value = [str(loss), '\n']
+    #
+    # metrics = [str(avg_tri_cnt), '\n', str(avg_assort)]
 
-    avg_tri_cnt = np.mean(tri_cnt_arr)
-    avg_assort = np.mean(assort_arr)
-
-    tri_loss = (data_tri_cnt1-avg_tri_cnt)/data_tri_cnt1
-    assort_loss = (data_assort1 - avg_assort)/2
-
-    loss = np.sqrt(tri_loss**2 + assort_loss**2)
-
-    value = [str(loss), '\n']
-
-    metrics = [str(avg_tri_cnt), '\n', str(avg_assort)]
+    tri_cnt_arr.append(str('\n'))
+    assort_arr.append(str('\n'))
+    edges_arr.append(str('\n'))
 
     data_dir = 'christakis_results'
 
@@ -57,14 +69,15 @@ def fit_chris(params):
         odir=data_dir, vill_no=str(vill_no), b0 =str(b0), b1 = str(b1), om = str(om), a1 = str(a1), a2 = str(a2), a3 = str(a3), a4 = str(a4))
 
     with open(filename, 'w') as f:
-        f.writelines(value)
-        f.writelines(metrics)
+        f.writelines(tri_cnt_arr)
+        f.writelines(assort_arr)
+        f.writelines(edges_arr)
     f.close()
 
 # we fit village 6 because it is of small size and our model fit it well
 # also 7 because small and worse fit
 # we only take edge set 1
-vill_no = 7
+vill_no = 6
 money_hyp_files = ['borrowmoney', 'lendmoney', 'keroricecome', 'keroricego']
 
 stata_household = pd.read_stata('banerjee_data/datav4.0/Data/2. Demographics and Outcomes/household_characteristics.dta')
@@ -106,13 +119,13 @@ data_assort1 = nx.attribute_assortativity_coefficient(G_nx_data1, "type")
 #best loss was  0.20807938075597165
 #for theta equals  (-0.8225545718040959, 0.11217709835166051, 0.253450574997081, [-0.1908810055180419, 0.0010069741108848411, 3.4925360045274676, 1.734881759470818])
 
-b0_list = [-.7, -.8, -.9]
-b1_list = [0, .1, .2]
-om_list = [.2, .3, .4]
-a1_list = [-.3, -.2, -.1]
+b0_list = [-1.1, -1.2, -1.3]
+b1_list = [.1, .2, .3]
+om_list = [0, .1, .2]
+a1_list = [-.2, -.1, 0]
 a2_list = [-.1, 0, .1]
-a3_list = [3.4, 3.5, 3.6]
-a4_list = [1.6, 1.7, 1.8]
+a3_list = [1.8, 1.9, 2.0]
+a4_list = [1.2, 1.3, 1.4]
 
 
 paramlist = list(product(b0_list, b1_list, om_list, a1_list, a2_list, a3_list, a4_list))

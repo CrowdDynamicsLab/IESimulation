@@ -27,6 +27,7 @@ def fit_mele(params):
 
     tri_cnt_arr = []
     assort_arr = []
+    edges_arr = []
     for i in range(5):
 
         G_m = mele.run_model(alpha, beta, gamma, chars)
@@ -38,6 +39,10 @@ def fit_mele(params):
         curr_tri_cnta = sum((nx.triangles(G_mnx)).values())/3
         tri_cnt_arr.append(str(curr_tri_cnta))
         tri_cnt_arr.append(', ')
+
+        curr_edgesa = G_mnx.number_of_edges()
+        edges_arr.append(str(curr_edgesa))
+        edges_arr.append(', ')
 
         curr_assorta = nx.attribute_assortativity_coefficient(G_mnx, "type")
         assort_arr.append(str(curr_assorta))
@@ -57,8 +62,9 @@ def fit_mele(params):
 
     tri_cnt_arr.append(str('\n'))
     assort_arr.append(str('\n'))
+    edges_arr.append(str('\n'))
 
-    data_dir = 'mele_results'
+    data_dir = 'mele_results6'
 
     filename = '{odir}/{vill_no}_{a1}_{a2}_{a3}_{a4}_{b1}_{b2}_{g1}_{g2}_{g3}_losses.txt'.format(
         odir=data_dir, vill_no=str(vill_no), a1 =str(alpha1), a2 = str(alpha2), a3 = str(alpha3), a4 = str(alpha4), b1 = str(beta1), b2 = str(beta2), g1 = str(gamma1), g2 = str(gamma2), g3 = str(gamma3))
@@ -66,12 +72,13 @@ def fit_mele(params):
     with open(filename, 'w') as f:
         f.writelines(tri_cnt_arr)
         f.writelines(assort_arr)
+        f.writelines(edges_arr)
     f.close()
 
 # we fit village 6 because it is of small size and our model fit it well
 # also 7 because small and worse fit
 # we only take edge set 1
-vill_no = 7
+vill_no = 6
 money_hyp_files = ['borrowmoney', 'lendmoney', 'keroricecome', 'keroricego']
 
 stata_household = pd.read_stata('banerjee_data/datav4.0/Data/2. Demographics and Outcomes/household_characteristics.dta')
@@ -107,24 +114,17 @@ nx.set_node_attributes(G_nx_data1, data_type_dict, "type")
 data_tri_cnt1 = sum((nx.triangles(G_nx_data1)).values())/3
 data_assort1 = nx.attribute_assortativity_coefficient(G_nx_data1, "type")
 
-# best loss was  0.01774770433614083
-# for theta equals  (-1.1812111471290718, 0.1682709034133562, 0.08439179247757905, [-0.10016339241033151, -0.00259437014190718, 1.9263189421520241, 1.2667035584898267])
-
-#best loss was  0.20807938075597165
-#for theta equals  (-0.8225545718040959, 0.11217709835166051, 0.253450574997081, [-0.1908810055180419, 0.0010069741108848411, 3.4925360045274676, 1.734881759470818])
-
-alpha1_list = [1.3, 1.4]
-alpha2_list = [.7, .8]
-alpha3_list = [1.4,1.5]
-alpha4_list = [2.5, 2.6]
-beta1_list = [1.1,1.2]
-beta2_list = [2.5,2.6]
-gamma1_list = [.7,.8]
-gamma2_list = [-.5, -.4]
-gamma3_list = [.2, .3]
+alpha1_list = [.2, .3]
+alpha2_list = [1.6, 1.7]
+alpha3_list = [.2, .3]
+alpha4_list = [.8, .9]
+beta1_list = [.8,.9]
+beta2_list = [-.9,-.8]
+gamma1_list = [0,.1]
+gamma2_list = [.7, .8]
+gamma3_list = [.9, 1]
 
 paramlist = list(product(alpha1_list, alpha2_list, alpha3_list, alpha4_list, beta1_list, beta2_list, gamma1_list, gamma2_list, gamma3_list))
-
 if __name__ == '__main__':
 
     # create a process pool that uses all cpus
