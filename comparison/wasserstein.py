@@ -44,7 +44,7 @@ def emd(dist1, dist2, dist_func=norm_distance):
             ineq_const_mat[i][(i * m) + j] = 1
     for j in range(m):
         for i in range(n):
-            ineq_const_mat[n + j][i] = 1
+            ineq_const_mat[n + j][(i * m) + j] = 1
 
     # The distance matrix D
     D = np.zeros( (n, m) )
@@ -67,8 +67,11 @@ def emd(dist1, dist2, dist_func=norm_distance):
         b_ub=ineq_const_bounds,
         A_eq=eq_const_mat,
         b_eq=weight_const,
-        bounds=(0, None)
+        method='highs',
+        #bounds=(0, None)
+        bounds=(0, 1)
     )
+
 
     flows = res.x
     obj_val = res.fun
