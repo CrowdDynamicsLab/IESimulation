@@ -1,3 +1,5 @@
+import math
+
 import numpy as np
 from scipy.optimize import linprog
 
@@ -17,6 +19,8 @@ def emd(dist1, dist2, dist_func=norm_distance):
 
     # LP from here: https://en.wikipedia.org/wiki/Earth_mover%27s_distance
 
+    # some numerical checks
+
     # size of dist1
     n = len(dist1)
 
@@ -25,7 +29,7 @@ def emd(dist1, dist2, dist_func=norm_distance):
 
     # sum of the weights in this case is 1 so
     # the final constraint in the LP is equality to 1
-    eq_const_mat = np.ones((n * m, 1))
+    eq_const_mat = np.ones((1, n * m))
 
     # inequality constraint
     # put the dist1 weights first
@@ -49,14 +53,20 @@ def emd(dist1, dist2, dist_func=norm_distance):
             op1 = dist1[i][0]
             op2 = dist2[j][0]
             D[i][j] = dist_func(op1[0], op1[1], op2[0], op2[1])
-    
+   
+    # These should be 1 but due to numerical issues will be slightly off
+    dist1_weight = np.sum(dist1_weights)
+    dist2_weight = np.sum(dist2_weights)
+    weight_const = min(dist1_weight, dist2_weight)
+    assert math.isclose(weight_const, 1), 'Total weight should be close to 1'
+ 
     c = np.reshape(D, (n * m, ))
 
     res = linprog(c,
         A_ub=ineq_const_mat,
         b_ub=ineq_const_bounds,
-        A_eq=eq_const_mat.T,
-        b_eq=np.ones(1),
+        A_eq=eq_const_mat,
+        b_eq=weight_const,
         bounds=(0, None)
     )
 
