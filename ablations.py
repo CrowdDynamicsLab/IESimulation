@@ -28,7 +28,7 @@ st_count_dev_tol = 0.01
 #sc_values = np.linspace(0, 1, 9)
 #ho_values = np.linspace(0, 1, 9)
 sc_values = [0, 1]
-ho_values = [1]
+ho_values = [0, 1]
 
 ################ run simulation ################
 
@@ -183,24 +183,28 @@ def run_sim(sc_likelihood, ho_likelihood, sim_iters, sub=False):
                     ntwk_fin['nostruct'] and ntwk_fin['noattr']:
                 break
 
-    print('ho: ', ho_likelihood, 'sc: ', sc_likelihood)
+    print('finished ho: ', ho_likelihood, 'sc: ', sc_likelihood)
 
     return final_networks, final_type_assignments
 
 ################ run simulation with various params ################
 
 if __name__ == "__main__":
-    for sc in sc_values:
-        for ho in ho_values:
-            final_networks, type_assgns = run_sim(sc, ho, sim_iters)
+    pool = mp.Pool(processes=8)
 
-            ntwk_outname = 'abl_data/{n}_{k}_{sc}_{ho}_networks.json'.format(
-                n=str(_N), k=str(max_deg), sc=str(sc), ho=str(ho))
-            with open(ntwk_outname, 'w+') as out:
-                out.write(json.dumps(final_networks))
+    process_inputs = [ (s, h, sim_iters) for s in sc_values for h in ho_values ]
+    sim_res = pool.starmap(run_sim, process_inputs)
+    pool.close()
+    pool.join()
 
-            types_outname = 'abl_data/{n}_{k}_{sc}_{ho}_types.json'.format(
-                n=str(_N), k=str(max_deg), sc=str(sc), ho=str(ho))
-            with open(types_outname, 'w+') as out:
-                out.write(json.dumps(type_assgns))
+    for (sc, ho, _), (final_networks, type_assgns) in zip(process_inputs, sim_res):
+        ntwk_outname = 'abl_data/{n}_{k}_{sc}_{ho}_networks.json'.format(
+            n=str(_N), k=str(max_deg), sc=str(sc), ho=str(ho))
+        with open(ntwk_outname, 'w+') as out:
+            out.write(json.dumps(final_networks))
 
+        types_outname = 'abl_data/{n}_{k}_{sc}_{ho}_types.json'.format(
+            n=str(_N), k=str(max_deg), sc=str(sc), ho=str(ho))
+        with open(types_outname, 'w+') as out:
+            out.write(json.dumps(type_assgns))
+ 
