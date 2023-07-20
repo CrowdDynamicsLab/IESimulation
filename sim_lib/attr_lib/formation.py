@@ -74,6 +74,55 @@ def calc_edges(G, k=2):
     metadata = G.sim_params['edge_selection'](G, edge_prop_dict)
     return G
 
+# Only used for global ablation
+def calc_edges_global(G):
+  
+    # No need to check within any distance, can propose to anyone 
+    # No revelation needed
+
+    # Only propose to vertices with non-negative expected utility
+    all_costs = alu.calc_all_costs(G)
+    edge_prop_dict = {}
+    
+    for v in G.vertices:
+        v_attr_util, v_struct_util = v.utility_values(G)
+        v_cost = all_costs[v.vnum]
+        v_agg_util = G.sim_params['util_agg'](v_attr_util, v_struct_util, v_cost, v, G)
+
+        # Skip satiated
+        if v_agg_util >= 2.0 or v_cost >= 1.0:
+            edge_prop_dict[v] = None
+            continue
+
+        # Only propose to max value candidate
+        #NOTE: max_val = 0 implies non-optimism
+        max_val = 0
+        max_cand = None
+
+        # Candidate is the entire set of vertices
+        candidates = G.vertices
+
+        for u in candidates:
+            if G.are_neighbors(v, u) or u == v:
+                continue
+            G.add_edge(v, u)
+            pattr, pstruct = v.utility_values(G)
+            pcost = alu.calc_cost(v, G)
+            pagg_util = G.sim_params['util_agg'](pattr, pstruct, pcost, v, G)
+
+            # Optimism from >= as opposed to >
+            util_del = pagg_util - v_agg_util
+            if alu.asg(util_del, 0) and alu.asg(pagg_util, max_val):
+                max_val = pagg_util
+                max_cand = u
+            G.remove_edge(v, u)
+        edge_prop_dict[v] = max_cand
+
+    # Returns metadata
+    metadata = G.sim_params['edge_selection'](G, edge_prop_dict)
+    return G
+
+
 def initialize_vertex(G, vtx=None):
     # If no vertex is passed as arg, creates a vertex. Otherwise uses given.
     if vtx == None:
