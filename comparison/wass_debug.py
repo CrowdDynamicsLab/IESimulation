@@ -11,7 +11,7 @@ sim_dist = []
 vill_dist = []
 
 print('sim data')
-with open('data/avg_sims2.txt', 'r') as ast:
+with open('data/avg_sims.txt', 'r') as ast:
     total_freq = 0
     for l in ast:
         trimmed = l[1:-1]
@@ -27,7 +27,7 @@ with open('data/avg_sims2.txt', 'r') as ast:
     print('total freq', total_freq)
 
 print('vill data')
-with open('data/vill2.txt', 'r') as vt:
+with open('data/vill.txt', 'r') as vt:
     total_freq = 0
     for l in vt:
         trimmed = l[1:-1]
@@ -43,4 +43,3 @@ with open('data/vill2.txt', 'r') as vt:
     print('total freq', total_freq)
 
 print('EMD', emd(sim_dist, vill_dist))
-

@@ -33,7 +33,7 @@ attrs = attrs.strip('{}\n')
 pairs = attrs.split(',')
 attr_dict = {int(key): int(value) for key, value in (pair.split(': ') for pair in pairs)}
 
-def calc_dists(arr):
+def calc_dists(arr, attr_dict):
 
     opairs = []
 
@@ -48,7 +48,7 @@ def calc_dists(arr):
                 assort += 1
             elif con and attr_dict[u] != attr_dict[v]:
                 assort -= 1
-        
+
         if deg == 0:
             assort = 0
         else:
@@ -88,10 +88,9 @@ def avg_dists(dists):
 
     return [ (op, freq) for op, freq in dist_freq.items() ]
 
-arr1_dist = calc_dists(arr1)
-all_dists = [ calc_dists(a) for a in [arr1, arr2, arr3, arr4, arr5] ]
+#arr1_dist = calc_dists(arr1)
+#all_dists = [ calc_dists(a) for a in [arr1, arr2, arr3, arr4, arr5] ]
 
-avg_dist = avg_dists(all_dists)
+#avg_dist = avg_dists(all_dists)
 
-print('EMD', emd(avg_dist, arr1_dist))
-
+#print('EMD', emd(avg_dist, arr1_dist))
