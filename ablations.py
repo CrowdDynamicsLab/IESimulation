@@ -12,23 +12,23 @@ import ablation_utils as au
 
 ############### initializing params ###############
 
-_N = 10
-#_N = 150
+#_N = 10
+_N = 150
 
 max_deg = 10
 
 num_iters = 500
 max_clique_size = max_deg + 1
 ctxt_likelihood = .5
-#sim_iters = 10
-sim_iters = 2
+sim_iters = 10
+#sim_iters = 2
 st_count_track = 10
 st_count_dev_tol = 0.01
 
-#sc_values = np.linspace(0, 1, 9)
-#ho_values = np.linspace(0, 1, 9)
-sc_values = [0, 1]
-ho_values = [0, 1]
+sc_values = np.linspace(0, 1, 9)
+ho_values = np.linspace(0, 1, 9)
+#sc_values = [0, 1]
+#ho_values = [0, 1]
 
 ################ run simulation ################
 
@@ -66,7 +66,7 @@ def run_sim(sc_likelihood, ho_likelihood, sim_iters, sub=False):
         'vtx_types' : vtx_types
     }
 
-    vtx_types_list = np.array([ np.repeat(t, tc) for t, tc in tc_dict.items() ])
+    vtx_types_list = np.array([ np.repeat(t, tc) for t, tc in tc_dict.items() ], dtype = 'object')
     vtx_types_list = np.hstack(vtx_types_list)
     #np.random.shuffle(vtx_types_list)
     params['type_assignment'] = { i : vtx_types_list[i] for i in range(_N) }
@@ -106,7 +106,7 @@ def run_sim(sc_likelihood, ho_likelihood, sim_iters, sub=False):
         'nolocal' : [],
         'nostruct' : [],
         'noattr' : []
-    } 
+    }
 
     for si in range(sim_iters):
 
@@ -130,9 +130,9 @@ def run_sim(sc_likelihood, ho_likelihood, sim_iters, sub=False):
             'noattr' : False
         }
 
-        
+
         for it in range(num_iters):
-            
+
             # Calculate edges for networks
 
             if not ntwk_fin['nobudget']:
@@ -207,4 +207,3 @@ if __name__ == "__main__":
             n=str(_N), k=str(max_deg), sc=str(sc), ho=str(ho))
         with open(types_outname, 'w+') as out:
             out.write(json.dumps(type_assgns))
- 
