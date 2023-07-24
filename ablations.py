@@ -190,7 +190,7 @@ def run_sim(sc_likelihood, ho_likelihood, sim_iters, sub=False):
 ################ run simulation with various params ################
 
 if __name__ == "__main__":
-    pool = mp.Pool(processes=8)
+    pool = mp.Pool(processes=32)
 
     process_inputs = [ (s, h, sim_iters) for s in sc_values for h in ho_values ]
     sim_res = pool.starmap(run_sim, process_inputs)
