@@ -77,7 +77,7 @@ def num_nbor_comp_scipy(v, G):
 def num_nbor_comp_nx(v, G):
 
     nbor_mat = G.nborhood_adj_mat(v)
-    G_nx = nx.from_numpy_array(nbor_mat)
+    G_nx = nx.from_numpy_matrix(nbor_mat)
     num_comps = nx.number_connected_components(G_nx)
 
     return min(1.0, num_comps / G.sim_params['max_degree'])
