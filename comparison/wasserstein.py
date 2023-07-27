@@ -9,8 +9,9 @@ from scipy.optimize import linprog
 # for associativity and density respectively
 
 def norm_distance(a_1, d_1, a_2, d_2):
-    return abs(a_1 - a_2) + ( abs(d_1 - d_2) ** 0.5 )
+    #return abs(a_1 - a_2) + ( abs(d_1 - d_2) ** 0.5 )
     #return abs(a_1 - a_2) + abs(d_1 - d_2)
+    return ((a_1 - a_2)**2 + (d_1 - d_2)**2)**0.5
 
 def emd(dist1, dist2, dist_func=norm_distance):
     # each dist is a list of tuples of the form
