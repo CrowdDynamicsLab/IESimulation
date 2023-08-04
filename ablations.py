@@ -183,6 +183,22 @@ def run_sim(sc_likelihood, ho_likelihood, sim_iters, sub=False):
                     ntwk_fin['nostruct'] and ntwk_fin['noattr']:
                 break
 
+        if not ntwk_fin['nobudget']:
+            print('nobudget ablation with param', 'sc', sc_likelihood, 'ho', ho_likelihood, 'did not converge on iteration', si)
+            final_networks['nobudget'].append(G_nb.adj_matrix.tolist())
+
+        if not ntwk_fin['nolocal']:
+            print('nolocal ablation with param', 'sc', sc_likelihood, 'ho', ho_likelihood, 'did not converge on iteration', si)
+            final_networks['nolocal'].append(G_nl.adj_matrix.tolist())
+
+        if not ntwk_fin['nostruct']:
+            print('nostruct ablation with param', 'sc', sc_likelihood, 'ho', ho_likelihood, 'did not converge on iteration', si)
+            final_networks['nostruct'].append(G_ns.adj_matrix.tolist())
+
+        if not ntwk_fin['noattr']:
+            print('noattr ablation with param', 'sc', sc_likelihood, 'ho', ho_likelihood, 'did not converge on iteration', si)
+            final_networks['noattr'].append(G_na.adj_matrix.tolist())
+
     print('finished ho: ', ho_likelihood, 'sc: ', sc_likelihood)
 
     return final_networks, final_type_assignments
