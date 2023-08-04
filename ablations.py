@@ -13,13 +13,13 @@ import ablation_utils as au
 ############### initializing params ###############
 
 #_N = 10
-_N = 150
+_N = 114
 
 max_deg = 10
 
 num_iters = 500
 max_clique_size = max_deg + 1
-ctxt_likelihood = .5
+ctxt_likelihood = np.round(103/114,3)
 sim_iters = 10
 #sim_iters = 2
 st_count_track = 10
