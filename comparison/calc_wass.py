@@ -4,10 +4,10 @@ import json
 
 import numpy as np
 
-from wasserstein import emd
+from comparison.wasserstein import emd
 
 # Put this file for the simulation output here
-sim_file = 'data/1_10_0.0_0.0_losses.txt'
+#sim_file = 'data/1_10_0.0_0.0_losses.txt'
 
 # enter this manually for now
 kappa = 10
@@ -15,23 +15,23 @@ kappa = 10
 # local assortativity https://iopscience.iop.org/article/10.1209/0295-5075/89/49901/pdf
 
 # naina code
-f = open(sim_file,'r')
-ntwk = f.readline()
-attrs = f.readline()
-ntwk = ntwk.replace('[', '')
-ntwk = ntwk.replace(']', '')
-ntwk = ntwk.replace("'", '')
-num_nodes = int(np.sqrt((ntwk.count('0.0') + ntwk.count('1.0'))/5))
-ntwk_arr = np.array([int(float(e)) for e in ntwk.split(',')])
-arr1 = ntwk_arr[:num_nodes**2].reshape((num_nodes, num_nodes))
-arr2 = ntwk_arr[num_nodes**2:2*num_nodes**2].reshape((num_nodes, num_nodes))
-arr3 = ntwk_arr[2*num_nodes**2:3*num_nodes**2].reshape((num_nodes, num_nodes))
-arr4 = ntwk_arr[3*num_nodes**2:4*num_nodes**2].reshape((num_nodes, num_nodes))
-arr5 = ntwk_arr[4*num_nodes**2:5*num_nodes**2].reshape((num_nodes, num_nodes))
-
-attrs = attrs.strip('{}\n')
-pairs = attrs.split(',')
-attr_dict = {int(key): int(value) for key, value in (pair.split(': ') for pair in pairs)}
+# f = open(sim_file,'r')
+# ntwk = f.readline()
+# attrs = f.readline()
+# ntwk = ntwk.replace('[', '')
+# ntwk = ntwk.replace(']', '')
+# ntwk = ntwk.replace("'", '')
+# num_nodes = int(np.sqrt((ntwk.count('0.0') + ntwk.count('1.0'))/5))
+# ntwk_arr = np.array([int(float(e)) for e in ntwk.split(',')])
+# arr1 = ntwk_arr[:num_nodes**2].reshape((num_nodes, num_nodes))
+# arr2 = ntwk_arr[num_nodes**2:2*num_nodes**2].reshape((num_nodes, num_nodes))
+# arr3 = ntwk_arr[2*num_nodes**2:3*num_nodes**2].reshape((num_nodes, num_nodes))
+# arr4 = ntwk_arr[3*num_nodes**2:4*num_nodes**2].reshape((num_nodes, num_nodes))
+# arr5 = ntwk_arr[4*num_nodes**2:5*num_nodes**2].reshape((num_nodes, num_nodes))
+#
+# attrs = attrs.strip('{}\n')
+# pairs = attrs.split(',')
+# attr_dict = {int(key): int(value) for key, value in (pair.split(': ') for pair in pairs)}
 
 def calc_dists(arr, attr_dict):
 
