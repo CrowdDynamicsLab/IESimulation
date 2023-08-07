@@ -2,7 +2,7 @@
 #SBATCH --time=54:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=32
-#SBATCH --job-name="christakis_10"
+#SBATCH --job-name="chris_10"
 #SBATCH --partition=cs
 #SBATCH --mail-user=nainab2@illinois.edu
 #SBATCH --mail-type=ALL

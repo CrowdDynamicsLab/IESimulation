@@ -25,16 +25,16 @@ min_loss = np.inf
 best_theta = None
 
 for i in range(200):
-    b0 = np.random.uniform(-0.3,-0.1)
-    b1 = np.random.uniform(0.1, 0.3)
-    om = np.random.uniform(-0.1, 0.1)
-    a0 = np.random.uniform(-0.1, 0.1)
-    a1 = np.random.uniform(-.005, 0)
-    a2 = np.random.uniform(2.7, 2.9)
-    a3 = np.random.uniform(.7, .9)
+    b0 = np.random.uniform(-0.45,-0.25)
+    b1 = np.random.uniform(0.35, 0.55)
+    om = np.random.uniform(0.2, 0.4)
+    a0 = np.random.uniform(-0.2, 0)
+    a1 = np.random.uniform(0, 0.004)
+    a2 = np.random.uniform(2.68, 2.88)
+    a3 = np.random.uniform(.19, .39)
 
-    #best loss was 0.12838809232727344 for theta equals
-    #(-0.21274401387580744, 0.19132708201097165, 0.02976315818095765, [-0.025178638000684483, -0.003974950214016679, 2.7680309300119696, 0.8479582084455608])
+    #best loss was  0.13501958722619897
+    #for theta equals  (-0.36497042695419823, 0.4691771787764718, 0.3047811536839999, [-0.11666825556700311, 0.002019871018998638, 2.780372134048425, 0.288517123479205])
 
 
     theta = (b0, b1, om, [a0, a1, a2, a3])
