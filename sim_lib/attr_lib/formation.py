@@ -102,7 +102,7 @@ def calc_edges_global(G):
         # Candidate is the entire set of vertices
         candidates = G.vertices
 
-        for u in candidates:
+        for u in np.random.permutation(candidates):
             if G.are_neighbors(v, u) or u == v:
                 continue
             G.add_edge(v, u)
@@ -116,8 +116,10 @@ def calc_edges_global(G):
                 max_val = pagg_util
                 max_cand = u
             G.remove_edge(v, u)
+
         edge_prop_dict[v] = max_cand
 
+    #print(edge_prop_dict)
     # Returns metadata
     metadata = G.sim_params['edge_selection'](G, edge_prop_dict)
     return G
