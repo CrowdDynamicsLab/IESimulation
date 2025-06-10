@@ -1,3 +1,12 @@
+# Data
+*.json
+*.csv
+*.txt
+# Old files
+old/*
+# Figures
+figures/*
+
 # Font
 libertine_font
 
