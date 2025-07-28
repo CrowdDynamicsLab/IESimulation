@@ -1,4 +1,5 @@
 from collections.abc import Iterable
+from itertools import combinations
 import copy
 import math
 import time
@@ -14,15 +15,15 @@ def calc_utils(G):
 
     # Calculates attribute utility over each edge (homophily or heterophily)
     util_mat = np.zeros((G.num_people, G.num_people))
-    for i, u in enumerate(G.vertices):
-        for v in G.vertices[i + 1:]:
-            util_mat[u.vnum][v.vnum] = u.data['edge_attr_util'](u, v, G)
-            util_mat[v.vnum][u.vnum] = v.data['edge_attr_util'](v, u, G)
+    for u, v in combinations(G.vertices, 2):
+        util_mat[u.vnum][v.vnum] = u.data['edge_attr_util'](u, v, G)
+        util_mat[v.vnum][u.vnum] = v.data['edge_attr_util'](v, u, G)
     G.potential_utils = util_mat
     return G.potential_utils
 
 def calc_edges(G, k=2):
-   
+  
+    # TODO: Improve efficiency here, don't use matrix method 
     # Get distance k agents for proposals
     adj_mat = G.adj_matrix
     dk_mat = np.linalg.matrix_power(adj_mat, k)
@@ -182,6 +183,6 @@ def attribute_network(n, params):
     # Calculate edge utils
     calc_utils(G)
 
-    G.init_adj_matrix()
+    G.init_adj_list()
     return G
 

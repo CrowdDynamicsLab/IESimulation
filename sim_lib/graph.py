@@ -35,9 +35,19 @@ class Vertex:
         # For params relating to the simulation
         self.sim_params = {}
 
+        # Cache within neighborhood degrees for triangle and social capital 
+        self.nbor_degs = {}
+
     ##########################
     # Attribute observations #
     ##########################
+    @property
+    def tri_count(self):
+        return sum(v.nbor_degs) / 2
+
+    @property
+    def disc_nbor_count(self):
+        return sum([ v for v in self.nbor_degs if self.nbor_degs[v] == 0 ])
 
     @property
     def degree(self):
@@ -107,68 +117,87 @@ class Graph:
 
         # Potential utility matrix
         self.potential_utils = []
-        
-        self.adj_matrix = None
+       
+        # { Vertex number : set( Vertex numbers ) } 
+        self.adj_list = {}
 
     @property
     def num_people(self):
         return len(self.vertices)
+   
+    def update_add_nbor_deg(self, u, v):
+        # Update neighborhood degrees of u given we add v
+        for u_nb in u.nbors:
+            if u_nb == v:
+                continue
+            if self.are_neighbors(u_nb, v):
+                u.nbor_deg[u_nb] += 1
+                u.nbor_deg[v] += 1
+   
+    def update_rem_nbor_deg(self, u, v):
+        # Update neighborhood degrees of u given we remove v
+        for u_nb in u.nbors:
+            if self.are_neighbors(u_nb, v):
+                u.nbor_deg[u_nb] -= 1
 
-    def _clear_cache(self):
-        self.__dict__.pop('adj_matrix', None)
-    
     def add_edge(self, u, v):
         """
         Adds edge between u and v
         """
+        if self.are_neighbors(u, v):
+            return
         assert (v in u.edges) == (u in v.edges), 'connection must be symmetric'
-        if not self.are_neighbors(u, v):
-            u.edges[v] = Edge(self.potential_utils[u.vnum][v.vnum])
-            v.edges[u] = Edge(self.potential_utils[v.vnum][u.vnum])
-            self.adj_matrix[u.vnum][v.vnum] = 1
-            self.adj_matrix[v.vnum][u.vnum] = 1 
+
+        u.edges[v] = Edge(self.potential_utils[u.vnum][v.vnum])
+        v.edges[u] = Edge(self.potential_utils[v.vnum][u.vnum])
+        self.adj_list[u.vnum].add(v.vnum)
+        self.adj_list[v.vnum].add(u.vnum)
+
+        # Update degree counts
+        u.nbor_degs[v] = 0
+        v.nbor_degs[u] = 0
+        self.update_add_nbor_deg(u, v)
+        self.update_add_nbor_deg(v, u)
 
     def remove_edge(self, u, v, reflexive=True):
         """
         Removes edge between u and v if exists
         If reflexive deletes uv and vu, else just deletes edge uv
         """
-        if v in u.edges:
-            u.edges[v].data = None
-            u.edges.pop(v)
-            self.adj_matrix[u.vnum][v.vnum] = 0
-            self.adj_matrix[v.vnum][u.vnum] = 0
-        if reflexive and u in v.edges:
-            v.edges[u].data = None
-            v.edges.pop(u)
-            self.adj_matrix[u.vnum][v.vnum] = 0
-            self.adj_matrix[v.vnum][u.vnum] = 0
+        if not self.are_neighbors(u, v):
+            return
+
+        u.edges[v].data = None
+        u.edges.pop(v)
+        v.edges[u].data = None
+        v.edges.pop(u)
+        self.adj_list[u.vnum].remove(v.vnum)
+        self.adj_list[v.vnum].remove(u.vnum)
+
+        # Update degree counts
+        u.nbor_degs.pop(v)
+        v.nbor_degs.pop(u)
+        self.update_rem_nbor_deg(u, v)
+        self.update_rem_nbor_deg(v, u)
 
     @property
     def edge_count(self):
         return sum([ v.degree for v in self.vertices ]) // 2
 
     def are_neighbors(self, u, v):
-        return self.adj_matrix[v.vnum][u.vnum] == 1
+        return u.vnum in self.adj_list[v.vnum] and v.vnum in self.adj_list[u.vnum]
 
-    def init_adj_matrix(self):
+    def init_adj_list(self):
 
-        # Returns numpy matrix indexed by vnum
-        adj_mat = np.zeros((self.num_people, self.num_people))
+        # Returns adjacency list indexed by vnum
         for idx, v in enumerate(self.vertices):
             for u in self.vertices[idx + 1:]:
                 if v.is_nbor(u):
-                    adj_mat[v.vnum][u.vnum] = 1
-                    adj_mat[u.vnum][v.vnum] = 1
-        self.adj_matrix = adj_mat
-        return adj_mat
+                    self.adj_list[v.vnum].add(u.vnum)
+                    self.adj_list[u.vnum].add(v.vnum)
+        return self.adj_list
     
     @property
     def vertex_type_vec(self):
         return np.array([ v.attr_type for v in self.vertices ])
 
-    def nborhood_adj_mat(self, v):
-        # https://stackoverflow.com/questions/17740081/given-an-nxn-adjacency-matrix-how-can-one-compute-the-number-of-triangles-in-th
-        adj_mat = self.adj_matrix
-        nbor_submat = adj_mat[np.ix_(v.nbor_num_list, v.nbor_num_list)]
-        return nbor_submat

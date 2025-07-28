@@ -54,34 +54,13 @@ def triangle_count(v, G):
     # Number of triangles that v is a part of
     clique_deg = G.sim_params['max_clique_size'] - 1
     max_triangles = (clique_deg * (clique_deg - 1)) / 2
-    triangle_cnt = np.sum(G.nborhood_adj_mat(v)) / 2
+    triangle_cnt = v.tri_count 
 
     return min(1.0, triangle_cnt / max_triangles)
 
 def num_disc_nbors(v, G):
-
-    nbor_mat = G.nborhood_adj_mat(v)
-    nbor_deg = np.sum(nbor_mat, axis=0)
-    num_con = np.count_nonzero(nbor_deg)
-    num_disc = v.degree - num_con
+    num_disc = len(v.disc_nbor_count)
     return min(1.0, num_disc / G.sim_params['max_degree'])
-
-def num_nbor_comp_scipy(v, G):
-
-    nbor_mat = G.nborhood_adj_mat(v)
-    conn_comps = conn_comp_func(nbor_mat)
-    num_comps = conn_comps[0]
-
-    return min(1.0, num_comps / G.sim_params['max_degree'])
-
-def num_nbor_comp_nx(v, G):
-
-    nbor_mat = G.nborhood_adj_mat(v)
-    G_nx = nx.from_numpy_matrix(nbor_mat)
-    num_comps = nx.number_connected_components(G_nx)
-
-    return min(1.0, num_comps / G.sim_params['max_degree'])
-
 
 ##################
 # Cost functions #
@@ -100,7 +79,7 @@ def calc_cost(u, G, ignore_indirect=True):
     return total_direct_cost + total_indirect_cost
 
 def calc_all_costs(G):
-    degree_vec = np.sum(G.adj_matrix, axis=1)
+    degree_vec = np.array([ len(G.adj_list[v.vnum]) for v in G.vertices ])
     return degree_vec / G.sim_params['max_degree']
 
 def remaining_budget(u, G):
@@ -290,15 +269,13 @@ def linear_util_agg(a, s, c, v, G):
 def indep_revelation(G):
 
     # Do not allow self revelation
-    rand_sel = np.random.randint(low=0, high=G.num_people, size=G.num_people)
-    self_sel = np.arange(0, G.num_people)
-
-    self_match = np.arange(len(rand_sel))[rand_sel == self_sel]
-    while len(self_match) > 0:
-        new_rand_sel = np.random.randint(low=0, high=G.num_people, size=len(self_match))
-        for ni, i in enumerate(self_match):
-            rand_sel[i] = new_rand_sel[ni]
-        self_match = np.arange(len(rand_sel))[rand_sel == self_sel]
+    rand_sel = []
+    for u in range(G.num_people):
+        v = np.random.randint(low=0, high=G.num_people - 1)
+        if v >= u:
+            rand_sel.append(v + 1)
+        else:
+            rand_sel.append(v)
 
     return rand_sel
 
