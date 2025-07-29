@@ -23,17 +23,13 @@ def calc_utils(G):
 
 def calc_edges(G, k=2):
   
-    # TODO: Improve efficiency here, don't use matrix method 
-    # Get distance k agents for proposals
-    adj_mat = G.adj_matrix
-    dk_mat = np.linalg.matrix_power(adj_mat, k)
-    nbor_mask = -1 * (adj_mat - 1)
-    np.fill_diagonal(nbor_mask, 0)
-    edge_proposals = nbor_mask * dk_mat
-    edge_proposals[edge_proposals > 0] = 1
+    # Edge proposals is dict of who you can propose to within distance k
+    edge_proposals = G.k_reachable(k)
 
     # Add revalation and check budget
     revelations = G.sim_params['revelation_proposals'](G)
+    for v in G.vertices:
+        edge_proposals[v].add(G.vertices[revelations[v.vnum]])
 
     # Only propose to vertices with non-negative expected utility
     all_costs = alu.calc_all_costs(G)
@@ -53,9 +49,7 @@ def calc_edges(G, k=2):
         #NOTE: max_val = 0 implies non-optimism
         max_val = 0
         max_cand = None
-        candidates = [ G.vertices[i] for i in np.nonzero(edge_proposals[v.vnum])[0]]
-        candidates.append(G.vertices[revelations[v.vnum]])
-        for u in candidates:
+        for u in edge_proposals[v]:
             if G.are_neighbors(v, u):
                 continue
             G.add_edge(v, u)

@@ -59,7 +59,7 @@ def triangle_count(v, G):
     return min(1.0, triangle_cnt / max_triangles)
 
 def num_disc_nbors(v, G):
-    num_disc = len(v.disc_nbor_count)
+    num_disc = v.disc_nbor_count
     return min(1.0, num_disc / G.sim_params['max_degree'])
 
 ##################
