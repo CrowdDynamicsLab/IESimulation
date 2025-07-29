@@ -135,14 +135,14 @@ class Graph:
             if u_nb == v:
                 continue
             if self.are_neighbors(u_nb, v):
-                u.nbor_deg[u_nb] += 1
-                u.nbor_deg[v] += 1
+                u.nbor_degs[u_nb] += 1
+                u.nbor_degs[v] += 1
    
     def update_rem_nbor_deg(self, u, v):
         # Update neighborhood degrees of u given we remove v
         for u_nb in u.nbors:
             if self.are_neighbors(u_nb, v):
-                u.nbor_deg[u_nb] -= 1
+                u.nbor_degs[u_nb] -= 1
 
     def add_edge(self, u, v):
         """
