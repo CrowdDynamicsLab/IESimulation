@@ -279,6 +279,48 @@ def indep_revelation(G):
 
     return rand_sel
 
+def isolate_revelation(G):
+
+    rand_sel = []
+    isolates = [node.vnum for node in G.vertices if node.degree == 0]
+
+    # if no isolates, pick randomly from whole population
+    if len(isolates) == 0:
+        for u in range(G.num_people):
+            v = np.random.randint(low=0, high=G.num_people - 1)
+            if v >= u:
+                rand_sel.append(v + 1)
+            else:
+                rand_sel.append(v)
+    
+    # one or more isolates
+    else:
+        for u in range(G.num_people):
+            if u in isolates:
+                # if only one isolate and it's self, pick randomly from whole population
+                if len(isolates) == 1:
+                    v = np.random.randint(low=0, high=G.num_people - 1)
+                    if v >= u:
+                        rand_sel.append(v + 1)
+                    else:
+                        rand_sel.append(v)
+
+                # it's included in group but there are others 
+                else:
+                    v = np.random.randint(low=0, high=len(isolates) - 1)
+                    if v >= isolates.index(u):
+                        rand_sel.append(isolates[v + 1])
+                    else:
+                        rand_sel.append(isolates[v])
+
+            # u not in isolates, pick any of them
+            else:
+                v = np.random.randint(low=0, high=len(isolates))
+                rand_sel.append(isolates[v])
+
+    return rand_sel
+
+
 #######################
 # Networkx Conversion #
 #######################
