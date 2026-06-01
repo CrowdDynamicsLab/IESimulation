@@ -1,6 +1,6 @@
 from collections import defaultdict
 import math
-from itertools import combinations
+from itertools import combinations, product
 import json
 import sys
 import copy
@@ -20,38 +20,35 @@ import sim_lib.attr_lib.util as alu
 from sim_lib.attr_lib.formation import *
 import sim_lib.attr_lib.vis as vis
 
-# Sim input params
-
-n = int(sys.argv[1])
-max_deg = int(sys.argv[2])
-sc_likelihood = float(sys.argv[3])
-ho_likelihood = float(sys.argv[4])
-
 ############### initializing params ###############
 
-_N = n
+_N = 150
+max_deg = 10
 satisfice = 1
 num_iters = 500
 min_iters = 10
-max_clique_size = max_deg + 1
+max_clique_size = 11
 ctxt_likelihood = .5
+
 sim_iters = 10
-#sim_iters = 2
+#sim_iters = 1
+
 st_count_track = 10
 st_count_dev_tol = 0.01
 
-nonlocal_dists = list(range(3, 8))
-# Make sure to add k = 150 here for large _N!
-budgets = [math.ceil(math.log(_N)), math.ceil(_N / 2), math.ceil(3 * _N / 4), _N]
+sc_vals = np.linspace(0, 1, 9)
+ho_vals = np.linspace(0, 1, 9)
+#sc_vals = [ 0, 1 ]
+#ho_vals = [ 0, 1 ]
 
 # Create types
-def type_dict(context, shape, context_p, attr, struct):
+def type_dict(context, shape, context_p, attr, struct, sc_likelihood, ho_likelihood):
     likelihood = context_p
     if struct == 'em':
         struct_func = alu.triangle_count
         likelihood = likelihood * (1 - sc_likelihood)
     else:
-        struct_func = alu.num_nbor_comp_nx
+        struct_func = alu.num_disc_nbors
         likelihood = likelihood * sc_likelihood
     if attr == 'ho':
         attr_edge_func = alu.homophily
@@ -169,7 +166,8 @@ def gini_coefficient(x):
 def get_summary_stats(G):
     num_components = len(get_component_sizes(G))
 
-    avg_deg = np.mean([ v.degree for v in G.vertices ])
+    degrees = [ v.degree for v in G.vertices ]
+    avg_deg = np.mean(degrees)
     avg_util = np.mean([v.data['struct_util'](v, G) + v.data['total_attr_util'](v,G) for v in G.vertices ])
     avg_cost = np.mean([alu.calc_cost(v, G) for v in G.vertices ])
 
@@ -224,26 +222,19 @@ def get_summary_stats(G):
         'centrality_gini' : cent_gini,
         'util' : avg_util,
         'cost' : avg_cost,
-        'stable_triad_count' : stable_triad_count
+        'stable_triad_count' : stable_triad_count,
         'num_comm' : num_comm,
         'num_comp' : num_comp,
         'modularity' : modularity,
     }
 
 def add_sum_stat(st_dict, res):
-    st_dict['degree_dist'].append(res['degree'])
-    st_dict['util_dist'].append(res['util'])
-    st_dict['cost_dist'].append(res['cost'])
-    st_dict['num_comm'].append(res['num_comm'])
-    st_dict['modularity'].append(res['modularity'])
-    st_dict['num_comp'].append(res['num_comp'])
-    st_dict['apl'].append(res['apl'])
-    st_dict['cluster_coeff'].append(res['cluster_coeff'])
-    st_dict['stable_triad_count'].append(res['stable_triad_count'])
+    for mtr, val in res.items():
+        st_dict[mtr].append(val)
 
 ################ run simulation ################
 
-def run_sim(sc_likelihood, ho_likeliood, sim_iters, sub=False):
+def run_sim(sc_likelihood, ho_likelihood, sim_iters, sub=False):
     ctxt_types = [-1, 1]
     #ctxt_base_colors = [[43, 98, 166], [161, 39, 45]]
     ctxt_base_shapes = [0 , 2]
@@ -252,7 +243,7 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters, sub=False):
     attr_types = ['ho', 'he']
     type_itr = [ (ctxt, shape, ct_p, at, st) for (ctxt, shape, ct_p) in zip(ctxt_types, ctxt_base_shapes, ctxt_p)
                 for (at, st) in [(a, s) for a in attr_types for s in struct_types] ]
-    type_list = [ type_dict(*t_args) for t_args \
+    type_list = [ type_dict(*t_args, sc_likelihood, ho_likelihood) for t_args \
                   in type_itr ]
 
     type_counts = [ int(np.floor(_N * tl['likelihood'])) for tl in type_list ]
@@ -276,7 +267,7 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters, sub=False):
         'vtx_types' : vtx_types,
     }
 
-    vtx_types_list = np.array([ np.repeat(t, tc) for t, tc in tc_dict.items() ])
+    vtx_types_list = [ np.repeat(t, tc) for t, tc in tc_dict.items() ]
     vtx_types_list = np.hstack(vtx_types_list)
     #np.random.shuffle(vtx_types_list)
     params['type_assignment'] = { i : vtx_types_list[i] for i in range(_N) }
@@ -303,201 +294,66 @@ def run_sim(sc_likelihood, ho_likeliood, sim_iters, sub=False):
         'centrality_gini' : [],
         'util' : [],
         'cost' : [],
-        'stable_triad_count' : []
+        'stable_triad_count' : [],
         'num_comm' : [],
         'num_comp' : [],
         'modularity' : [],
         'exit_iter' : [num_iters] * sim_iters
     }
 
-    summary_stats = {
-        'standard' : copy.deepcopy(summary_stats),
-        'nonlocal' :
-            { d : copy.deepcopy(summary_stats) for d in nonlocal_dists },
-        'budget' :
-            { k : copy.deepcopy(summary_stats) for k in budgets },
-        'nonlocal_match' :
-            { d : copy.deepcopy(summary_stats) for d in nonlocal_dists },
-        'budget_match' : 
-            { k : copy.deepcopy(summary_stats) for k in budgets },
-    }
-
-    final_networks = {
-        'standard' : [],
-        'nonlocal' :
-            { d : [] for d in nonlocal_dists },
-        'budget' :
-            { k : [] for k in budgets },
-        'nonlocal_match' :
-            { d : [] for d in nonlocal_dists },
-        'budget_match' :
-            { k : [] for k in budgets }
-    }
- 
     for si in range(sim_iters):
 
         # Create networks to be compared
-        # Base case network
         G_std = attribute_network(_N, copy.deepcopy(params))
 
-        # Comparison networks
-        G_bdgt = {}
-        for k in budgets:
-            bdgt_params = copy.deepcopy(params)
-            bdgt_params['max_clique_size'] = k
-            G_bdgt[k] = attribute_network(_N, bdgt_params)
-
-        G_nl = { d : attribute_network(_N, copy.deepcopy(params))
-            for d in nonlocal_dists }
-
-        st_counts = {
-            'standard' : [],
-            'nonlocal' : 
-                { d : [] for d in nonlocal_dists },
-            'budget' : 
-                { k : [] for k in budgets },
-        }
+        st_counts = []
 
         std_fin = False
-        bdgt_fin = { k : False for k in budgets }
-        nl_fin = { d : False for d in nonlocal_dists }
-        
+
         for it in range(num_iters):
             
             # Calculate edges for networks
-
-            # Attempt to parallelize
-            to_process = []
-            update_idx = {
-                'std' : -1,
-                'bdgt' : { k : -1 for k in budgets },
-                'nl' : { d : -1 for d in nonlocal_dists }
-            }
-            if not std_fin:
-                to_process.append((G_std,2))
-                update_idx['std'] = 0
-            for k in budgets:
-                if not bdgt_fin[k]:
-                    to_process.append((G_bdgt[k],2))
-                    update_idx['bdgt'][k] = len(to_process) - 1
-            for d in nonlocal_dists:
-                if not nl_fin[d]:
-                    to_process.append((G_nl[d],d))
-                    update_idx['nl'][d] = len(to_process) - 1
-
-            pool = mp.Pool(processes=8)
-            ce_rets = pool.starmap(calc_edges, to_process)
-            pool.close()
-            
-            # Update graphs if needed
-            if update_idx['std'] != -1:
-                G_std = ce_rets[0]
-            for k in budgets:
-                if update_idx['bdgt'][k] != -1:
-                    G_bdgt[k] = ce_rets[update_idx['bdgt'][k]]
-            for d in nonlocal_dists:
-                if update_idx['nl'][d] != -1:
-                    G_nl[k] = ce_rets[update_idx['nl'][d]]
+            G_std = calc_edges(G_std, k=2)
 
             # Get all stable triad counts
             std_st_count = count_stable_triads(G_std)
-            bdgt_st_counts = {}
-            for k in budgets:
-                bdgt_st_counts[k] = count_stable_triads(G_bdgt[k])
-            nl_st_counts = {}
-            for d in nonlocal_dists:
-                nl_st_counts[d] = count_stable_triads(G_nl[d])
 
             # If less than min number iterations has run, add and move on
-            if len(st_counts['standard']) < st_count_track:
-                st_counts['standard'].append(std_st_count)  
-                for k in budgets:
-                    st_counts['budget'][k].append(bdgt_st_counts[k])
-                for d in nonlocal_dists:
-                    st_counts['nonlocal'][d].append(nl_st_counts[d])
+            if len(st_counts) < st_count_track:
+                st_counts.append(std_st_count)  
                 continue
 
             # Update all count arrays with current
-            st_counts['standard'].pop(0)
-            st_counts['standard'].append(std_st_count)
-            for k in budgets:
-                st_counts['budget'][k].pop(0)
-                st_counts['budget'][k].append(bdgt_st_counts[k])
-            for k in nonlocal_dists:
-                st_counts['nonlocal'][d].pop(0)
-                st_counts['nonlocal'][d].append(nl_st_counts[d])
+            st_counts.pop(0)
+            st_counts.append(std_st_count)
 
             # Check if base case has just terminated
-            if np.std(st_counts['standard']) <= st_count_dev_tol and not std_fin:
+            if np.std(st_counts) <= st_count_dev_tol and not std_fin:
                 std_fin = True
-                summary_stats['standard']['exit_iter'][si] = it
-                add_sum_stat(summary_stats['standard'], get_summary_stats(G_std))
-                final_networks['standard'].append(G_std.adj_matrix.tolist())
+                summary_stats['exit_iter'][si] = it
+                add_sum_stat(summary_stats, get_summary_stats(G_std))
 
-                for k in budgets:
-                    summary_stats['budget_match'][k]['exit_iter'][si] = it
-                    add_sum_stat(summary_stats['budget_match'][k],
-                        get_summary_stats(G_bdgt[k]))
-                    final_networks['budget_match'][k].append(G_bdgt[k].adj_matrix.tolist())
-
-                for d in nonlocal_dists:
-                    summary_stats['nonlocal_match'][d]['exit_iter'][si] = it
-                    add_sum_stat(summary_stats['nonlocal_match'][d],
-                        get_summary_stats(G_nl[d]))
-                    final_networks['nonlocal_match'][d].append(G_nl[d].adj_matrix.tolist())
-
-            for k in budgets:
-                if np.std(st_counts['budget'][k]) <= st_count_dev_tol and not bdgt_fin[k]:
-                    bdgt_fin[k] = True
-                    summary_stats['budget'][k]['exit_iter'][si] = it
-                    add_sum_stat(summary_stats['budget'][k], get_summary_stats(G_bdgt[k]))
-                    final_networks['budget'][k].append(G_bdgt[k].adj_matrix.tolist())
-
-            for d in nonlocal_dists:
-                if np.std(st_counts['nonlocal'][d]) <= st_count_dev_tol and not nl_fin[d]:
-                    nl_fin[d] = True
-                    summary_stats['nonlocal'][d]['exit_iter'][si] = it
-                    add_sum_stat(summary_stats['nonlocal'][d], get_summary_stats(G_nl[d]))
-                    final_networks['nonlocal'][d].append(G_nl[d].adj_matrix.tolist())
-
-            if std_fin and all(bdgt_fin.values()) and all(nl_fin.values()):
+            if std_fin:
                 break
 
     print('ho: ', ho_likelihood, 'sc: ', sc_likelihood)
 
     # Take mean of all summary stats
-    for st, vs in summary_stats['standard'].items():
-        summary_stats['standard'][st] = np.mean(vs)
-    for k in budgets:
-        for st in summary_stats['budget'][k].keys():
-            summary_stats['budget'][k][st] = np.mean(summary_stats['budget'][k][st])
-            summary_stats['budget_match'][k][st] = np.mean(
-                summary_stats['budget_match'][k][st])
-    for d in nonlocal_dists:
-        for st in summary_stats['nonlocal'][d].keys():
-            summary_stats['nonlocal'][d][st] = np.mean(summary_stats['nonlocal'][d][st])
-            summary_stats['nonlocal_match'][d][st] = np.mean(
-                summary_stats['nonlocal_match'][d][st])
-    return summary_stats, final_networks, final_type_assignments
+    for st, vs in summary_stats.items():
+        summary_stats[st] = np.mean(vs)
+    return summary_stats
 
 ################ run simulation with various params ################
 
 if __name__ == "__main__":
-    summary_stats, final_networks, type_assgns = run_sim(sc_likelihood, ho_likelihood, sim_iters)
+    all_stats = { }
+    for sc, ho in product(sc_vals, ho_vals):
+        print('running', sc, ho)
+        all_stats[ f'{sc} {ho}' ] = {}
+        summary_stats = run_sim(sc, ho, sim_iters)
+        all_stats[ f'{sc} {ho}' ] = summary_stats
 
-    stat_outname = 'data/comparison/{n}_{k}_{sc}_{ho}_stats.json'.format(
-        n=str(n), k=str(max_deg), sc=str(sc_likelihood), ho=str(ho_likelihood))
-
+    stat_outname = f'data/{_N}_{max_deg}_stats.json'
     with open(stat_outname, 'w+') as out:
-        out.write(json.dumps(summary_stats))
+        out.write(json.dumps(all_stats))
 
-    ntwk_outname = 'data/comparison/{n}_{k}_{sc}_{ho}_networks.json'.format(
-        n=str(n), k=str(max_deg), sc=str(sc_likelihood), ho=str(ho_likelihood))
-
-    with open(ntwk_outname, 'w+') as out:
-        out.write(json.dumps(final_networks))
-
-    types_outname = 'data/comparison/{n}_{k}_{sc}_{ho}_types.json'.format(
-        n=str(n), k=str(max_deg), sc=str(sc_likelihood), ho=str(ho_likelihood))
-    with open(types_outname, 'w+') as out:
-        out.write(json.dumps(type_assgns))
